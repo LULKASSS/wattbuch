@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Wattbuch</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect width='22' height='22' rx='6' fill='%237F5FE8'/%3E%3Cpath d='M5 15l3.2-5 3 3.2L17 6' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#7F5FE8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
@@ -587,7 +589,7 @@ const S={
   view:'live',detail:null,set:{ftp:200,weight:75,bike:8,diff:.5,routeId:null,rev:false},rides:[],routes:[],
   sim:{v:0,d:0,total:0,gain:0,lastAlt:null,lap:1,done:false,sent:null,tSent:0,busy:false,last:0},
   cd:{state:'off',name:'',dev:null,manual:false},
-  tr:{state:'off',name:'',dev:null,cp:null,ctrl:false,via:'',manual:false,tries:0},
+  tr:{state:'off',name:'',dev:null,cp:null,ctrl:false,denied:false,via:'',manual:false,tries:0},
   hrm:{state:'off',name:'',dev:null,manual:false},
   demo:false,
   live:{raw:[],cad:null,tC:0,cadSeen:false,spd:null,tS:0,hr:null,tH:0},
@@ -668,7 +670,7 @@ function onCSC(e){
 }
 function onCP(e){
   const dv=e.target.value;
-  try{if(dv.getUint8(0)===0x80){const op=dv.getUint8(1),res=dv.getUint8(2);if(res!==1&&op===0x00){S.tr.ctrl=false;ergMsg('Die Rolle gibt die Steuerung nicht frei. Läuft noch eine andere App?');}}}catch(_){}
+  try{if(dv.getUint8(0)===0x80){const op=dv.getUint8(1),res=dv.getUint8(2);if(res!==1&&op===0x00){S.tr.ctrl=false;S.tr.denied=true;ergMsg('Die Rolle gibt die Steuerung nicht frei. Läuft noch eine andere App?');}}}catch(_){}
 }
 
 async function connectTrainer(){
@@ -693,7 +695,7 @@ async function setupTrainer(){
       const ibd=await f.getCharacteristic(0x2ad2);
       ibd.addEventListener('characteristicvaluechanged',onIBD);
       await ibd.startNotifications();via='FTMS';
-      try{const cp=await f.getCharacteristic(0x2ad9);cp.addEventListener('characteristicvaluechanged',onCP);await cp.startNotifications();S.tr.cp=cp;S.tr.ctrl=false;}catch(_){S.tr.cp=null;}
+      try{const cp=await f.getCharacteristic(0x2ad9);cp.addEventListener('characteristicvaluechanged',onCP);await cp.startNotifications();S.tr.cp=cp;S.tr.ctrl=false;S.tr.denied=false;}catch(_){S.tr.cp=null;}
     }catch(_){}
     if(!via){
       const s=await srv.getPrimaryService(0x1818);const m=await s.getCharacteristic(0x2a63);
@@ -792,10 +794,12 @@ async function applyControl(force){
   if(S.demo||S.tr.state!=='on')return;
   if(!S.tr.cp){if(S.erg.on||activeRoute())ergMsg('Die Rolle nimmt keine Steuerbefehle an.');return;}
   if(S.sim.busy)return;
+  /* Verweigert: nicht im Takt erneut fragen, erst wieder bei einer Änderung durch den Nutzer */
+  if(S.tr.denied&&!force)return;
   const now=performance.now();
   try{
     S.sim.busy=true;
-    if(!S.tr.ctrl){await cpWrite([0x00]);S.tr.ctrl=true;await cpWrite([0x07]).catch(()=>{});force=true;}
+    if(!S.tr.ctrl){S.tr.denied=false;await cpWrite([0x00]);if(S.tr.denied)return;S.tr.ctrl=true;await cpWrite([0x07]).catch(()=>{});force=true;}
     if(S.erg.on){
       if(force||S.sim.sent!=='erg'+S.erg.target){const t=clamp(Math.round(S.erg.target),0,2000);await cpWrite([0x05,t&255,(t>>8)&255]);S.sim.sent='erg'+S.erg.target;S.sim.tSent=now;}
     }else{
@@ -964,7 +968,7 @@ async function saveRec(){
   const rt=activeRoute();R.route=rt?rt.name:null;R.gain=Math.round(S.sim.gain);
   const r=makeRide(R);
   await DB.put(r);S.rides.push(r);await DB.rm('draft');
-  resetRec();toast('Fahrt gespeichert');
+  resetRec();toast('Fahrt gespeichert');autoBackup();
   S.detail=r.id;go('detail');
 }
 async function discardRec(){await DB.rm('draft');resetRec();toast('Fahrt verworfen');}
@@ -1391,6 +1395,21 @@ function tcx(r){
 ${pts}</Track></Lap><Notes>${esc(r.name)}</Notes></Activity></Activities></TrainingCenterDatabase>`;
 }
 
+/* Sicherung: Einstellungen, echte Fahrten und Strecken. In der Mac-App (window.wattbuchDesktop)
+   wird sie nach jeder Änderung automatisch geschrieben, im Browser nur über „Sicherung speichern“. */
+function backupJSON(){return JSON.stringify({app:'wattbuch',version:1,saved:new Date().toISOString(),settings:S.set,rides:S.rides.filter(r=>!r.sample),routes:S.routes});}
+let bkT=null;
+function autoBackup(){const d=window.wattbuchDesktop;if(!d)return;clearTimeout(bkT);bkT=setTimeout(()=>d.backup(backupJSON()).catch(()=>toast('Automatische Sicherung fehlgeschlagen')),400);}
+async function importData(d){
+  let rides=0,routes=0;
+  if(d&&Array.isArray(d.routes))routes+=await addRoutes(d.routes);
+  if(d&&Array.isArray(d.rides)){
+    for(const x of d.rides){if(x&&x.id&&x.start&&Array.isArray(x.p)&&x.p.length){const i=S.rides.findIndex(y=>y.id===x.id);if(i>=0)S.rides[i]=x;else S.rides.push(x);await DB.put(x);rides++;}}
+    if(d.settings&&fin(d.settings.ftp)){S.set.ftp=d.settings.ftp;if(fin(d.settings.weight))S.set.weight=d.settings.weight;saveSet();renderErg();}
+  }
+  return{rides,routes};
+}
+
 /* ---------- Einstellungen ---------- */
 async function saveSet(){await DB.set('settings',S.set);}
 function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();$('#setFtp').value=S.set.ftp;renderErg();}
@@ -1454,7 +1473,7 @@ $('#setBike').addEventListener('change',e=>{const v=parseFloat(e.target.value.re
 $('#setFtp').addEventListener('change',e=>{const v=parseInt(e.target.value,10);if(fin(v))setFtp(v);else e.target.value=S.set.ftp;rerender();});
 $('#setKg').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();}e.target.value=String(S.set.weight).replace('.',',');rerender();});
 $('#dlgSet').addEventListener('close',rerender);
-$('#bkExp').onclick=()=>download(JSON.stringify({app:'wattbuch',version:1,settings:S.set,rides:S.rides.filter(r=>!r.sample)}),`wattbuch-sicherung-${new Date().toISOString().slice(0,10)}.json`,'application/json');
+$('#bkExp').onclick=()=>download(backupJSON(),`wattbuch-sicherung-${new Date().toISOString().slice(0,10)}.json`,'application/json');
 $('#bkImp').onclick=()=>$('#anyFile').click();
 /* Eine Datei für alles: Sicherung, Streckendatei oder GPX */
 $('#anyFile').addEventListener('change',async e=>{
@@ -1465,19 +1484,16 @@ $('#anyFile').addEventListener('change',async e=>{
       const text=await f.text();
       if(/\.gpx$/i.test(f.name)||/^\s*<\?xml|<gpx/i.test(text.slice(0,300))){routes+=await addRoutes([parseGPX(text,f.name)]);continue;}
       const d=JSON.parse(text);
-      if(d&&Array.isArray(d.routes))routes+=await addRoutes(d.routes);
-      if(d&&Array.isArray(d.rides)){
-        for(const x of d.rides){if(x&&x.id&&x.start&&Array.isArray(x.p)&&x.p.length){const i=S.rides.findIndex(y=>y.id===x.id);if(i>=0)S.rides[i]=x;else S.rides.push(x);await DB.put(x);rides++;}}
-        if(d.settings&&fin(d.settings.ftp)){S.set.ftp=d.settings.ftp;if(fin(d.settings.weight))S.set.weight=d.settings.weight;saveSet();renderErg();}
-      }
+      const n=await importData(d);rides+=n.rides;routes+=n.routes;
       if(!(d&&(Array.isArray(d.routes)||Array.isArray(d.rides))))throw new Error('unbekanntes Format');
     }catch(x){err=`${f.name}: ${x&&x.message?x.message:'nicht lesbar'}`;}
   }
   const parts=[];if(routes)parts.push(`${routes} ${routes===1?'Strecke':'Strecken'}`);if(rides)parts.push(`${rides} ${rides===1?'Fahrt':'Fahrten'}`);
   toast(parts.length?parts.join(' und ')+' geladen':(err||'Nichts gefunden'));
+  if(parts.length)autoBackup();
   if($('#dlgSet').open)$('#dlgSet').close();else rerender();
 });
-armDelete($('#delAll'),'Wirklich alle löschen?',async()=>{for(const r of S.rides)await DB.del(r.id);S.rides=[];await DB.set('seeded',true);toast('Alle Fahrten gelöscht');$('#dlgSet').close();});
+armDelete($('#delAll'),'Wirklich alle löschen?',async()=>{for(const r of S.rides)await DB.del(r.id);S.rides=[];await DB.set('seeded',true);toast('Alle Fahrten gelöscht');autoBackup();$('#dlgSet').close();});
 let rzT=null;
 window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{placeThumb();placeSegThumb($('#smSeg'));placeSegThumb($('#diffSeg'));$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null));},120);});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null)));
@@ -1488,6 +1504,11 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   renderZoneBar();
   $('#zonePill span').id='zpTxt';
   await DB.open();
+  /* Browser soll die Daten nicht von selbst wegräumen, wenn der Speicher knapp wird */
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(_){}
+  /* Mac-App: Speicher leer (neu installiert oder verloren), aber Sicherung da → zurückholen */
+  const fresh=!(await DB.get('seeded'))&&!(await DB.all()).length;
+  if(fresh&&window.wattbuchDesktop){try{const b=await window.wattbuchDesktop.latestBackup();if(b&&Array.isArray(b.rides)&&b.rides.length){const n=await importData(b);await DB.set('seeded',true);toast(`${n.rides} Fahrten aus der Sicherung wiederhergestellt`);}}catch(_){}}
   const set=await DB.get('settings');if(set)S.set={...S.set,...set};
   S.erg.target=Math.round(S.set.ftp*.65/5)*5;
   S.rides=await DB.all();

@@ -4,7 +4,7 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 
 **Öffnen:** https://lulkasss.github.io/wattbuch/
 
-- Mac: in **Chrome** öffnen (Safari kann kein Web-Bluetooth)
+- Mac: als **App** (siehe unten) oder in **Chrome** öffnen (Safari kann kein Web-Bluetooth)
 - iPhone: in der App **Bluefy** öffnen
 
 ## Was drin ist
@@ -16,4 +16,18 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 
 ## Daten
 
-Fahrten und Strecken liegen nur im Browser des jeweiligen Geräts. Strecken und Sicherungen werden über „Laden“ eingelesen (Streckendatei, GPX oder Sicherung). Persönliche Daten gehören nicht in dieses Repo, es ist öffentlich.
+Fahrten und Strecken liegen im Browser des jeweiligen Geräts. Die Mac-App sichert nach jeder Fahrt automatisch nach iCloud Drive (`Wattbuch/`) und holt die Sicherung bei leerem Speicher von selbst zurück. Strecken und Sicherungen werden über „Laden“ eingelesen (Streckendatei, GPX oder Sicherung). Persönliche Daten gehören nicht in dieses Repo, es ist öffentlich.
+
+## Mac-App
+
+```bash
+npm install
+npm run app:install
+```
+
+Baut `Wattbuch.app` und legt sie in den Programme-Ordner. Gleiche Oberfläche wie die Webseite, dazu Geräteauswahl für Bluetooth, automatische Sicherung und Rückfrage beim Schließen während einer Aufnahme.
+
+## Entwicklung
+
+- `npm run dev` – lokal unter http://localhost:5173, mit `/?fake` ohne echte Geräte (simulierte Rolle)
+- `npm test` – Fehlercheck und automatische Tests (Browser, iPhone-Größe, Mac-App)

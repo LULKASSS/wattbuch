@@ -1,0 +1,126 @@
+/* Wattbuch als Mac-App (Electron).
+ * Lädt dieselbe index.html wie die Webseite. Dazu kommt, was der Browser nicht kann:
+ * Bluetooth-Geräteauswahl ohne Chrome, automatische Sicherung nach iCloud Drive und
+ * eine Rückfrage, bevor das Fenster während einer Aufnahme geschlossen wird. */
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, session, shell } = require('electron');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const os = require('node:os');
+const { pathToFileURL } = require('node:url');
+
+const ROOT = path.join(__dirname, '..');
+const ICLOUD = path.join(os.homedir(), 'Library/Mobile Documents/com~apple~CloudDocs');
+let backupDir = null;
+
+/* Eigenes Schema statt file://: feste Herkunft für IndexedDB und sicherer Kontext für Bluetooth */
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
+
+/* Tests (WATTBUCH_DATA=Ordner): eigener Speicher und Sicherungsordner, nie die echten Daten */
+const TEST_DATA = process.env.WATTBUCH_DATA;
+if (TEST_DATA) app.setPath('userData', path.join(TEST_DATA, 'profil'));
+
+async function resolveBackupDir() {
+  if (TEST_DATA) { const d = path.join(TEST_DATA, 'Wattbuch'); await fs.mkdir(path.join(d, 'Verlauf'), { recursive: true }); return d; }
+  let base = path.join(os.homedir(), 'Documents');
+  try { await fs.access(ICLOUD); base = ICLOUD; } catch {}
+  const dir = path.join(base, 'Wattbuch');
+  await fs.mkdir(path.join(dir, 'Verlauf'), { recursive: true });
+  return dir;
+}
+
+/* Sicherung: aktuelle Datei plus eine pro Tag (die letzten 60 Tage bleiben) */
+async function writeBackup(json) {
+  const data = JSON.parse(json);
+  if (data.app !== 'wattbuch') throw new Error('keine Wattbuch-Sicherung');
+  const day = new Date().toISOString().slice(0, 10);
+  const tmp = path.join(backupDir, '.wattbuch-sicherung.tmp');
+  await fs.writeFile(tmp, json);
+  await fs.rename(tmp, path.join(backupDir, 'wattbuch-sicherung.json'));
+  /* Eine leere Sicherung überschreibt nie einen Tagesstand mit Fahrten */
+  const dayFile = path.join(backupDir, 'Verlauf', `wattbuch-${day}.json`);
+  if (data.rides.length) await fs.writeFile(dayFile, json);
+  const old = (await fs.readdir(path.join(backupDir, 'Verlauf'))).filter(f => /^wattbuch-\d{4}-\d\d-\d\d\.json$/.test(f)).sort();
+  for (const f of old.slice(0, Math.max(0, old.length - 60))) await fs.rm(path.join(backupDir, 'Verlauf', f));
+  return { dir: backupDir, rides: data.rides.length };
+}
+
+async function readBackup() {
+  try { return JSON.parse(await fs.readFile(path.join(backupDir, 'wattbuch-sicherung.json'), 'utf8')); }
+  catch { return null; }
+}
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1280, height: 880, minWidth: 380, minHeight: 600,
+    title: 'Wattbuch', backgroundColor: '#0b0b0f', show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, backgroundThrottling: false }
+  });
+  win.once('ready-to-show', () => win.show());
+
+  /* Bluetooth: Chromium liefert die gefundenen Geräte laufend nach, die Auswahl zeigt die Seite (preload.js) */
+  let pick = null;
+  win.webContents.on('select-bluetooth-device', (event, list, callback) => {
+    event.preventDefault();
+    if (!pick) win.webContents.send('bt:open');
+    pick = callback;
+    win.webContents.send('bt:list', list.map(d => ({ id: d.deviceId, name: d.deviceName || 'Unbekanntes Gerät' })));
+  });
+  ipcMain.removeAllListeners('bt:choose');
+  ipcMain.on('bt:choose', (_e, id) => { if (pick) { const cb = pick; pick = null; cb(id || ''); } });
+
+  /* Aufnahme läuft (beforeunload der Seite) → nachfragen statt still nicht zu schließen */
+  win.webContents.on('will-prevent-unload', event => {
+    const r = dialog.showMessageBoxSync(win, {
+      type: 'question', buttons: ['Weiterfahren', 'Trotzdem schließen'], defaultId: 0, cancelId: 0,
+      message: 'Es läuft eine Aufnahme.', detail: 'Beim Schließen wird die Fahrt bis hierhin gesichert und beim nächsten Start wiederhergestellt.'
+    });
+    if (r === 1) event.preventDefault();
+  });
+
+  /* Links nach außen im Standardbrowser öffnen, nie im App-Fenster */
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
+
+  win.loadURL('app://wattbuch/index.html');
+  return win;
+}
+
+function buildMenu() {
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { label: 'Ablage', submenu: [
+      { label: 'Sicherungsordner öffnen', accelerator: 'CmdOrCtrl+Shift+S', click: () => shell.openPath(backupDir) },
+      { type: 'separator' }, { role: 'close' }
+    ] },
+    { role: 'editMenu' },
+    { label: 'Darstellung', submenu: [{ role: 'reload', label: 'Neu laden' }, { role: 'togglefullscreen' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'toggleDevTools', label: 'Entwicklerwerkzeuge' }] },
+    { role: 'windowMenu' }
+  ]));
+}
+
+app.setName('Wattbuch');
+app.whenReady().then(async () => {
+  backupDir = await resolveBackupDir();
+
+  protocol.handle('app', req => {
+    const { pathname } = new URL(req.url);
+    const file = path.normalize(path.join(ROOT, decodeURIComponent(pathname)));
+    if (!file.startsWith(ROOT + path.sep)) return new Response('verboten', { status: 403 });
+    return net.fetch(pathToFileURL(file).toString());
+  });
+
+  /* Bluetooth und Bildschirm-wach-halten erlauben, alles andere nicht */
+  const allowed = new Set(['bluetooth', 'screen-wake-lock', 'persistent-storage', 'clipboard-sanitized-write']);
+  session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(allowed.has(perm)));
+  session.defaultSession.setPermissionCheckHandler((_wc, perm) => allowed.has(perm));
+  session.defaultSession.setDevicePermissionHandler(d => d.deviceType === 'bluetooth');
+
+  ipcMain.handle('backup:write', (_e, json) => writeBackup(json));
+  ipcMain.handle('backup:latest', () => readBackup());
+  ipcMain.handle('backup:dir', () => backupDir);
+
+  buildMenu();
+  createWindow();
+  app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
+});
+app.on('window-all-closed', () => app.quit());

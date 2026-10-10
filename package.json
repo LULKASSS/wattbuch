@@ -1,0 +1,47 @@
+{
+  "name": "wattbuch",
+  "productName": "Wattbuch",
+  "version": "1.0.0",
+  "description": "Watt aufnehmen und auswerten, Strecken mit echter Steigung",
+  "main": "desktop/main.js",
+  "private": true,
+  "author": "Lukas Rückborn",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node scripts/check.mjs && playwright test",
+    "app": "electron .",
+    "app:build": "electron-builder --mac --arm64 --dir",
+    "app:install": "node scripts/install-app.mjs",
+    "postinstall": "node node_modules/electron/install.js",
+    "icon": "electron scripts/make-icon.js"
+  },
+  "build": {
+    "appId": "de.rueckborn.wattbuch",
+    "productName": "Wattbuch",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.healthcare-fitness",
+      "icon": "desktop/icon.png",
+      "identity": null,
+      "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "Wattbuch verbindet sich per Bluetooth mit Rollentrainer, Pulsgurt und Trittfrequenzsensor."
+      }
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "allowScripts": {
+    "electron-winstaller": false
+  }
+}

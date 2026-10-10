@@ -1,0 +1,12 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+.DS_Store
+
+# Persönliche Daten gehören nie ins Repo (öffentlich!)
+daten/
+*sicherung*.json
+*.gpx
+*.tcx
+*.fit
