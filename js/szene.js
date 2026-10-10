@@ -72,7 +72,7 @@ function drawScene(c,mini){
   const rt=activeRoute(),pos=rt?S.sim.d:S.sim.total,pw=curPow(),ftp=S.set.ftp;
   const zi=pw!=null&&pw>0?zoneIdx(pw,ftp):0,zc=hex2(GLOW[zi]);
   const t0=trackAt(rt,pos),g0=rt?routeGradeNow()/100:0;
-  const hy=H*(mini?.47:.5),F=Math.max(W,H*1.5)*.62,camY=1.7;
+  const hy=H*(mini?.47:.42),F=Math.max(W,H*1.5)*.62,camY=1.7;
   const sky=[11,10,20],haze=hex2('#2a2140'),hor=mixc(haze,zc,.45),horA=[...hex2('#2a2140')].map((v,i)=>v+(zc[i]-v)*.45);
   /* Himmel mit Leuchten am Horizont, das mit der Leistung atmet */
   let gr=ctx.createLinearGradient(0,0,0,hy);gr.addColorStop(0,`rgb(${sky})`);gr.addColorStop(1,hor);ctx.fillStyle=gr;ctx.fillRect(0,0,W,hy+2);

@@ -466,3 +466,57 @@ dialog::backdrop{background:rgba(10,10,14,.35);backdrop-filter:blur(2px)}
 .rdel.armed{opacity:1;background:var(--gap-soft);color:var(--gap-ink);padding:0 10px}
 .rrow svg{width:64px}
 @media (hover:none){.rdel{opacity:.85}}
+
+/* ---------- Breite Bildschirme ---------- */
+/* Live-Karte: Gruppen links/rechts lösen sich normal auf, Reihenfolge wie gehabt (Knöpfe nach den Werten) */
+.card.live{display:flex;flex-direction:column}
+.live-l,.live-r{display:contents}
+.card.live .controls{order:5}
+.card.live .chart-live{order:6}
+@media (min-width:1400px){
+  .wrap{max-width:min(1640px,calc(100vw - 80px))}
+  .live-grid{grid-template-columns:minmax(0,1fr) 360px}
+}
+/* Während der Fahrt deckt die Ansicht das ganze Fenster ab */
+.riding .wrap{max-width:none;padding-inline:clamp(16px,2.4vw,48px)}
+@media (min-width:1280px){
+  .riding .card.live{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:clamp(28px,3vw,64px);align-items:start}
+  .riding .live-l,.riding .live-r{display:flex;flex-direction:column;min-width:0}
+  .riding .live-r .route-live{margin-top:0;border-top:0;padding-top:4px}
+  .riding .live-r .stats6{margin-top:18px}
+  .riding .live-r>:first-child{margin-top:0}
+  .riding .live-r .stats6:first-child{margin-top:0;border-top:0}
+  .riding .cv.scene{height:clamp(240px,34vh,460px)}
+  .riding .bignum b{font-size:clamp(150px,13vw,260px)}
+  .riding .st .v{font-size:clamp(28px,2.1vw,40px)}
+  .riding .cv.prof,.riding .cv.map{height:clamp(150px,18vh,240px)}
+  .riding .live-grid{grid-template-columns:minmax(0,1fr) 320px}
+}
+
+/* Vollbild wächst mit dem Bildschirm */
+@media (min-width:901px){
+  .f-top{padding:clamp(20px,2.2vh,36px) clamp(28px,2.4vw,56px) 0}
+  .f-route b{font-size:clamp(20px,1.5vw,32px)}
+  .f-route span{font-size:clamp(14px,1vw,19px)}
+  .f-time{font-size:clamp(22px,1.8vw,38px)}
+  .f-x{width:clamp(40px,2.6vw,52px);height:clamp(40px,2.6vw,52px)}
+  .f-ghost{height:auto;padding:clamp(7px,.6vw,11px) clamp(14px,1vw,20px);font-size:clamp(13.5px,.95vw,18px)}
+  .f-hud{padding:0 clamp(40px,3.4vw,80px);bottom:calc(clamp(64px,10vh,130px) + clamp(80px,9vh,110px))}
+  .f-pow b{font-size:clamp(120px,min(16vw,25vh),340px)}
+  .f-pow span{font-size:clamp(30px,2.4vw,52px)}
+  .f-wkg{font-size:clamp(17px,1.3vw,26px)}
+  .f-zone{height:auto;padding:clamp(5px,.5vw,9px) clamp(14px,1vw,22px);font-size:clamp(14px,1.05vw,21px)}
+  .f-side{gap:clamp(28px,3.2vw,72px)}
+  .f-side>div{min-width:clamp(90px,7vw,170px)}
+  .f-side b{font-size:clamp(46px,4.6vw,104px)}
+  .f-side small{font-size:clamp(13px,.95vw,19px)}
+  .full .lbl{font-size:clamp(11px,.8vw,15px)}
+  .f-bot{padding:0 clamp(28px,2.4vw,56px) clamp(14px,1.6vh,28px);gap:clamp(10px,1.2vh,18px) 16px}
+  .f-prof{height:clamp(64px,10vh,130px)}
+  .f-ctrl .btn{height:clamp(44px,3.2vw,58px);padding:0 clamp(18px,1.6vw,32px);font-size:clamp(14px,1vw,18px)}
+  .f-keys{font-size:clamp(11.5px,.75vw,14px)}
+  .full .moment{top:clamp(84px,9vh,120px);padding:clamp(10px,.8vw,14px) clamp(18px,1.4vw,26px) clamp(10px,.8vw,14px) clamp(10px,.8vw,14px)}
+  .full .moment .mi{width:clamp(34px,2.4vw,46px);height:clamp(34px,2.4vw,46px)}
+  .full .moment .mt b{font-size:clamp(14.5px,1.1vw,21px)}
+  .full .moment .mt span{font-size:clamp(12.5px,.9vw,17px)}
+}

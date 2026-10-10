@@ -38,6 +38,7 @@
   <section class="view" id="v-live">
     <div class="live-grid">
       <div class="card live">
+        <div class="live-l">
         <div class="live-top">
           <span class="lbl">Leistung · 3 s</span>
           <span class="zone" id="zonePill"><i></i><span>–</span></span>
@@ -50,6 +51,9 @@
           <div class="zbar-lbl" id="zLbl"></div>
         </div>
         <canvas class="cv scene" id="cvScene" aria-hidden="true"></canvas>
+        <div class="controls" id="ctrls"></div>
+        </div>
+        <div class="live-r">
         <div class="route-live" id="routeLive" hidden>
           <div class="rl-head">
             <span class="rl-name" id="rlName"></span>
@@ -72,8 +76,8 @@
           <div class="st"><span class="lbl">Trittfrequenz</span><div class="v"><span id="lvCad">–</span><small>rpm</small></div></div>
           <div class="st"><span class="lbl">Höhenmeter</span><div class="v"><span id="lvGain">0</span><small>m</small></div></div>
         </div>
-        <div class="controls" id="ctrls"></div>
         <div class="chart-live"><span class="lbl">Leistung · letzte 5 min</span><canvas class="cv" id="cvLive" aria-label="Leistung der letzten fünf Minuten"></canvas></div>
+        </div>
       </div>
 
       <div class="side">
