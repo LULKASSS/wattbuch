@@ -45,10 +45,12 @@ const SNACK=[[250,'etwa eine Brezel'],[500,'etwa ein Stück Pizza'],[750,'etwa e
 function momReset(){
   const real=S.rides.filter(r=>!r.sample);
   S.mom={best:real.length?bestsOf(real):null,pb:{},km:0,kj:0,hm:0,peak:false,log:[]};
+  paceReset();
 }
 /* Läuft jede Sekunde während der Aufnahme (aus tick) */
 function checkMoments(){
   const M=S.mom,R=S.rec;if(!M)return;
+  paceCheck();
   const p=R.p,n=p.length;
   if(M.best)for(const[d,l]of PB_DURS){
     if(n<d||M.pb[d])continue;
@@ -69,6 +71,7 @@ function checkMoments(){
 
 /* Zusammenfassung nach dem Speichern */
 function showSummary(r){
+  closeFull();S.pace=null;
   const s=stats(r),M=S.mom||{pb:{},log:[]},dlg=$('#dlgSum');
   const prev=S.rides.filter(x=>!x.sample&&x.id!==r.id);
   const before=prev.length?bestsOf(prev):{};

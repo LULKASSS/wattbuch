@@ -13,6 +13,11 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 - Strecken: Höhenprofil mit Punkt, Streckenlinie, Steigung geht an die Rolle (Steigungsstärke 25–100 %)
 - Zielleistung (ERG)
 - Fahrten, Bestwerte, FTP-Schätzung, TCX-Export
+- **Vollbild** (Taste F): Straße der Strecke zum Durchfahren, Geist der besten Fahrt oder Schrittmacher, große Anzeige
+- Countdown, Momente während der Fahrt (Bestwerte, Meilensteine, Gipfel), Zusammenfassung mit Highlights
+- Zufallsstrecken (Hügelrunde, Bergwertung, Flachstück) per „Würfeln“
+
+**Tasten am Mac:** Leertaste Start/Pause/Weiter · F Vollbild · ↑↓ Zielleistung ±5 W · Esc Vollbild verlassen
 
 ## Daten
 

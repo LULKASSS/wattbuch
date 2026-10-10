@@ -18,8 +18,10 @@ function gpx() {
 const fake = (page, fn) => page.evaluate(fn);
 const toast = page => page.locator('#toast');
 
-async function open(page, { before } = {}) {
+async function open(page, { before, motion = false } = {}) {
   const problems = [];
+  // Ohne motion: „Bewegung reduzieren“, die Szene zeichnet dann nur 2-mal pro Sekunde (vorgespulte Fahrten bleiben schnell)
+  if (!motion) await page.emulateMedia({ reducedMotion: 'reduce' });
   page.on('pageerror', e => problems.push('Fehler: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') problems.push('Konsole: ' + m.text()); });
   await page.clock.install();
@@ -292,4 +294,83 @@ test('Erzeugte Strecken sind fahrbar und realistisch', async ({ page }) => {
   const r = await page.evaluate(() => ['huegel', 'berg', 'flach'].map(t => { const x = genRoute(t, 12345); let mx = 0; for (let i = 2; i < x.ele.length; i++) mx = Math.max(mx, Math.abs((x.ele[i] - x.ele[i - 2]) / 50 * 100)); return { t, km: x.dist / 1000, hm: x.gain, mx, loop: prepRoute(x, false).loop }; }));
   for (const x of r) { expect(x.km).toBeGreaterThan(15); expect(x.km).toBeLessThan(50); expect(x.mx).toBeLessThan(13); expect(x.loop).toBe(true); }
   expect(r.find(x => x.t === 'berg').hm).toBeGreaterThan(r.find(x => x.t === 'flach').hm);
+});
+
+/* Anteil nicht-schwarzer Pixel in einem Canvas: zeigt, dass dort wirklich gezeichnet wurde */
+const painted = (page, sel) => page.locator(sel).evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 64) if (d[i] + d[i + 1] + d[i + 2] > 60) n++; return n / (d.length / 64); });
+
+test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
+  const problems = await open(page, { motion: true });
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Bergwertung' }).click();
+  await connectTrainer(page);
+  await page.keyboard.press('f');
+  await expect(page.locator('#full')).toBeVisible();
+  await expect(page.locator('#fRoute')).toContainText('Bergwertung');
+  await expect(page.locator('#fCtrl [data-a="start"]')).toBeVisible();
+  await page.keyboard.press(' '); // Start per Leertaste, mit Countdown
+  await page.clock.runFor(3100);
+  await expect(page.locator('#fCtrl [data-a="pause"]')).toBeVisible();
+  await page.clock.runFor(30_000);
+  await expect(page.locator('#fPow')).toHaveText('180');
+  await expect(page.locator('#fZone')).toHaveText('Z3 · Tempo');
+  await expect(page.locator('#fProg')).toContainText('von 25,5 km');
+  await expect(page.locator('#fGhost')).toContainText('Schrittmacher 150 W');
+  expect(await painted(page, '#cvFull')).toBeGreaterThan(0.3);
+  expect(await painted(page, '#cvFullProf')).toBeGreaterThan(0.05);
+  await page.keyboard.press(' ');
+  await expect(page.locator('#fCtrl [data-a="resume"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#full')).toBeHidden();
+  await expect(page.locator('body')).toHaveClass(/riding/);
+  expect(await painted(page, '#cvScene')).toBeGreaterThan(0.3); // Mini-Szene in der Live-Karte
+  expect(problems).toEqual([]);
+});
+
+test('Geist der besten Fahrt auf derselben Strecke fährt mit', async ({ page }) => {
+  const problems = await open(page);
+  const route = await page.evaluate(() => { selectRoute(S.routes[0].id); return activeRoute().name; });
+  // Frühere Fahrt auf der Strecke: 7 m/s konstant
+  const old = { id: 'g1', start: '2026-10-02T17:00:00.000Z', name: route, route, p: Array(600).fill(170), dist: Array.from({ length: 600 }, (_, i) => i * 7), hr: null, cad: null };
+  await page.setInputFiles('#anyFile', { name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ app: 'wattbuch', rides: [old] })) });
+  await connectTrainer(page);
+  await start(page);
+  await page.click('#ctrls [data-full]');
+  await expect(page.locator('#full')).toBeVisible();
+  await page.clock.runFor(40_000);
+  await expect(page.locator('#fGhost')).toContainText('Dein Geist');
+  const gap = await page.evaluate(() => S.pace.total - S.sim.total);
+  expect(gap).toBeGreaterThan(-400);
+  expect(gap).toBeLessThan(400);
+  await fake(page, () => window.__fakeBle.set({ power: 420 })); // kräftig antreten, bis zum Überholen
+  await page.clock.runFor(90_000);
+  expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Dein Geist überholt');
+  expect(problems).toEqual([]);
+});
+
+test('Ziel-Leistung per Pfeiltaste @mobil', async ({ page }) => {
+  await open(page);
+  await connectTrainer(page);
+  await page.locator('#ergQuick [data-w]').first().click();
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  await page.keyboard.press('ArrowUp');
+  await page.clock.runFor(1500);
+  expect(await fake(page, () => window.__fakeBle.ergTarget)).toBe(135);
+});
+
+test('Strecke löschen mit Rückfrage', async ({ page }) => {
+  const problems = await open(page);
+  const rows = page.locator('#rtList [data-route]:not([data-route=""])');
+  await expect(rows).toHaveCount(3);
+  await rows.nth(1).click(); // Bergwertung wählen, dann löschen
+  const del = page.locator('#rtList [data-rdel]').nth(1);
+  await del.click({ force: true });
+  await expect(del).toHaveText('Löschen?');
+  await expect(rows).toHaveCount(3);
+  await del.click();
+  await expect(rows).toHaveCount(2);
+  await expect(toast(page)).toContainText('gelöscht');
+  await expect(page.locator('#routeLive')).toBeHidden(); // gewählte Strecke war weg → frei fahren
+  await page.reload();
+  await expect(rows).toHaveCount(2);
+  expect(problems).toEqual([]);
 });

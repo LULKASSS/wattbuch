@@ -3,9 +3,11 @@
 document.addEventListener('click',e=>{
   const n=e.target.closest('#nav button');if(n){go(n.dataset.v);return;}
   const gEl=e.target.closest('[data-go]');if(gEl){go(gEl.dataset.go);return;}
+  const rdl=e.target.closest('[data-rdel]');if(rdl){delRoute(rdl);return;}
   const rr=e.target.closest('[data-route]');if(rr){if(!rr.disabled)selectRoute(rr.dataset.route);return;}
   const df=e.target.closest('[data-df]');if(df){S.set.diff=+df.dataset.df;saveSet();renderRoutes();applyControl(true);return;}
   const rEl=e.target.closest('[data-ride]');if(rEl){S.detail=rEl.dataset.ride;go('detail');return;}
+  const fb=e.target.closest('[data-full]');if(fb){$('#full').hidden?openFull():closeFull();return;}
   const a=e.target.closest('[data-a]');
   if(a){({start:beginRide,pause:pauseRec,resume:resumeRec,end:askEnd,back:backFromEnd,save:saveRec,
     discard:()=>{if(a.classList.contains('armed'))discardRec();else{a.classList.add('armed');a.textContent='Ja, verwerfen';setTimeout(()=>{if(a.isConnected){a.classList.remove('armed');a.textContent='Verwerfen';}},3500);}}})[a.dataset.a]();return;}
@@ -20,6 +22,7 @@ $('#btnTr').onclick=connectTrainer;
 $('#btnHr').onclick=connectHR;
 $('#btnCd').onclick=connectCd;
 $('#rev').addEventListener('change',e=>{if(S.rec.state!=='idle'){e.target.checked=!!S.set.rev;return;}S.set.rev=e.target.checked;saveSet();resetSim();renderRoutes();applyControl(true);});
+$('#fClose').onclick=closeFull;
 $('#rtLoad').onclick=()=>$('#anyFile').click();
 $('#rtRoll').onclick=()=>{if(S.rec.state!=='idle'){toast('Strecke erst nach der Fahrt wechseln');return;}rollRoute();};
 $('#demo').addEventListener('change',e=>setDemo(e.target.checked));
