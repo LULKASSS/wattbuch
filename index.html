@@ -1,0 +1,1507 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wattbuch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Aufbau: feste Kopfzeile mit Umschalter (Fahren · Fahrten · Bestwerte), darunter je eine Ansicht. Fahren: Live-Zahl groß, Geräte und Zielleistung daneben. */
+:root{
+  --bg:#F6F6F8; --surface:#FFFFFF; --surface-2:#EFEFF3; --surface-3:#E6E6EC;
+  --fg:#0B0B0F; --fg-2:#45454F; --fg-3:#6B6B76; --on-accent:#FFFFFF;
+  --line:#E4E4EA; --line-2:#D2D2DA;
+  --accent:#7F5FE8; --accent-ink:#6445CF; --accent-soft:rgba(127,95,232,.14); --accent-line:rgba(127,95,232,.42);
+  --gap:#E5484D; --gap-ink:#C8353B; --gap-soft:rgba(229,72,77,.13);
+  --ok:#26925F; --ok-ink:#1E7A4E; --ok-soft:rgba(38,146,95,.12);
+  --z1:#D6D6DE; --z2:#D6CCF8; --z3:#B9A7F4; --z4:#9A80EF; --z5:#7F5FE8; --z6:#5F41C6; --z7:#3E2595;
+  --glass:rgba(246,246,248,.8);
+  --shadow:0 1px 2px rgba(12,12,20,.05),0 8px 24px rgba(12,12,20,.06);
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:18px; --r-s:10px; --ease:cubic-bezier(.22,1,.36,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#09090B; --surface:#131316; --surface-2:#1B1B20; --surface-3:#24242A;
+  --fg:#EEEEF1; --fg-2:#BDBDC6; --fg-3:#8F8F99; --on-accent:#0B0B0F;
+  --line:#232329; --line-2:#33333B;
+  --accent:#A78BFA; --accent-ink:#C4B5FD; --accent-soft:rgba(167,139,250,.15); --accent-line:rgba(167,139,250,.48);
+  --gap:#F2555A; --gap-ink:#F2555A; --gap-soft:rgba(242,85,90,.15);
+  --ok:#3DB67A; --ok-ink:#3DB67A; --ok-soft:rgba(61,182,122,.14);
+  --z1:#3A3A43; --z2:#41385F; --z3:#56478E; --z4:#7259BF; --z5:#A78BFA; --z6:#C4B5FD; --z7:#E6DEFF;
+  --glass:rgba(9,9,11,.8);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#09090B; --surface:#131316; --surface-2:#1B1B20; --surface-3:#24242A;
+  --fg:#EEEEF1; --fg-2:#BDBDC6; --fg-3:#8F8F99; --on-accent:#0B0B0F;
+  --line:#232329; --line-2:#33333B;
+  --accent:#A78BFA; --accent-ink:#C4B5FD; --accent-soft:rgba(167,139,250,.15); --accent-line:rgba(167,139,250,.48);
+  --gap:#F2555A; --gap-ink:#F2555A; --gap-soft:rgba(242,85,90,.15);
+  --ok:#3DB67A; --ok-ink:#3DB67A; --ok-soft:rgba(61,182,122,.14);
+  --z1:#3A3A43; --z2:#41385F; --z3:#56478E; --z4:#7259BF; --z5:#A78BFA; --z6:#C4B5FD; --z7:#E6DEFF;
+  --glass:rgba(9,9,11,.8);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}
+
+/* Grundlagen */
+*{box-sizing:border-box}
+html{scroll-padding-top:80px}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;text-wrap:balance}
+h3{font-size:15px}
+.lbl{font:500 11px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:24px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Kopfzeile */
+.top{position:sticky;top:0;z-index:20;background:var(--glass);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+.top-in{display:flex;align-items:center;gap:16px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.02em;font-size:15px;flex:1;min-width:0}
+.brand svg{flex:none}
+.top-r{flex:1;display:flex;justify-content:flex-end;align-items:center;gap:10px}
+.icon-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--fg-2);transition:border-color .2s}
+.icon-btn:hover{border-color:var(--line-2)}
+.recpill{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:500 12.5px var(--mono)}
+.recpill i{width:7px;height:7px;border-radius:50%;background:var(--gap);animation:breathe 2.4s var(--ease) infinite}
+.recpill.paused i{animation:none;background:var(--fg-3)}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Umschalter */
+.seg{position:relative;display:inline-flex;background:var(--surface-2);border-radius:999px;padding:3px;flex:none}
+.seg button{position:relative;z-index:1;border:0;background:none;height:32px;padding:0 15px;border-radius:999px;font-size:13.5px;font-weight:500;color:var(--fg-3);transition:color .3s}
+.seg button.on{color:var(--fg)}
+.seg .thumb{position:absolute;top:3px;left:0;height:32px;border-radius:999px;background:var(--surface);box-shadow:0 1px 2px rgba(12,12,20,.08),0 2px 8px rgba(12,12,20,.06);transition:transform .4s var(--ease),width .4s var(--ease)}
+.seg.sm button{height:26px;padding:0 11px;font-size:12.5px}
+.seg.sm .thumb{height:26px}
+
+/* Ansichten */
+main{padding-block:24px 64px}
+.view{display:none}
+.view.active{display:block;transition:opacity .33s var(--ease),transform .33s var(--ease)}
+.view.entering{opacity:0;transform:translateX(var(--dx,24px))}
+.view.leaving{opacity:0;transform:translateX(var(--dx,-24px));transition-duration:.17s}
+
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:22px;min-width:0}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+
+/* Knöpfe */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-size:14px;font-weight:500;transition:border-color .2s,background .2s,transform .2s var(--ease)}
+.btn:hover{border-color:var(--fg-3)}
+.btn:active{transform:scale(.98)}
+.btn.sm{height:32px;padding:0 13px;font-size:13px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.primary:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn.dark{background:var(--fg);border-color:var(--fg);color:var(--bg);font-weight:600}
+.btn.big{height:52px;padding:0 30px;font-size:16px}
+.btn.ghost{border-color:transparent;background:none;color:var(--fg-2)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.warn{color:var(--gap-ink)}
+.btn.warn.armed{background:var(--gap-soft);border-color:transparent}
+.lnk{border:0;background:none;padding:0;color:var(--fg-2);font-weight:500}
+.lnk:hover{color:var(--fg)}
+
+/* Fahren */
+.live-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start}
+.side{display:grid;gap:20px}
+.live{padding:26px 26px 22px}
+.live-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.zone{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:999px;background:var(--surface-2);font-size:13px;font-weight:500;color:var(--fg-2);white-space:nowrap}
+.zone i{width:8px;height:8px;border-radius:50%;background:var(--zc,var(--line-2));transition:background .5s var(--ease)}
+.bignum{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+.bignum b{font-size:clamp(96px,19vw,172px);font-weight:600;letter-spacing:-.055em;line-height:.95}
+.bignum .unit{font-size:28px;font-weight:500;color:var(--fg-3);letter-spacing:-.02em}
+.wkg{font-size:15px;color:var(--fg-2);margin-top:2px}
+.zbar{margin:22px 0 4px}
+.zbar-track{position:relative;display:flex;gap:2px;height:6px}
+.zbar-track span{border-radius:3px;background:var(--zc);opacity:.85}
+.zbar-mark{position:absolute;top:-5px;width:4px;height:16px;border-radius:2px;background:var(--fg);left:0;transform:translateX(-2px);transition:left .6s var(--ease),opacity .4s;box-shadow:0 0 0 2px var(--surface)}
+.zbar-lbl{display:flex;gap:2px;margin-top:7px}
+.zbar-lbl span{font:500 10.5px var(--mono);color:var(--fg-3);letter-spacing:.04em}
+.stats6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);margin-top:22px}
+.st{padding:14px 0 14px;border-bottom:1px solid var(--line)}
+.st:not(:nth-child(3n+1)){padding-left:16px;border-left:1px solid var(--line)}
+.st .v{font-size:24px;font-weight:600;letter-spacing:-.03em;margin-top:5px;white-space:nowrap}
+.st .v small{font-size:13px;font-weight:500;color:var(--fg-3);letter-spacing:0;margin-left:3px}
+.cv{display:block;width:100%;height:170px;touch-action:pan-y}
+.cv.tall{height:240px}
+.chart-live{margin-top:22px;display:grid;gap:8px}
+
+/* Strecke live */
+.route-live{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+.rl-head{display:flex;align-items:flex-end;justify-content:space-between;gap:4px 12px;margin-bottom:10px;flex-wrap:wrap}
+.rl-name{font-weight:600;font-size:15px;min-width:0;flex:1 1 150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rl-grade{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.rl-grade b{font-size:26px;font-weight:600;letter-spacing:-.03em}
+.rl-grade small{font-size:12px;color:var(--fg-3)}
+.rl-body{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr);gap:14px;align-items:stretch}
+.cv.prof{height:150px}
+.cv.map{height:150px;border-radius:12px;background:var(--surface-2)}
+.rl-bar{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:13px;color:var(--fg-2);white-space:nowrap}
+.rl-track{flex:1;height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden}
+.rl-track i{display:block;height:100%;width:0;background:var(--accent);border-radius:2px;transition:width .6s var(--ease)}
+
+/* Strecken-Auswahl */
+.rlist{display:grid;gap:6px}
+.rrow{display:grid;grid-template-columns:18px minmax(0,1fr) 64px;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 12px;transition:border-color .25s,background .25s}
+.rrow:hover{border-color:var(--line-2)}
+.rrow .rd{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;transition:border-color .25s}
+.rrow .rd::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);transform:scale(0);transition:transform .25s var(--ease)}
+.rrow.on{border-color:var(--accent-line);background:var(--accent-soft)}
+.rrow.on .rd{border-color:var(--accent)}
+.rrow.on .rd::after{transform:scale(1)}
+.rrow .rn{min-width:0}
+.rrow .rn b{display:block;font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .rn span{font-size:12.5px;color:var(--fg-3)}
+.rrow svg{width:64px;height:24px;display:block}
+.rrow[disabled]{opacity:.55;cursor:default}
+.rt-opts{display:grid;gap:10px;margin-top:14px}
+.rt-opts[hidden]{display:none}
+.rt-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.chk.sm{height:38px;margin-top:0;font-size:13.5px}
+.rt-empty{font-size:13.5px;color:var(--fg-3);margin:4px 0 0}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:20px;min-height:52px}
+.controls .q{font-weight:600;margin-right:6px}
+.controls .spacer{flex:1}
+
+.dev{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.dev:first-of-type{padding-top:4px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line-2);flex:none;transition:background .4s}
+.dot.on{background:var(--ok)}
+.dot.wait{background:var(--accent);animation:breathe 1.6s var(--ease) infinite}
+.dev-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.dev-t b{font-weight:500;font-size:14.5px}
+.dev-t span{font-size:13px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;margin-top:14px;border-radius:999px;border:1px solid var(--line-2);font-size:14px;font-weight:500;cursor:pointer;user-select:none;transition:border-color .25s,background .25s}
+.chk input{position:absolute;opacity:0;pointer-events:none}
+.chk .box{width:18px;height:18px;border-radius:6px;border:1.5px solid var(--line-2);display:grid;place-items:center;transition:background .25s,border-color .25s}
+.chk .box::after{content:"";width:9px;height:5px;border-left:2px solid var(--on-accent);border-bottom:2px solid var(--on-accent);transform:rotate(-45deg) translate(1px,-1px) scale(0);transition:transform .25s var(--ease)}
+.chk.on{border-color:var(--accent-line);background:var(--accent-soft)}
+.chk.on .box{background:var(--accent);border-color:var(--accent)}
+.chk.on .box::after{transform:rotate(-45deg) translate(1px,-1px) scale(1)}
+.chk:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:13px;color:var(--gap-ink);margin:12px 0 0}
+.note.soft{color:var(--fg-3)}
+
+.erg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.switch{position:relative;width:40px;height:24px;flex:none}
+.switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--surface-3);transition:background .3s}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .35s var(--ease)}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span::after{transform:translateX(16px)}
+.switch input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:flex;align-items:center;height:44px;border:1px solid var(--line-2);border-radius:var(--r-s);background:var(--surface);transition:border-color .2s,box-shadow .2s;overflow:hidden}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field input{flex:1;min-width:0;border:0;background:none;height:100%;padding:0 12px;font-size:17px;font-weight:600;outline:none;text-align:center}
+.field .u{color:var(--fg-3);font-size:14px;padding-right:12px}
+.field .pm{width:44px;height:100%;border:0;background:none;color:var(--fg-2);font-size:20px;line-height:1}
+.field .pm:hover{background:var(--surface-2)}
+.field.left input{text-align:left}
+.erg.off .field,.erg.off .quick{opacity:.5}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;transition:opacity .3s}
+.qb{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-size:12.5px;color:var(--fg-2);transition:border-color .2s}
+.qb b{color:var(--fg);font-weight:600;margin-left:4px}
+.qb:hover{border-color:var(--line-2)}
+
+/* Fahrten */
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.page-h h1{font-size:30px;letter-spacing:-.035em}
+.week{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:28px;align-items:end}
+.week-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.big3 .v{font-size:30px;font-weight:600;letter-spacing:-.035em;margin-top:6px;line-height:1.1}
+.big3 .v small{font-size:14px;color:var(--fg-3);font-weight:500;margin-left:3px;letter-spacing:0}
+.wbars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;height:130px;align-items:end}
+.wb{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;min-width:0}
+.wb .bar{width:100%;max-width:34px;border-radius:6px 6px 3px 3px;background:var(--z2);height:var(--h);transform-origin:bottom;transform:scaleY(0);transition:transform .8s var(--ease)}
+.wb.cur .bar{background:var(--accent)}
+.wb .val{font:500 10.5px var(--mono);color:var(--fg-3);white-space:nowrap}
+.wb .kw{font:500 10.5px var(--mono);color:var(--fg-3)}
+.wb.cur .kw{color:var(--accent-ink)}
+.grow .wb .bar{transform:scaleY(1)}
+.wb:nth-child(2) .bar{transition-delay:.04s}.wb:nth-child(3) .bar{transition-delay:.08s}.wb:nth-child(4) .bar{transition-delay:.12s}.wb:nth-child(5) .bar{transition-delay:.16s}.wb:nth-child(6) .bar{transition-delay:.2s}.wb:nth-child(7) .bar{transition-delay:.24s}.wb:nth-child(8) .bar{transition-delay:.28s}
+.list{display:grid;gap:10px;margin-top:20px}
+.row{display:grid;grid-template-columns:86px minmax(0,1fr) repeat(4,82px) 130px;align-items:center;gap:14px;width:100%;text-align:left;border:0;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;transition:transform .25s var(--ease),box-shadow .25s}
+.row:hover{transform:translateY(-1px)}
+.row .d b{display:block;font-weight:600;font-size:14.5px}
+.row .d span{font-size:12.5px;color:var(--fg-3)}
+.row .nm{min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .m .lbl{font-size:10px}
+.row .m b{display:block;font-weight:600;font-size:15px;margin-top:2px}
+.row svg{width:100%;height:34px;display:block}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--surface-2);font:500 10.5px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--fg-3);margin-left:8px;vertical-align:2px}
+.tag.acc{background:var(--accent-soft);color:var(--accent-ink)}
+.empty{text-align:center;padding:48px 22px;color:var(--fg-3)}
+.empty b{display:block;color:var(--fg);font-size:17px;margin-bottom:6px}
+
+/* Detail */
+.crumb{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--fg-3);margin-bottom:6px}
+.title-in{width:100%;border:1px solid transparent;border-radius:var(--r-s);background:none;font-size:30px;font-weight:600;letter-spacing:-.035em;padding:2px 8px;margin:0 0 16px -9px;outline:none;transition:border-color .2s,background .2s}
+.title-in:hover{border-color:var(--line)}
+.title-in:focus{border-color:var(--accent);background:var(--surface)}
+.hero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,2fr);gap:28px;align-items:center}
+.hero-num{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.hero-num b{font-size:64px;font-weight:600;letter-spacing:-.05em;line-height:1}
+.hero-num .unit{font-size:20px;color:var(--fg-3);font-weight:500}
+.hero .sub{font-size:14px;color:var(--fg-2)}
+.kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-left:1px solid var(--line)}
+.kv .st{padding:12px 0 12px 18px;border-left:0}
+.kv .st:not(:nth-child(4n+1)){border-left:0}
+.kv .st:nth-last-child(-n+4){border-bottom:0}
+.kv .st .v{font-size:21px}
+.stack{display:grid;gap:20px;margin-top:20px}
+.two{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px}
+.btab{display:grid;margin-top:12px}
+.btab .r{display:grid;grid-template-columns:70px 1fr auto auto;gap:14px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.btab .r .w{font-weight:600;text-align:right}
+.btab .r .k{color:var(--fg-3);text-align:right;min-width:70px}
+.btab .r button{justify-self:start}
+.zb{display:grid;grid-template-columns:118px minmax(0,1fr) 56px 42px;gap:12px;align-items:center;padding:7px 0;font-size:13.5px}
+.zb .zn{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.zb .zn i{width:8px;height:8px;border-radius:50%;background:var(--zc);flex:none}
+.zb .zn small{color:var(--fg-3);font-size:12px}
+.zb .tr{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.zb .tr span{display:block;height:100%;width:var(--w);border-radius:5px;background:var(--zc);transform-origin:left;transform:scaleX(0);transition:transform .9s var(--ease)}
+.grow .zb .tr span{transform:scaleX(1)}
+.zb .t{text-align:right;font-weight:500}
+.zb .p{text-align:right;color:var(--fg-3);font-size:12.5px}
+.zw{font:500 11.5px var(--mono);color:var(--fg-3);display:block}
+.acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px}
+.acts .spacer{flex:1}
+
+/* Bestwerte */
+.ftpc{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.ftpc .v{font-size:34px;font-weight:600;letter-spacing:-.04em;margin-top:4px}
+.ftpc .v small{font-size:15px;color:var(--fg-3);font-weight:500;margin-left:4px;letter-spacing:0}
+.legend-in{display:flex;gap:16px;font-size:12.5px;color:var(--fg-3)}
+.legend-in span{display:inline-flex;align-items:center;gap:6px}
+.legend-in i{width:14px;height:2px;border-radius:1px;background:var(--accent)}
+.legend-in i.g{background:var(--fg-3)}
+
+/* Dialog, Meldung */
+dialog{border:0;border-radius:20px;padding:0;background:var(--surface);color:var(--fg);box-shadow:0 24px 64px rgba(0,0,0,.25);width:min(440px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(10,10,14,.35);backdrop-filter:blur(2px)}
+.dlg{padding:24px;display:grid;gap:16px}
+.dlg h2{font-size:20px}
+.frow{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:12px}
+.frow label{font-weight:500;font-size:14px}
+.sep{height:1px;background:var(--line);margin:4px 0}
+.dlg-row{display:flex;flex-wrap:wrap;gap:10px}
+.dlg-foot{display:flex;justify-content:flex-end}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--fg);color:var(--bg);padding:11px 18px;border-radius:999px;font-size:14px;font-weight:500;transition:opacity .3s var(--ease),transform .3s var(--ease);z-index:50;max-width:calc(100vw - 32px);text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Handy */
+@media (max-width:900px){
+  .live-grid{display:flex;flex-direction:column}
+  .side{display:contents}
+  .side>.card:first-child{order:-2}
+  #routeCard{order:-1}
+  .live-grid>.card,.side>.card{width:100%}
+  .row{grid-template-columns:70px minmax(0,1fr) repeat(3,64px)}
+  .row .m.np,.row svg{display:none}
+  .hero{grid-template-columns:1fr}
+  .kv{border-left:0;border-top:1px solid var(--line)}
+  .kv .st{padding-left:0}
+  .kv .st:not(:nth-child(4n+1)){padding-left:14px;border-left:1px solid var(--line)}
+  .two,.week{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .wrap{padding-inline:16px}
+  body{font-size:14.5px}
+  main{padding-block:16px 48px}
+  .brand span{display:none}
+  .top-in{gap:10px}
+  .seg button{padding:0 12px;font-size:13px}
+  .card{padding:18px}
+  .live{padding:20px 18px}
+  .st .v{font-size:20px}
+  .st:not(:nth-child(3n+1)){padding-left:12px}
+  .controls .btn{flex:1}
+  .rl-body{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px}
+  .cv.prof,.cv.map{height:120px}
+  .rl-grade b{font-size:22px}
+  .controls .q{flex-basis:100%}
+  .controls .spacer{display:none}
+  .kv{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kv .st:not(:nth-child(4n+1)){padding-left:0;border-left:0}
+  .kv .st:nth-child(2n){padding-left:14px;border-left:1px solid var(--line)}
+  .kv .st:nth-last-child(-n+4){border-bottom:1px solid var(--line)}
+  .kv .st:nth-last-child(-n+2){border-bottom:0}
+  .row{grid-template-columns:66px minmax(0,1fr) 58px 44px;padding:12px 14px;gap:10px}
+  .row .d span{font-size:12px;white-space:nowrap}
+  .row .nm .tag{display:none}
+  .row .m.kj{display:none}
+  .page-h h1,.title-in{font-size:24px}
+  .hero-num b{font-size:52px}
+  .week-nums .v{font-size:24px}
+  .zb{grid-template-columns:100px minmax(0,1fr) 48px}
+  .zb .p{display:none}
+  .cv.tall{height:200px}
+  .field input{font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap top-in">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="6" fill="var(--accent)"/><path d="M5 15l3.2-5 3 3.2L17 6" fill="none" stroke="var(--on-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Wattbuch</span>
+  </div>
+  <nav class="seg" id="nav" aria-label="Ansicht">
+    <span class="thumb" aria-hidden="true"></span>
+    <button type="button" data-v="live">Fahren</button>
+    <button type="button" data-v="rides">Fahrten</button>
+    <button type="button" data-v="best">Bestwerte</button>
+  </nav>
+  <div class="top-r">
+    <span class="recpill" id="recpill" hidden><i></i><span id="recpillT">0:00</span></span>
+    <button type="button" class="icon-btn" id="btnSet" aria-label="Einstellungen">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <!-- Fahren -->
+  <section class="view" id="v-live">
+    <div class="live-grid">
+      <div class="card live">
+        <div class="live-top">
+          <span class="lbl">Leistung · 3 s</span>
+          <span class="zone" id="zonePill"><i></i><span>–</span></span>
+        </div>
+        <div class="bignum"><b id="lvPow">–</b><span class="unit">W</span></div>
+        <div class="wkg" id="lvWkg">– W/kg</div>
+        <div class="zbar" aria-hidden="true">
+          <div class="zbar-track" id="zTrack"><i class="zbar-mark" id="zMark"></i></div>
+          <div class="zbar-lbl" id="zLbl"></div>
+        </div>
+        <div class="route-live" id="routeLive" hidden>
+          <div class="rl-head">
+            <span class="rl-name" id="rlName"></span>
+            <span class="rl-grade"><span class="lbl">Steigung</span><b id="rlGrade">0,0 %</b><small id="rlSent"></small></span>
+          </div>
+          <div class="rl-body">
+            <canvas class="cv prof" id="cvProf" aria-label="Höhenprofil der Strecke"></canvas>
+            <canvas class="cv map" id="cvMap" aria-label="Streckenverlauf"></canvas>
+          </div>
+          <div class="rl-bar"><span id="rlDone">0,0 km</span><span class="rl-track"><i id="rlFill"></i></span><span id="rlLeft">noch 0,0 km</span></div>
+        </div>
+        <div class="stats6">
+          <div class="st"><span class="lbl">Zeit</span><div class="v" id="lvTime">0:00</div></div>
+          <div class="st"><span class="lbl">Distanz</span><div class="v"><span id="lvDist">0,0</span><small>km</small></div></div>
+          <div class="st"><span class="lbl">Tempo</span><div class="v"><span id="lvSpd">–</span><small>km/h</small></div></div>
+          <div class="st"><span class="lbl">Ø Leistung</span><div class="v"><span id="lvAvg">–</span><small>W</small></div></div>
+          <div class="st"><span class="lbl">NP</span><div class="v"><span id="lvNP">–</span><small>W</small></div></div>
+          <div class="st"><span class="lbl">Arbeit</span><div class="v"><span id="lvKJ">0</span><small>kJ</small></div></div>
+          <div class="st"><span class="lbl">Puls</span><div class="v"><span id="lvHR">–</span><small>bpm</small></div></div>
+          <div class="st"><span class="lbl">Trittfrequenz</span><div class="v"><span id="lvCad">–</span><small>rpm</small></div></div>
+          <div class="st"><span class="lbl">Höhenmeter</span><div class="v"><span id="lvGain">0</span><small>m</small></div></div>
+        </div>
+        <div class="controls" id="ctrls"></div>
+        <div class="chart-live"><span class="lbl">Leistung · letzte 5 min</span><canvas class="cv" id="cvLive" aria-label="Leistung der letzten fünf Minuten"></canvas></div>
+      </div>
+
+      <div class="side">
+        <div class="card">
+          <div class="card-h" style="margin-bottom:8px"><h3>Geräte</h3></div>
+          <div class="dev">
+            <span class="dot" id="trDot"></span>
+            <div class="dev-t"><b>Rollentrainer</b><span id="trSub">Nicht verbunden</span></div>
+            <button type="button" class="btn sm" id="btnTr">Verbinden</button>
+          </div>
+          <div class="dev">
+            <span class="dot" id="hrDot"></span>
+            <div class="dev-t"><b>Pulsgurt</b><span id="hrSub">Nicht verbunden</span></div>
+            <button type="button" class="btn sm" id="btnHr">Verbinden</button>
+          </div>
+          <div class="dev">
+            <span class="dot" id="cdDot"></span>
+            <div class="dev-t"><b>Trittfrequenzsensor</b><span id="cdSub">Nicht verbunden</span></div>
+            <button type="button" class="btn sm" id="btnCd">Verbinden</button>
+          </div>
+          <label class="chk" id="chkDemo"><input type="checkbox" id="demo"><span class="box"></span>Ohne Rolle testen</label>
+          <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac Chrome nehmen, am iPhone die App Bluefy.</p>
+        </div>
+
+        <div class="card" id="routeCard">
+          <div class="card-h" style="margin-bottom:6px"><h3>Strecke</h3><button type="button" class="lnk" id="rtLoad">Laden</button></div>
+          <div class="rlist" id="rtList"></div>
+          <div class="rt-opts" id="rtOpts">
+            <div class="rt-row"><span class="lbl">Steigungsstärke</span>
+              <div class="seg sm" id="diffSeg"><span class="thumb"></span><button type="button" data-df="0.25">25 %</button><button type="button" data-df="0.5">50 %</button><button type="button" data-df="0.75">75 %</button><button type="button" data-df="1">100 %</button></div>
+            </div>
+            <label class="chk sm" id="chkRev"><input type="checkbox" id="rev"><span class="box"></span>Umgekehrt fahren</label>
+          </div>
+        </div>
+
+        <div class="card erg off" id="ergCard">
+          <div class="erg-h">
+            <h3>Zielleistung</h3>
+            <label class="switch" aria-label="Zielleistung halten"><input type="checkbox" id="ergOn"><span></span></label>
+          </div>
+          <div class="field">
+            <button type="button" class="pm" data-d="-10" tabindex="-1" aria-label="10 Watt weniger">−</button>
+            <input id="ergW" inputmode="numeric" autocomplete="off" value="150" aria-label="Zielleistung in Watt">
+            <span class="u">W</span>
+            <button type="button" class="pm" data-d="10" tabindex="-1" aria-label="10 Watt mehr">+</button>
+          </div>
+          <div class="quick" id="ergQuick"></div>
+          <p class="note" id="ergMsg" hidden></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-rides"></section>
+  <section class="view" id="v-detail"></section>
+  <section class="view" id="v-best"></section>
+</main>
+
+<dialog id="dlgSet">
+  <form method="dialog" class="dlg">
+    <h2>Einstellungen</h2>
+    <div class="frow"><label for="setFtp">FTP</label><div class="field left"><input id="setFtp" inputmode="numeric" autocomplete="off"><span class="u">W</span></div></div>
+    <div class="frow"><label for="setKg">Gewicht</label><div class="field left"><input id="setKg" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
+    <div class="frow"><label for="setBike">Rad</label><div class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
+    <div><button type="button" class="qb" id="ftpEst"></button></div>
+    <div class="sep"></div>
+    <div class="dlg-row">
+      <button type="button" class="btn sm" id="bkExp">Sicherung speichern</button>
+      <button type="button" class="btn sm" id="bkImp">Datei laden</button>
+    </div>
+    <div class="dlg-row"><button type="button" class="btn sm ghost warn" id="delAll">Alle Fahrten löschen</button></div>
+    <div class="dlg-foot"><button class="btn primary" value="ok">Fertig</button></div>
+  </form>
+</dialog>
+
+<input type="file" id="anyFile" multiple accept=".json,.gpx,application/json,application/gpx+xml" hidden>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ---------- Helfer ---------- */
+const $=(s,e=document)=>e.querySelector(s);
+const $$=(s,e=document)=>[...e.querySelectorAll(s)];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pad=n=>String(n).padStart(2,'0');
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const F0=new Intl.NumberFormat('de-DE',{maximumFractionDigits:0});
+const F1=new Intl.NumberFormat('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1});
+const F2=new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fin=v=>v!=null&&isFinite(v);
+const n0=v=>fin(v)?F0.format(Math.round(v)):'–';
+const n1=v=>fin(v)?F1.format(v):'–';
+const n2=v=>fin(v)?F2.format(v):'–';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmtDur(s){s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${pad(m)}:${pad(x)}`:`${m}:${pad(x)}`;}
+function fmtHM(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${h}:${pad(m)}`:`0:${pad(m)}`;}
+function durLbl(d){if(d<60)return d+' s';if(d<3600)return (d/60)+' min';const h=d/3600;return (Number.isInteger(h)?h:F1.format(h))+' h';}
+const WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
+const MO=['Jan.','Feb.','März','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Dez.'];
+const fmtDate=iso=>{const d=new Date(iso);return `${WD[d.getDay()]} ${d.getDate()}. ${MO[d.getMonth()]}`;};
+const fmtDateY=iso=>{const d=new Date(iso);return `${d.getDate()}. ${MO[d.getMonth()]} ${d.getFullYear()}`;};
+const fmtTime=iso=>{const d=new Date(iso);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+function isoWeek(d){const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y0)/864e5+1)/7);}
+function weekStart(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
+let toastT=null;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3600);}
+function anim(ms,fn){const t0=performance.now();return new Promise(res=>{const st=t=>{const k=Math.min(1,(t-t0)/ms);fn(1-Math.pow(1-k,3));k<1?requestAnimationFrame(st):res();};requestAnimationFrame(st);});}
+
+/* ---------- Leistungs-Kennzahlen ---------- */
+const DURS=[1,5,10,15,30,60,120,300,600,1200,1800,3600,5400,7200];
+const KEY_DURS=[5,60,300,1200,3600];
+const ZONES=[
+  {n:'Z1',name:'Erholung',hi:.55},{n:'Z2',name:'Grundlage',hi:.75},{n:'Z3',name:'Tempo',hi:.90},
+  {n:'Z4',name:'Schwelle',hi:1.05},{n:'Z5',name:'VO2max',hi:1.20},{n:'Z6',name:'Anaerob',hi:1.50},{n:'Z7',name:'Sprint',hi:Infinity}];
+function zoneIdx(w,ftp){const r=w/ftp;for(let i=0;i<6;i++)if(r<=ZONES[i].hi)return i;return 6;}
+function sum(a){let s=0;for(let i=0;i<a.length;i++)s+=a[i];return s;}
+function rolling(a,w){const o=new Array(a.length);let s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=w)s-=a[i-w];o[i]=s/Math.min(i+1,w);}return o;}
+function calcNP(p){
+  if(!p.length)return 0;
+  if(p.length<30)return sum(p)/p.length;
+  let s=0,acc=0,n=0;
+  for(let i=0;i<p.length;i++){s+=p[i];if(i>=30)s-=p[i-30];if(i>=29){const a=s/30;acc+=a*a*a*a;n++;}}
+  return Math.pow(acc/n,.25);
+}
+function bestAvg(p,d){
+  if(p.length<d)return null;
+  let s=0;for(let i=0;i<d;i++)s+=p[i];let m=s;
+  for(let i=d;i<p.length;i++){s+=p[i]-p[i-d];if(s>m)m=s;}
+  return m/d;
+}
+const SC=new WeakMap();
+function stats(r){
+  const ftp=S.set.ftp, c=SC.get(r);
+  if(c&&c.ftp===ftp)return c;
+  const p=r.p,dur=p.length;
+  let max=0;for(const v of p)if(v>max)max=v;
+  const avg=dur?sum(p)/dur:0,np=calcNP(p);
+  const hv=r.hr?r.hr.filter(v=>v>0):[],cv=r.cad?r.cad.filter(v=>v>0):[];
+  const zt=[0,0,0,0,0,0,0];for(const v of p)zt[zoneIdx(v,ftp)]++;
+  const IF=np/ftp;
+  const s={ftp,dur,avg,np,max,kj:sum(p)/1000,IF,tss:dur*np*IF/(ftp*36),
+    hrAvg:hv.length?sum(hv)/hv.length:null,hrMax:hv.length?Math.max(...hv):null,
+    cadAvg:cv.length?sum(cv)/cv.length:null,
+    curve:DURS.filter(d=>d<=dur).map(d=>[d,bestAvg(p,d)]),zt};
+  SC.set(r,s);return s;
+}
+/* Fahrten für Summen und Bestwerte: Beispielfahrt zählt nur, solange es keine echte gibt */
+function aggRides(){const real=S.rides.filter(r=>!r.sample);return real.length?real:S.rides;}
+function bestsOf(rides){
+  const m={};
+  for(const r of rides){for(const [d,w] of stats(r).curve){if(w!=null&&(!m[d]||w>m[d].w))m[d]={w,id:r.id,start:r.start};}}
+  return m;
+}
+
+/* ---------- Speicher (IndexedDB, Rückfall auf Arbeitsspeicher) ---------- */
+const DB=(()=>{
+  let db=null;const mem=new Map(),kv=new Map();
+  function open(){return new Promise(res=>{try{const q=indexedDB.open('wattbuch',1);q.onupgradeneeded=()=>{q.result.createObjectStore('rides',{keyPath:'id'});q.result.createObjectStore('kv');};q.onsuccess=()=>{db=q.result;res();};q.onerror=()=>res();q.onblocked=()=>res();}catch(e){res();}});}
+  function run(store,mode,fn){return new Promise((res,rej)=>{try{const t=db.transaction(store,mode);const q=fn(t.objectStore(store));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);}catch(e){rej(e);}});}
+  return{
+    open,
+    async all(){if(!db)return[...mem.values()];try{return await run('rides','readonly',s=>s.getAll())||[];}catch(e){return[...mem.values()];}},
+    async put(r){mem.set(r.id,r);if(db)try{await run('rides','readwrite',s=>s.put(r));}catch(e){toast('Speichern im Browser fehlgeschlagen');}},
+    async del(id){mem.delete(id);if(db)try{await run('rides','readwrite',s=>s.delete(id));}catch(e){}},
+    async get(k){if(!db)return kv.get(k);try{return await run('kv','readonly',s=>s.get(k));}catch(e){return kv.get(k);}},
+    async set(k,v){kv.set(k,v);if(db)try{await run('kv','readwrite',s=>s.put(v,k));}catch(e){}},
+    async rm(k){kv.delete(k);if(db)try{await run('kv','readwrite',s=>s.delete(k));}catch(e){}},
+    get ok(){return!!db;}
+  };
+})();
+
+/* ---------- Zustand ---------- */
+const S={
+  view:'live',detail:null,set:{ftp:200,weight:75,bike:8,diff:.5,routeId:null,rev:false},rides:[],routes:[],
+  sim:{v:0,d:0,total:0,gain:0,lastAlt:null,lap:1,done:false,sent:null,tSent:0,busy:false,last:0},
+  cd:{state:'off',name:'',dev:null,manual:false},
+  tr:{state:'off',name:'',dev:null,cp:null,ctrl:false,via:'',manual:false,tries:0},
+  hrm:{state:'off',name:'',dev:null,manual:false},
+  demo:false,
+  live:{raw:[],cad:null,tC:0,cadSeen:false,spd:null,tS:0,hr:null,tH:0},
+  hist:[],
+  rec:{state:'idle',startISO:null,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0},
+  erg:{on:false,target:150},
+  smooth:5,wake:null,liveHover:null
+};
+const isLive=()=>S.tr.state==='on'||S.demo;
+
+/* ---------- Live-Daten ---------- */
+function feed(r,src){
+  const now=performance.now(),L=S.live;
+  if(fin(r.pow)){L.raw.push({t:now,v:Math.max(0,r.pow)});}
+  if(fin(r.cad)&&(src==='cd'||S.cd.state!=='on')){L.cad=r.cad;L.tC=now;if(r.cad>0)L.cadSeen=true;}
+  if(fin(r.spd)){L.spd=r.spd;L.tS=now;}
+  if(fin(r.hr)&&r.hr>0&&(src==='hr'||S.hrm.state!=='on')){L.hr=r.hr;L.tH=now;}
+  while(L.raw.length&&now-L.raw[0].t>5000)L.raw.shift();
+}
+function avgSince(ms){const now=performance.now();let s=0,n=0;for(const x of S.live.raw)if(now-x.t<=ms){s+=x.v;n++;}return n?s/n:null;}
+function curPow(){const v=avgSince(3000);if(v!=null)return v;return isLive()?0:null;}
+function samplePow(){let v=avgSince(1100);if(v==null)v=avgSince(3000);return v==null?0:Math.round(v);}
+const fresh=(t,ms)=>performance.now()-t<=ms;
+function curHR(){return S.live.hr&&fresh(S.live.tH,5000)?S.live.hr:null;}
+function curCad(){return S.live.cadSeen&&fresh(S.live.tC,3000)?S.live.cad:null;}
+
+/* ---------- Bluetooth ---------- */
+const hasBT=!!(navigator.bluetooth&&navigator.bluetooth.requestDevice);
+function onIBD(e){
+  const dv=e.target.value;
+  try{
+    const f=dv.getUint16(0,true);let o=2;const r={};
+    if(!(f&1)){r.spd=dv.getUint16(o,true)/100;o+=2;}
+    if(f&2)o+=2;
+    if(f&4){r.cad=Math.round(dv.getUint16(o,true)/2);o+=2;}
+    if(f&8)o+=2;
+    if(f&16)o+=3;
+    if(f&32)o+=2;
+    if(f&64){r.pow=dv.getInt16(o,true);o+=2;}
+    if(f&128)o+=2;
+    if(f&256)o+=5;
+    if(f&512){r.hr=dv.getUint8(o);o+=1;}
+    feed(r,'tr');
+  }catch(_){}
+}
+let lastCrank=null;
+function onCPM(e){
+  const dv=e.target.value;
+  try{
+    const f=dv.getUint16(0,true);const r={pow:dv.getInt16(2,true)};let o=4;
+    if(f&1)o+=1; if(f&4)o+=2; if(f&16)o+=6;
+    if(f&32){
+      const rev=dv.getUint16(o,true),t=dv.getUint16(o+2,true),now=performance.now();
+      if(lastCrank&&rev!==lastCrank.rev){const dr=(rev-lastCrank.rev+65536)%65536,dt=((t-lastCrank.t+65536)%65536)/1024;if(dt>0&&dr<10)r.cad=Math.round(dr/dt*60);}
+      else if(lastCrank&&now-lastCrank.at>2500)r.cad=0;
+      if(!lastCrank||rev!==lastCrank.rev)lastCrank={rev,t,at:now};
+    }
+    feed(r,'tr');
+  }catch(_){}
+}
+function onHRM(e){
+  const dv=e.target.value;
+  try{const f=dv.getUint8(0);feed({hr:f&1?dv.getUint16(1,true):dv.getUint8(1)},'hr');}catch(_){}
+}
+let lastCsc=null;
+function onCSC(e){
+  const dv=e.target.value;
+  try{
+    const f=dv.getUint8(0);let o=1;if(f&1)o+=6;
+    if(f&2){
+      const rev=dv.getUint16(o,true),t=dv.getUint16(o+2,true),now=performance.now();let cad=null;
+      if(lastCsc&&rev!==lastCsc.rev){const dr=(rev-lastCsc.rev+65536)%65536,dt=((t-lastCsc.t+65536)%65536)/1024;if(dt>0&&dr<10)cad=Math.round(dr/dt*60);}
+      else if(lastCsc&&now-lastCsc.at>2500)cad=0;
+      if(!lastCsc||rev!==lastCsc.rev)lastCsc={rev,t,at:now};
+      if(cad!=null)feed({cad},'cd');
+    }
+  }catch(_){}
+}
+function onCP(e){
+  const dv=e.target.value;
+  try{if(dv.getUint8(0)===0x80){const op=dv.getUint8(1),res=dv.getUint8(2);if(res!==1&&op===0x00){S.tr.ctrl=false;ergMsg('Die Rolle gibt die Steuerung nicht frei. Läuft noch eine andere App?');}}}catch(_){}
+}
+
+async function connectTrainer(){
+  if(S.tr.state!=='off'){disconnectTrainer();return;}
+  if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
+  let dev;
+  try{
+    dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1826]},{services:[0x1818]}],optionalServices:[0x1826,0x1818]});
+  }catch(e){if(e.name!=='NotFoundError')toast('Abgebrochen: '+e.message);return;}
+  if(S.demo)setDemo(false);
+  S.tr.dev=dev;S.tr.manual=false;S.tr.tries=0;
+  dev.addEventListener('gattserverdisconnected',onTrDisc);
+  await setupTrainer();
+}
+async function setupTrainer(){
+  const dev=S.tr.dev;if(!dev)return;
+  setTr('wait',dev.name||'Rollentrainer','Verbinde …');
+  try{
+    const srv=await dev.gatt.connect();let via='';
+    try{
+      const f=await srv.getPrimaryService(0x1826);
+      const ibd=await f.getCharacteristic(0x2ad2);
+      ibd.addEventListener('characteristicvaluechanged',onIBD);
+      await ibd.startNotifications();via='FTMS';
+      try{const cp=await f.getCharacteristic(0x2ad9);cp.addEventListener('characteristicvaluechanged',onCP);await cp.startNotifications();S.tr.cp=cp;S.tr.ctrl=false;}catch(_){S.tr.cp=null;}
+    }catch(_){}
+    if(!via){
+      const s=await srv.getPrimaryService(0x1818);const m=await s.getCharacteristic(0x2a63);
+      m.addEventListener('characteristicvaluechanged',onCPM);await m.startNotifications();via='Leistungsmesser';S.tr.cp=null;
+    }
+    S.tr.via=via;S.tr.tries=0;
+    setTr('on',dev.name||'Rollentrainer');
+    if(S.erg.on)applyErg();
+  }catch(e){
+    if(S.rec.state!=='idle'&&S.tr.tries<5){retryTrainer();return;}
+    setTr('off','');toast('Rolle nicht erreichbar. Ist sie wach und Zwift geschlossen?');
+  }
+}
+function retryTrainer(){S.tr.tries++;setTr('wait',S.tr.name,`Verbindung weg, neuer Versuch ${S.tr.tries}/5`);setTimeout(setupTrainer,2000);}
+function onTrDisc(){
+  if(S.tr.manual){setTr('off','');return;}
+  S.tr.ctrl=false;
+  if(S.tr.tries<5)retryTrainer();else{setTr('off','');toast('Verbindung zur Rolle verloren');}
+}
+function disconnectTrainer(){
+  S.tr.manual=true;
+  try{S.tr.dev&&S.tr.dev.gatt.connected&&S.tr.dev.gatt.disconnect();}catch(_){}
+  S.tr.cp=null;S.tr.ctrl=false;setTr('off','');
+}
+function setTr(state,name,sub){
+  S.tr.state=state;S.tr.name=name||S.tr.name;
+  $('#trDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
+  $('#trSub').textContent=state==='on'?`${S.tr.name} · ${S.tr.via}`:state==='wait'?(sub||'Verbinde …'):'Nicht verbunden';
+  $('#btnTr').textContent=state==='off'?'Verbinden':'Trennen';
+  if(state==='off')S.live.raw=[];
+  renderControls();
+}
+
+async function connectHR(){
+  if(S.hrm.state!=='off'){S.hrm.manual=true;try{S.hrm.dev.gatt.disconnect();}catch(_){}setHr('off');return;}
+  if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
+  let dev;
+  try{dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}]});}
+  catch(e){if(e.name!=='NotFoundError')toast('Abgebrochen: '+e.message);return;}
+  S.hrm.dev=dev;S.hrm.manual=false;
+  dev.addEventListener('gattserverdisconnected',()=>{if(S.hrm.manual){setHr('off');return;}setHr('wait');setTimeout(setupHR,2000);});
+  await setupHR();
+}
+async function setupHR(){
+  const dev=S.hrm.dev;if(!dev)return;
+  setHr('wait');
+  try{
+    const srv=await dev.gatt.connect();const s=await srv.getPrimaryService('heart_rate');const c=await s.getCharacteristic('heart_rate_measurement');
+    c.addEventListener('characteristicvaluechanged',onHRM);await c.startNotifications();
+    S.hrm.name=dev.name||'Pulsgurt';setHr('on');
+  }catch(e){setHr('off');toast('Pulsgurt nicht erreichbar');}
+}
+function setHr(state){
+  S.hrm.state=state;
+  $('#hrDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
+  $('#hrSub').textContent=state==='on'?S.hrm.name:state==='wait'?'Verbinde …':'Nicht verbunden';
+  $('#btnHr').textContent=state==='off'?'Verbinden':'Trennen';
+}
+
+async function connectCd(){
+  if(S.cd.state!=='off'){S.cd.manual=true;try{S.cd.dev.gatt.disconnect();}catch(_){}setCd('off');return;}
+  if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
+  let dev;
+  try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1816]}]});}
+  catch(e){if(e.name!=='NotFoundError')toast('Abgebrochen: '+e.message);return;}
+  S.cd.dev=dev;S.cd.manual=false;lastCsc=null;
+  dev.addEventListener('gattserverdisconnected',()=>{if(S.cd.manual){setCd('off');return;}setCd('wait');setTimeout(setupCd,2000);});
+  await setupCd();
+}
+async function setupCd(){
+  const dev=S.cd.dev;if(!dev)return;
+  setCd('wait');
+  try{
+    const srv=await dev.gatt.connect();const s=await srv.getPrimaryService(0x1816);const c=await s.getCharacteristic(0x2a5b);
+    c.addEventListener('characteristicvaluechanged',onCSC);await c.startNotifications();
+    S.cd.name=dev.name||'Trittfrequenzsensor';setCd('on');
+  }catch(e){setCd('off');toast('Trittfrequenzsensor nicht erreichbar');}
+}
+function setCd(state){
+  S.cd.state=state;
+  $('#cdDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
+  $('#cdSub').textContent=state==='on'?S.cd.name:state==='wait'?'Verbinde …':'Nicht verbunden';
+  $('#btnCd').textContent=state==='off'?'Verbinden':'Trennen';
+}
+
+/* Steuerung (FTMS Control Point) */
+let cpQ=Promise.resolve();
+function cpWrite(bytes){
+  const cp=S.tr.cp;if(!cp)return Promise.reject(new Error('keine Steuerung'));
+  const d=new Uint8Array(bytes);
+  const job=cpQ.catch(()=>{}).then(()=>cp.writeValueWithResponse?cp.writeValueWithResponse(d):cp.writeValue(d)).then(()=>new Promise(r=>setTimeout(r,120)));
+  cpQ=job;return job;
+}
+/* Zielleistung (ERG) oder Steigung der Strecke an die Rolle */
+async function applyControl(force){
+  if(S.demo||S.tr.state!=='on')return;
+  if(!S.tr.cp){if(S.erg.on||activeRoute())ergMsg('Die Rolle nimmt keine Steuerbefehle an.');return;}
+  if(S.sim.busy)return;
+  const now=performance.now();
+  try{
+    S.sim.busy=true;
+    if(!S.tr.ctrl){await cpWrite([0x00]);S.tr.ctrl=true;await cpWrite([0x07]).catch(()=>{});force=true;}
+    if(S.erg.on){
+      if(force||S.sim.sent!=='erg'+S.erg.target){const t=clamp(Math.round(S.erg.target),0,2000);await cpWrite([0x05,t&255,(t>>8)&255]);S.sim.sent='erg'+S.erg.target;S.sim.tSent=now;}
+    }else{
+      const g=trainerGrade();
+      if(force||typeof S.sim.sent!=='number'||Math.abs(g-S.sim.sent)>=.2||(now-S.sim.tSent>8000&&g!==S.sim.sent)){
+        const gi=Math.round(g*100)&0xffff; /* 0,01 %, int16 */
+        await cpWrite([0x11,0,0,gi&255,(gi>>8)&255,40,51]); /* Wind 0, Crr 0,004, Cw 0,51 */
+        S.sim.sent=g;S.sim.tSent=now;
+      }
+    }
+    ergMsg('');
+  }catch(e){ergMsg('Steuerbefehl ging nicht durch.');}
+  finally{S.sim.busy=false;}
+}
+const applyErg=()=>applyControl(true);
+let ergT=null;
+function ergChanged(){clearTimeout(ergT);ergT=setTimeout(applyErg,350);renderErg();}
+function ergMsg(m){const el=$('#ergMsg');el.textContent=m;el.hidden=!m;}
+
+/* ---------- Demo ---------- */
+let demoT=null,demoClock=0,demoHr=72;
+function setDemo(on){
+  S.demo=on;$('#demo').checked=on;$('#chkDemo').classList.toggle('on',on);
+  clearInterval(demoT);demoT=null;S.live.raw=[];
+  if(on){if(S.tr.state!=='off')disconnectTrainer();demoClock=0;S.live.cadSeen=false;demoT=setInterval(demoStep,250);}
+  renderControls();
+}
+function demoStep(){
+  demoClock+=.25;const t=demoClock;
+  let base;
+  if(S.erg.on)base=S.erg.target;
+  else if(activeRoute())base=S.set.ftp*.72+clamp(routeGradeNow(),-6,10)*14;
+  else{const c=t%420;base=c<300?S.set.ftp*.72+10*Math.sin(t/23):S.set.ftp*1.02+8*Math.sin(t/9);}
+  const pow=Math.max(0,base+(Math.random()-.5)*24);
+  demoHr+=((60+pow*.42)-demoHr)*.008;
+  feed({pow,hr:Math.round(demoHr),cad:Math.round(84+(Math.random()-.5)*6)},'demo');
+}
+
+/* ---------- Strecken ---------- */
+const RSTEP=25;
+const PREP=new Map();
+function prepRoute(r,rev){
+  const k=r.id+(rev?'~r':'');if(PREP.has(k))return PREP.get(k);
+  const ele=rev?r.ele.slice().reverse():r.ele,line=rev?r.line.slice().reverse():r.line;
+  /* Linie: kumulierte Länge für die Position auf der Karte */
+  const cum=[0];for(let i=1;i<line.length;i++)cum.push(cum[i-1]+hav(line[i-1],line[i]));
+  const a=line[0],b=line[line.length-1];
+  const p={id:r.id,name:r.name+(rev?' (umgekehrt)':''),dist:(ele.length-1)*(r.step||RSTEP),step:r.step||RSTEP,ele,line,cum,gain:r.gain,loop:hav(a,b)<300};
+  PREP.set(k,p);return p;
+}
+function hav(a,b){const R=6371000,p1=a[0]*Math.PI/180,p2=b[0]*Math.PI/180,dp=p2-p1,dl=(b[1]-a[1])*Math.PI/180;const x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));}
+function activeRoute(){const r=S.routes.find(x=>x.id===S.set.routeId);return r?prepRoute(r,S.set.rev):null;}
+function eleAt(rt,d){const x=clamp(d,0,rt.dist)/rt.step,i=Math.min(rt.ele.length-2,Math.floor(x)),f=x-i;return rt.ele[i]+(rt.ele[i+1]-rt.ele[i])*f;}
+function gradeAt(rt,d){const a=clamp(d-25,0,rt.dist),b=clamp(d+25,0,rt.dist);return b>a?clamp((eleAt(rt,b)-eleAt(rt,a))/(b-a)*100,-25,25):0;}
+function routeGradeNow(){const rt=activeRoute();return rt&&!S.sim.done?gradeAt(rt,S.sim.d):0;}
+function trainerGrade(){return Math.round(routeGradeNow()*S.set.diff*10)/10;}
+function posAt(rt,d){
+  const L=rt.cum[rt.cum.length-1],t=clamp(d/rt.dist,0,1)*L;let i=1;
+  while(i<rt.cum.length-1&&rt.cum[i]<t)i++;
+  const s0=rt.cum[i-1],s1=rt.cum[i],f=s1>s0?(t-s0)/(s1-s0):0;
+  return[rt.line[i-1][0]+(rt.line[i][0]-rt.line[i-1][0])*f,rt.line[i-1][1]+(rt.line[i][1]-rt.line[i-1][1])*f];
+}
+/* Fahrphysik: Leistung gegen Rollwiderstand, Luft und Hangabtrieb */
+const PHYS={g:9.81,rho:1.225,cda:.32,crr:.005};
+function simStep(dt){
+  const P=isLive()?(curPow()||0):0,m=S.set.weight+S.set.bike,rt=activeRoute(),sim=S.sim;
+  const g=rt&&!sim.done?gradeAt(rt,sim.d):0,th=Math.atan(g/100);
+  const v=sim.v,drive=P/Math.max(v,1);
+  const res=m*PHYS.g*(PHYS.crr*Math.cos(th)+Math.sin(th))+.5*PHYS.rho*PHYS.cda*v*v;
+  sim.v=clamp(v+(drive-res)/(m+1.5)*dt,0,25);
+  if(!isLive())sim.v=0;
+  if(S.rec.state!=='rec')return;
+  const dd=sim.v*dt;sim.total+=dd;
+  if(!rt)return;
+  if(sim.done)return;
+  sim.d+=dd;
+  if(sim.d>=rt.dist){
+    if(rt.loop){sim.d-=rt.dist;sim.lap++;toast(`Runde ${sim.lap-1} geschafft`);}
+    else{sim.d=rt.dist;sim.done=true;toast('Ziel erreicht');applyControl(true);}
+  }
+  const alt=eleAt(rt,sim.d);
+  if(sim.lastAlt!=null&&alt>sim.lastAlt)sim.gain+=alt-sim.lastAlt;
+  sim.lastAlt=alt;
+}
+function resetSim(){Object.assign(S.sim,{d:0,total:0,gain:0,lastAlt:null,lap:1,done:false});const rt=activeRoute();if(rt)S.sim.lastAlt=eleAt(rt,0);}
+/* Aus Punkten (Abstand, Höhe, Linie) eine Strecke machen; gleiche Glättung wie bei den Strava-Strecken */
+function buildRoute(name,pts){
+  const xs=[0];for(let i=1;i<pts.length;i++)xs.push(xs[i-1]+hav(pts[i-1],pts[i]));
+  const L=xs[xs.length-1];if(L<1000)throw new Error('zu kurz');
+  const n=Math.floor(L/RSTEP)+1;let ele=[];let j=0;
+  for(let k=0;k<n;k++){const x=k*RSTEP;while(j<xs.length-2&&xs[j+1]<x)j++;const f=xs[j+1]>xs[j]?(x-xs[j])/(xs[j+1]-xs[j]):0;ele.push(pts[j][2]+(pts[j+1][2]-pts[j][2])*clamp(f,0,1));}
+  const sm=a=>a.map((_,i)=>{let s=0,c=0;for(let q=Math.max(0,i-3);q<=Math.min(a.length-1,i+3);q++){s+=a[q];c++;}return s/c;});
+  ele=sm(sm(ele));
+  let gain=0;for(let i=1;i<ele.length;i++)if(ele[i]>ele[i-1])gain+=ele[i]-ele[i-1];
+  const every=Math.max(1,Math.ceil(pts.length/600)),line=pts.filter((_,i)=>i%every===0||i===pts.length-1).map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)]);
+  return{id:'g'+Math.round(L)+'-'+Math.abs(Math.round(pts[0][0]*1e4+pts[0][1]*1e4)),name,dist:(n-1)*RSTEP,step:RSTEP,gain:Math.round(gain),ele:ele.map(e=>Math.round(e*10)/10),line};
+}
+function parseGPX(text,fname){
+  const x=new DOMParser().parseFromString(text,'application/xml');
+  if(x.querySelector('parsererror'))throw new Error('keine GPX-Datei');
+  let nodes=[...x.getElementsByTagName('trkpt')];if(!nodes.length)nodes=[...x.getElementsByTagName('rtept')];
+  const pts=[];
+  for(const n of nodes){const e=n.getElementsByTagName('ele')[0];if(!e)throw new Error('GPX ohne Höhenangaben');pts.push([+n.getAttribute('lat'),+n.getAttribute('lon'),+e.textContent]);}
+  if(pts.length<10)throw new Error('zu wenige Punkte');
+  const nm=(x.getElementsByTagName('name')[0]||{}).textContent||fname.replace(/\.gpx$/i,'');
+  return buildRoute(nm.trim().slice(0,60)||'Strecke',pts);
+}
+async function addRoutes(list){
+  let n=0;for(const r of list){if(!r||!r.id||!Array.isArray(r.ele)||!Array.isArray(r.line)||r.ele.length<10)continue;const i=S.routes.findIndex(x=>x.id===r.id);if(i>=0)S.routes[i]=r;else S.routes.push(r);PREP.delete(r.id);PREP.delete(r.id+'~r');n++;}
+  await DB.set('routes',S.routes);renderRoutes();return n;
+}
+function routeSpark(ele){
+  const N=40,pts=[];let mn=1e9,mx=-1e9;
+  for(let k=0;k<N;k++){const v=ele[Math.round(k*(ele.length-1)/(N-1))];pts.push(v);if(v<mn)mn=v;if(v>mx)mx=v;}
+  const r=Math.max(30,mx-mn),d=pts.map((v,i)=>`${(i/(N-1)*64).toFixed(1)},${(22-(v-mn)/r*19).toFixed(1)}`).join(' ');
+  return`<svg viewBox="0 0 64 24" aria-hidden="true"><polygon points="0,24 ${d} 64,24" fill="var(--accent-soft)"/><polyline points="${d}" fill="none" stroke="var(--accent)" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+}
+function renderRoutes(){
+  const busy=S.rec.state!=='idle',sel=S.set.routeId;
+  const rows=[`<button type="button" class="rrow${!sel?' on':''}" data-route=""${busy?' disabled':''}><span class="rd"></span><span class="rn"><b>Frei fahren</b><span>Flache Straße</span></span><span></span></button>`];
+  for(const r of S.routes)rows.push(`<button type="button" class="rrow${sel===r.id?' on':''}" data-route="${esc(r.id)}"${busy?' disabled':''}><span class="rd"></span><span class="rn"><b>${esc(r.name)}</b><span>${n1(r.dist/1000)} km · ${n0(r.gain)} Hm</span></span>${routeSpark(r.ele)}</button>`);
+  $('#rtList').innerHTML=rows.join('')+(S.routes.length?'':'<p class="rt-empty">Noch keine Strecke. Über „Laden“ eine Streckendatei oder GPX einlesen.</p>');
+  $('#rtOpts').hidden=!sel;
+  $('#rev').checked=!!S.set.rev;$('#chkRev').classList.toggle('on',!!S.set.rev);$('#rev').disabled=busy;
+  $$('#diffSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.df===S.set.diff));
+  requestAnimationFrame(()=>placeSegThumb($('#diffSeg')));
+  $('#routeLive').hidden=!activeRoute();
+}
+function selectRoute(id){
+  if(S.rec.state!=='idle')return;
+  S.set.routeId=id||null;saveSet();resetSim();renderRoutes();applyControl(true);
+  setTimeout(()=>{const c=$('#cvMap');if(c)c._bounds=null;},0);
+}
+
+/* ---------- Aufnahme ---------- */
+const recElapsed=(now=performance.now())=>S.rec.acc+(S.rec.state==='rec'?now-S.rec.run:0);
+function pushSample(){
+  const R=S.rec;
+  R.p.push(samplePow());
+  const h=curHR();R.hr.push(h==null?0:h);
+  const c=curCad();R.cad.push(c==null?0:c);
+  R.spd.push(Math.round(S.sim.v*36)/10);
+  R.dist.push(Math.round(S.sim.total*10)/10);
+  const rt=activeRoute();R.alt.push(rt?Math.round(eleAt(rt,S.sim.d)*10)/10:null);
+}
+function startRec(){
+  if(!isLive()){toast('Erst die Rolle verbinden oder „Ohne Rolle testen“ einschalten');return;}
+  Object.assign(S.rec,{state:'rec',startISO:new Date().toISOString(),acc:0,run:performance.now(),p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0});
+  resetSim();wake(true);renderControls();renderRoutes();
+  if(innerWidth<900)$('.card.live').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function pauseRec(){if(S.rec.state!=='rec')return;S.rec.acc+=performance.now()-S.rec.run;S.rec.state='pause';saveDraft();renderControls();}
+function resumeRec(){S.rec.run=performance.now();S.rec.state='rec';renderControls();}
+function askEnd(){if(S.rec.state==='rec')pauseRec();S.rec.state='confirm';renderControls();}
+function backFromEnd(){S.rec.state='pause';renderControls();}
+function makeRide(d){
+  const any=a=>a&&a.some(v=>v>0);
+  return{id:'r'+Date.parse(d.startISO)+Math.random().toString(36).slice(2,6),start:d.startISO,name:d.route||'Rollentraining',
+    p:d.p.slice(),hr:any(d.hr)?d.hr.slice():null,cad:any(d.cad)?d.cad.slice():null,spd:any(d.spd)?d.spd.slice():null,
+    dist:any(d.dist)?d.dist.slice():null,alt:d.alt&&d.alt.some(v=>v!=null)?d.alt.slice():null,route:d.route||null,gain:d.gain||0,
+    ftp:S.set.ftp,weight:S.set.weight};
+}
+async function saveRec(){
+  const R=S.rec;
+  if(R.p.length<10){toast('Unter 10 Sekunden, nicht gespeichert');resetRec();return;}
+  const rt=activeRoute();R.route=rt?rt.name:null;R.gain=Math.round(S.sim.gain);
+  const r=makeRide(R);
+  await DB.put(r);S.rides.push(r);await DB.rm('draft');
+  resetRec();toast('Fahrt gespeichert');
+  S.detail=r.id;go('detail');
+}
+async function discardRec(){await DB.rm('draft');resetRec();toast('Fahrt verworfen');}
+function resetRec(){Object.assign(S.rec,{state:'idle',startISO:null,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0});resetSim();wake(false);renderControls();renderRecPill();renderRoutes();}
+function saveDraft(){const R=S.rec,rt=activeRoute();R.lastDraft=R.p.length;DB.set('draft',{startISO:R.startISO,p:R.p,hr:R.hr,cad:R.cad,spd:R.spd,dist:R.dist,alt:R.alt,route:rt?rt.name:null,gain:Math.round(S.sim.gain)});}
+async function wake(on){
+  try{
+    if(on&&'wakeLock' in navigator&&!S.wake){S.wake=await navigator.wakeLock.request('screen');S.wake.addEventListener('release',()=>{S.wake=null;});}
+    if(!on&&S.wake){await S.wake.release();S.wake=null;}
+  }catch(_){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.rec.state!=='idle')wake(true);});
+window.addEventListener('beforeunload',e=>{if(S.rec.state!=='idle'){saveDraft();e.preventDefault();e.returnValue='';}});
+
+/* ---------- Takt ---------- */
+let lastHist=0,lastSim=performance.now();
+function tick(){
+  const now=performance.now();
+  let dt=Math.min((now-lastSim)/1000,120);lastSim=now;
+  while(dt>1e-6){const h=Math.min(.25,dt);simStep(h);dt-=h;}
+  if(S.tr.state==='on'&&!S.demo)applyControl(false);
+  if(now-lastHist>=1000){lastHist=now;if(isLive()){S.hist.push(Math.round(curPow()));if(S.hist.length>600)S.hist.shift();}else S.hist=[];}
+  if(S.rec.state==='rec'){
+    const target=Math.floor(recElapsed(now)/1000);
+    while(S.rec.p.length<target)pushSample();
+    if(S.rec.p.length-S.rec.lastDraft>=15)saveDraft();
+  }
+  if(S.view==='live')renderLive();
+  renderRecPill();
+}
+
+/* ---------- Diagramme ---------- */
+function prep(c){
+  const dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+  const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return{ctx,w,h};
+}
+function niceMax(v){const st=[50,100,150,200,250,300,400,500,600,800,1000,1200,1500,2000];for(const s of st)if(v<=s)return s;return Math.ceil(v/500)*500;}
+const yStep=m=>m<=150?50:m<=400?100:m<=800?200:500;
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function tip(ctx,x,y,lines,w,h){
+  ctx.font=`500 12px ${css('--sans')}`;
+  const tw=Math.max(...lines.map(l=>ctx.measureText(l).width))+20,th=lines.length*17+12;
+  let bx=x+12;if(bx+tw>w-4)bx=x-12-tw;let by=Math.max(4,Math.min(y-th/2,h-th-26));
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=14;ctx.fillStyle=css('--surface');roundRect(ctx,bx,by,tw,th,8);ctx.fill();ctx.restore();
+  ctx.strokeStyle=css('--line');ctx.lineWidth=1;roundRect(ctx,bx+.5,by+.5,tw-1,th-1,8);ctx.stroke();
+  ctx.fillStyle=css('--fg');ctx.textAlign='left';ctx.textBaseline='top';
+  lines.forEach((l,i)=>ctx.fillText(l,bx+10,by+7+i*17));
+}
+/* Zeitreihe Leistung; live=true heißt: festes Fenster (span Sekunden), Daten rechtsbündig */
+function drawSeries(c,data,o={}){
+  const{ctx,w,h}=prep(c);
+  const L=40,R=10,T=10,B=24,iw=w-L-R,ih=h-T-B;
+  const n=data.length,span=Math.max(o.span||n,2),off=o.live?span-n:0,prog=o.prog==null?1:o.prog;
+  let mx=0;for(const v of data)if(v>mx)mx=v;if(o.ftp)mx=Math.max(mx,o.ftp*1.15);
+  const ym=niceMax(mx*1.05),ys=yStep(ym);
+  const X=i=>L+((i+off)/(span-1))*iw,Y=v=>T+ih-(v/ym)*ih;
+  ctx.font=`500 10.5px ${css('--mono')}`;ctx.lineWidth=1;
+  ctx.strokeStyle=css('--line');ctx.fillStyle=css('--fg-3');ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let y=0;y<=ym;y+=ys){const py=Math.round(Y(y))+.5;ctx.beginPath();ctx.moveTo(L,py);ctx.lineTo(w-R,py);ctx.stroke();ctx.fillText(y,L-8,py);}
+  ctx.textAlign='center';ctx.textBaseline='top';
+  if(o.live){[[0,'−5 min'],[span/2,'−2,5 min'],[span-1,'jetzt']].forEach(([t,l],k)=>{ctx.textAlign=k===0?'left':k===2?'right':'center';ctx.fillText(l,L+(t/(span-1))*iw,h-B+8);});}
+  else{const xs=[60,120,300,600,900,1200,1800,3600].find(s=>span/s<=7)||3600;for(let t=0;t<span;t+=xs){const px=X(t);if(px>w-R-14)break;ctx.fillText(String(Math.round(t/60)),px,h-B+8);}ctx.textAlign='right';ctx.fillText('min',w-R,h-B+8);}
+  if(o.ftp){const py=Math.round(Y(o.ftp))+.5;ctx.save();ctx.setLineDash([4,4]);ctx.strokeStyle=css('--accent-line');ctx.beginPath();ctx.moveTo(L,py);ctx.lineTo(w-R,py);ctx.stroke();ctx.restore();ctx.fillStyle=css('--accent-ink');ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText('FTP '+o.ftp,L+6,py-3);}
+  if(n<2)return{L,iw,span,off,n};
+  /* auf Pixelbreite verdichten */
+  const buckets=Math.max(2,Math.min(n,Math.floor(iw*1.2))),pts=[];
+  for(let b=0;b<buckets;b++){const a=Math.floor(b*n/buckets),e=Math.max(a+1,Math.floor((b+1)*n/buckets));let s=0;for(let i=a;i<e;i++)s+=data[i];pts.push([X((a+e-1)/2),Y(s/(e-a))]);}
+  const cut=L+iw*prog,vis=pts.filter(p=>p[0]<=cut);
+  if(vis.length>1){
+    const g=ctx.createLinearGradient(0,T,0,T+ih);g.addColorStop(0,css('--accent-soft'));g.addColorStop(1,'rgba(127,95,232,0)');
+    ctx.beginPath();ctx.moveTo(vis[0][0],T+ih);vis.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.lineTo(vis[vis.length-1][0],T+ih);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();vis.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.strokeStyle=css('--accent');ctx.lineWidth=1.6;ctx.lineJoin='round';ctx.stroke();
+    if(o.live){const lp=vis[vis.length-1];ctx.beginPath();ctx.arc(lp[0],lp[1],3.5,0,7);ctx.fillStyle=css('--accent');ctx.fill();}
+  }
+  if(o.hover!=null&&prog>=1){
+    const i=clamp(Math.round((o.hover-L)/iw*(span-1))-off,0,n-1);const px=X(i),py=Y(data[i]);
+    ctx.strokeStyle=css('--line-2');ctx.beginPath();ctx.moveTo(Math.round(px)+.5,T);ctx.lineTo(Math.round(px)+.5,T+ih);ctx.stroke();
+    ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fillStyle=css('--surface');ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=css('--accent');ctx.stroke();
+    const tl=o.live?`vor ${fmtDur(n-1-i)}`:fmtDur(i);
+    tip(ctx,px,py,[`${Math.round(data[i])} W`,tl],w,h);
+  }
+  return{L,iw,span,off,n};
+}
+/* Leistungskurve, x logarithmisch */
+function drawCurve(c,lines,o={}){
+  const{ctx,w,h}=prep(c);
+  const L=40,R=14,T=12,B=24,iw=w-L-R,ih=h-T-B,prog=o.prog==null?1:o.prog;
+  let dmax=1,wmax=0;for(const l of lines)for(const[d,v]of l.pts){if(d>dmax)dmax=d;if(v>wmax)wmax=v;}
+  if(dmax<2){return;}
+  const ym=niceMax(wmax*1.08),ys=yStep(ym),lg=Math.log(dmax);
+  const X=d=>L+(Math.log(d)/lg)*iw,Y=v=>T+ih-(v/ym)*ih;
+  ctx.font=`500 10.5px ${css('--mono')}`;ctx.lineWidth=1;ctx.strokeStyle=css('--line');ctx.fillStyle=css('--fg-3');
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let y=0;y<=ym;y+=ys){const py=Math.round(Y(y))+.5;ctx.beginPath();ctx.moveTo(L,py);ctx.lineTo(w-R,py);ctx.stroke();ctx.fillText(y,L-8,py);}
+  ctx.textBaseline='top';
+  [1,5,15,60,300,1200,3600,7200].filter(d=>d<=dmax).forEach((d,k,arr)=>{const px=X(d);ctx.textAlign=k===0?'left':(k===arr.length-1&&px>w-R-30)?'right':'center';ctx.fillText(durLbl(d),px,h-B+8);});
+  const cut=L+iw*prog;
+  for(const l of lines){
+    const pts=l.pts.map(([d,v])=>[X(d),Y(v)]).filter(p=>p[0]<=cut+.5);if(pts.length<1)continue;
+    ctx.save();if(l.dash)ctx.setLineDash(l.dash);
+    ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.strokeStyle=css(l.color);ctx.lineWidth=l.width||2;ctx.lineJoin='round';ctx.stroke();ctx.restore();
+    if(!l.dash)pts.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],2.6,0,7);ctx.fillStyle=css(l.color);ctx.fill();});
+  }
+  if(o.hover!=null&&prog>=1&&lines[0].pts.length){
+    const base=lines[0].pts;let bi=0,bd=1e9;base.forEach(([d],i)=>{const dx=Math.abs(X(d)-o.hover);if(dx<bd){bd=dx;bi=i;}});
+    const d=base[bi][0],px=X(d);
+    ctx.strokeStyle=css('--line-2');ctx.beginPath();ctx.moveTo(Math.round(px)+.5,T);ctx.lineTo(Math.round(px)+.5,T+ih);ctx.stroke();
+    const rows=[durLbl(d)];lines.forEach(l=>{const q=l.pts.find(p=>p[0]===d);if(q)rows.push(`${l.label}: ${Math.round(q[1])} W`);});
+    tip(ctx,px,Y(base[bi][1]),rows,w,h);
+  }
+}
+function bindHover(c,redraw){
+  const mv=e=>{const r=c.getBoundingClientRect();redraw(e.clientX-r.left);};
+  c.onpointermove=mv;c.onpointerdown=mv;c.onpointerleave=()=>redraw(null);
+}
+
+/* Höhenprofil mit gefahrenem Teil und Punkt */
+function drawProfile(c,rt,d){
+  const{ctx,w,h}=prep(c);if(w<10)return;
+  const L=36,R=6,T=8,B=20,iw=w-L-R,ih=h-T-B;
+  let mn=1e9,mx=-1e9;for(const e of rt.ele){if(e<mn)mn=e;if(e>mx)mx=e;}
+  const span=Math.max(40,mx-mn),lo=mn-span*.08,hi=lo+span*1.2;
+  const X=x=>L+x/rt.dist*iw,Y=e=>T+ih-(e-lo)/(hi-lo)*ih;
+  const N=Math.max(2,Math.min(rt.ele.length,Math.floor(iw))),pts=[];
+  for(let k=0;k<N;k++){const x=k/(N-1)*rt.dist;pts.push([X(x),Y(eleAt(rt,x)),x]);}
+  ctx.font=`500 10px ${css('--mono')}`;ctx.fillStyle=css('--fg-3');ctx.textAlign='right';ctx.textBaseline='middle';
+  ctx.strokeStyle=css('--line');ctx.lineWidth=1;
+  [mn,mx].forEach(e=>{const y=Math.round(Y(e))+.5;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();ctx.fillText(Math.round(e)+' m',L-6,y);});
+  ctx.textBaseline='top';ctx.textAlign='left';ctx.fillText('0',L,h-B+6);ctx.textAlign='right';ctx.fillText(n1(rt.dist/1000)+' km',w-R,h-B+6);
+  const area=(arr,col)=>{if(arr.length<2)return;ctx.beginPath();ctx.moveTo(arr[0][0],T+ih);arr.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.lineTo(arr[arr.length-1][0],T+ih);ctx.closePath();ctx.fillStyle=col;ctx.fill();};
+  const line=(arr,col,wd)=>{if(arr.length<2)return;ctx.beginPath();arr.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.strokeStyle=col;ctx.lineWidth=wd;ctx.lineJoin='round';ctx.stroke();};
+  const done=pts.filter(p=>p[2]<=d);const px=X(d),py=Y(eleAt(rt,d));done.push([px,py,d]);
+  area(pts,css('--surface-2'));line(pts,css('--line-2'),1.4);
+  area(done,css('--accent-soft'));line(done,css('--accent'),2);
+  ctx.beginPath();ctx.arc(px,py,5.5,0,7);ctx.fillStyle=css('--surface');ctx.fill();
+  ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fillStyle=css('--accent');ctx.fill();
+}
+/* Streckenverlauf ohne Kartenkacheln */
+function drawMap(c,rt,d){
+  const{ctx,w,h}=prep(c);if(w<10)return;
+  let a=90,b=-90,l=180,r=-180;for(const p of rt.line){if(p[0]<a)a=p[0];if(p[0]>b)b=p[0];if(p[1]<l)l=p[1];if(p[1]>r)r=p[1];}
+  const kx=Math.cos((a+b)/2*Math.PI/180),W=(r-l)*kx||1e-6,H=(b-a)||1e-6,pad=12;
+  const sc=Math.min((w-2*pad)/W,(h-2*pad)/H),ox=(w-W*sc)/2,oy=(h-H*sc)/2;
+  const P=p=>[ox+(p[1]-l)*kx*sc,oy+(b-p[0])*sc];
+  const pos=posAt(rt,d),t=clamp(d/rt.dist,0,1)*rt.cum[rt.cum.length-1];
+  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.beginPath();rt.line.forEach((p,i)=>{const q=P(p);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);});ctx.strokeStyle=css('--line-2');ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();let first=true;for(let i=0;i<rt.line.length&&rt.cum[i]<=t;i++){const q=P(rt.line[i]);first?ctx.moveTo(q[0],q[1]):ctx.lineTo(q[0],q[1]);first=false;}
+  const cp=P(pos);if(!first){ctx.lineTo(cp[0],cp[1]);ctx.strokeStyle=css('--accent');ctx.lineWidth=2.5;ctx.stroke();}
+  const s0=P(rt.line[0]);ctx.beginPath();ctx.arc(s0[0],s0[1],3,0,7);ctx.fillStyle=css('--fg-3');ctx.fill();
+  ctx.beginPath();ctx.arc(cp[0],cp[1],6,0,7);ctx.fillStyle=css('--surface');ctx.fill();
+  ctx.beginPath();ctx.arc(cp[0],cp[1],4.5,0,7);ctx.fillStyle=css('--accent');ctx.fill();
+}
+
+/* ---------- Navigation ---------- */
+const ORDER={live:0,rides:1,detail:2,best:3};
+const navOf=v=>v==='detail'?'rides':v;
+function placeThumb(){
+  const nav=$('#nav'),b=$(`#nav button[data-v="${navOf(S.view)}"]`),th=$('.thumb',nav);
+  $$('#nav button').forEach(x=>x.classList.toggle('on',x===b));
+  if(b){th.style.width=b.offsetWidth+'px';th.style.transform=`translateX(${b.offsetLeft}px)`;}
+}
+function go(v,instant){
+  const cur=$('.view.active'),next=$('#v-'+v);
+  S.view=v;placeThumb();renderView(v);
+  if(!cur||cur===next||instant){$$('.view').forEach(x=>x.classList.toggle('active',x===next));requestAnimationFrame(()=>onEnter(v));return;}
+  const dir=ORDER[v]>=ORDER[cur.id.slice(2)]?1:-1;
+  cur.style.setProperty('--dx',(-20*dir)+'px');cur.classList.add('leaving');
+  setTimeout(()=>{
+    cur.classList.remove('active','leaving');
+    next.style.setProperty('--dx',(20*dir)+'px');next.classList.add('active','entering');
+    window.scrollTo(0,0);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{next.classList.remove('entering');onEnter(v);}));
+  },170);
+}
+function renderView(v){
+  if(v==='live'){renderControls();renderErg();renderZoneBar();renderRoutes();}
+  if(v==='rides')renderRides();
+  if(v==='detail')renderDetail();
+  if(v==='best')renderBest();
+}
+function onEnter(v){
+  const sec=$('#v-'+v);
+  sec.classList.remove('grow');void sec.offsetWidth;
+  requestAnimationFrame(()=>sec.classList.add('grow'));
+  $$('[data-count]',sec).forEach(el=>{const to=+el.dataset.count,dec=+(el.dataset.dec||0);anim(900,k=>{el.textContent=dec?F2.format(to*k):F0.format(Math.round(to*k));});});
+  $$('canvas',sec).forEach(c=>{if(c._draw){anim(1500,k=>{c._prog=k;c._draw(null);});}});
+}
+
+/* ---------- Fahren ---------- */
+const lastTxt={};
+function setT(id,t){if(lastTxt[id]!==t){lastTxt[id]=t;const el=document.getElementById(id);if(el)el.textContent=t;}}
+const ZW=[55,20,15,15,15,30,30];
+function renderZoneBar(){
+  const tr=$('#zTrack'),lb=$('#zLbl');
+  if(!tr.querySelector('span')){
+    ZONES.forEach((z,i)=>{const s=document.createElement('span');s.style.flex=ZW[i];s.style.setProperty('--zc',`var(--z${i+1})`);tr.appendChild(s);});
+    lb.innerHTML=ZONES.map((z,i)=>`<span style="flex:${ZW[i]}">${z.n}</span>`).join('');
+  }
+}
+function zonePos(w,ftp){
+  /* Position im Balken: Zonen sind ungleich breit, deshalb stückweise linear */
+  const edges=[0,.55,.75,.90,1.05,1.20,1.50,1.80],tot=ZW.reduce((a,b)=>a+b,0);
+  const r=clamp(w/ftp,0,1.8);let acc=0;
+  for(let i=0;i<7;i++){if(r<=edges[i+1]){return(acc+ZW[i]*(r-edges[i])/(edges[i+1]-edges[i]))/tot;}acc+=ZW[i];}
+  return 1;
+}
+function renderLive(){
+  const pw=curPow(),ftp=S.set.ftp,R=S.rec;
+  setT('lvPow',pw==null?'–':String(Math.round(pw)));
+  setT('lvWkg',pw==null?'– W/kg':`${n2(pw/S.set.weight)} W/kg`);
+  const zp=$('#zonePill'),mk=$('#zMark');
+  if(pw!=null&&pw>0){const zi=zoneIdx(pw,ftp);setT('zpTxt',`${ZONES[zi].n} ${ZONES[zi].name}`);zp.style.setProperty('--zc',`var(--z${zi+1})`);mk.style.left=(zonePos(pw,ftp)*100)+'%';mk.style.opacity=1;}
+  else{setT('zpTxt',isLive()?'Pausiert':'Keine Daten');zp.style.removeProperty('--zc');mk.style.opacity=0;}
+  const p=R.p,el=R.state==='idle'?0:recElapsed();
+  setT('lvTime',fmtDur(el/1000));
+  setT('lvAvg',p.length?n0(sum(p)/p.length):'–');
+  setT('lvNP',p.length>=30?n0(calcNP(p)):'–');
+  setT('lvKJ',n0(sum(p)/1000));
+  const hr=curHR(),cad=curCad();
+  setT('lvHR',hr==null?'–':String(hr));
+  setT('lvCad',cad==null?'–':String(Math.round(cad)));
+  setT('lvDist',n1(R.state==='idle'?0:S.sim.total/1000));
+  setT('lvSpd',isLive()?n1(S.sim.v*3.6):'–');
+  setT('lvGain',n0(R.state==='idle'?0:S.sim.gain));
+  const rt=activeRoute();
+  if(rt){
+    const g=routeGradeNow();
+    setT('rlName',rt.name+(rt.loop&&S.sim.lap>1?` · Runde ${S.sim.lap}`:''));
+    setT('rlGrade',(g>0.05?'+':'')+n1(g)+' %');
+    setT('rlSent',S.erg.on?'Zielleistung aktiv':S.set.diff!==1?`an Rolle ${n1(trainerGrade())} %`:'');
+    setT('rlDone',n1(S.sim.d/1000)+' km');setT('rlLeft','noch '+n1((rt.dist-S.sim.d)/1000)+' km');
+    $('#rlFill').style.width=(S.sim.d/rt.dist*100).toFixed(2)+'%';
+    drawProfile($('#cvProf'),rt,S.sim.d);drawMap($('#cvMap'),rt,S.sim.d);
+  }
+  const c=$('#cvLive'),data=R.state!=='idle'?p.slice(-300):S.hist.slice(-300);
+  drawSeries(c,data,{span:300,live:true,ftp,hover:S.liveHover});
+}
+function renderControls(){
+  const el=$('#ctrls'),st=S.rec.state,live=isLive();
+  let h='';
+  if(st==='idle')h=`<button type="button" class="btn primary big" data-a="start"${live?'':' aria-disabled="true"'}>Aufnahme starten</button>${live?'':'<span class="note soft" style="margin:0">Erst die Rolle verbinden</span>'}`;
+  if(st==='rec')h=`<button type="button" class="btn big" data-a="pause">Pause</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;
+  if(st==='pause')h=`<button type="button" class="btn primary big" data-a="resume">Weiter</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;
+  if(st==='confirm')h=`<span class="q">Fahrt beenden?</span><button type="button" class="btn primary big" data-a="save">Speichern</button><button type="button" class="btn big" data-a="back">Weiterfahren</button><span class="spacer"></span><button type="button" class="btn ghost warn" data-a="discard">Verwerfen</button>`;
+  el.innerHTML=h;
+}
+function renderRecPill(){
+  const st=S.rec.state,p=$('#recpill');
+  p.hidden=st==='idle';
+  if(st!=='idle'){p.classList.toggle('paused',st!=='rec');setT('recpillT',fmtDur(recElapsed()/1000));}
+}
+function renderErg(){
+  $('#ergCard').classList.toggle('off',!S.erg.on);
+  $('#ergOn').checked=S.erg.on;
+  if(document.activeElement!==$('#ergW'))$('#ergW').value=Math.round(S.erg.target);
+  const ftp=S.set.ftp;
+  $('#ergQuick').innerHTML=[['Grundlage',.65],['Sweet Spot',.9],['Schwelle',1],['VO2max',1.15]]
+    .map(([l,f])=>`<button type="button" class="qb" data-w="${Math.round(ftp*f/5)*5}">${l}<b>${Math.round(ftp*f/5)*5} W</b></button>`).join('');
+}
+
+/* ---------- Fahrten ---------- */
+function spark(p){
+  if(!p.length)return'';
+  const N=48,pts=[];let mx=1;
+  for(let b=0;b<N;b++){const a=Math.floor(b*p.length/N),e=Math.max(a+1,Math.floor((b+1)*p.length/N));let s=0;for(let i=a;i<e;i++)s+=p[i];const v=s/(e-a);pts.push(v);if(v>mx)mx=v;}
+  const d=pts.map((v,i)=>`${(i/(N-1)*120).toFixed(1)},${(31-v/mx*28).toFixed(1)}`).join(' ');
+  return`<svg viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="${d}" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function renderRides(){
+  const v=$('#v-rides'),agg=aggRides(),now=new Date(),w0=weekStart(now);
+  const weeks=[];for(let k=7;k>=0;k--){const s=new Date(w0);s.setDate(s.getDate()-7*k);const e=new Date(s);e.setDate(e.getDate()+7);weeks.push({s,e,sec:0,kj:0,n:0});}
+  for(const r of agg){const t=new Date(r.start);const wk=weeks.find(x=>t>=x.s&&t<x.e);if(wk){const s=stats(r);wk.sec+=s.dur;wk.kj+=s.kj;wk.n++;}}
+  const cw=weeks[7],mxs=Math.max(1800,...weeks.map(x=>x.sec));
+  const list=[...S.rides].sort((a,b)=>b.start.localeCompare(a.start));
+  v.innerHTML=`
+  <div class="page-h"><h1>Fahrten</h1></div>
+  <div class="card week">
+    <div>
+      <span class="lbl">Diese Woche · KW ${isoWeek(now)}</span>
+      <div class="week-nums big3" style="margin-top:12px">
+        <div><span class="lbl">Fahrten</span><div class="v">${cw.n}</div></div>
+        <div><span class="lbl">Zeit</span><div class="v">${fmtHM(cw.sec)}<small>h</small></div></div>
+        <div><span class="lbl">Arbeit</span><div class="v">${n0(cw.kj)}<small>kJ</small></div></div>
+      </div>
+    </div>
+    <div class="wbars" aria-label="Trainingszeit der letzten acht Wochen">
+      ${weeks.map((x,i)=>`<div class="wb${i===7?' cur':''}"><span class="val">${x.sec?fmtHM(x.sec):''}</span><span class="bar" style="--h:${Math.max(x.sec?4:2,x.sec/mxs*92)}px"></span><span class="kw">KW${isoWeek(x.s)}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="list">
+    ${list.length?list.map(r=>{const s=stats(r);return`
+    <button type="button" class="row" data-ride="${r.id}">
+      <span class="d"><b>${fmtDate(r.start).split(' ').slice(1).join(' ')}</b><span>${WD[new Date(r.start).getDay()]} · ${fmtTime(r.start)}</span></span>
+      <span class="nm">${esc(r.name)}${r.sample?'<span class="tag">Beispiel</span>':''}</span>
+      <span class="m"><span class="lbl">Dauer</span><b>${fmtDur(s.dur)}</b></span>
+      <span class="m"><span class="lbl">Ø Watt</span><b>${n0(s.avg)}</b></span>
+      <span class="m np"><span class="lbl">NP</span><b>${n0(s.np)}</b></span>
+      <span class="m kj"><span class="lbl">kJ</span><b>${n0(s.kj)}</b></span>
+      ${spark(r.p)}
+    </button>`;}).join(''):`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Aufnahme starten.</div>`}
+  </div>`;
+}
+
+/* ---------- Detail ---------- */
+function renderDetail(){
+  const v=$('#v-detail'),r=S.rides.find(x=>x.id===S.detail);
+  if(!r){v.innerHTML='';setTimeout(()=>go('rides'),0);return;}
+  const s=stats(r),kg=S.set.weight,ftp=S.set.ftp,all=bestsOf(aggRides());
+  const keys=KEY_DURS.filter(d=>d<=s.dur);
+  const maxZ=Math.max(1,...s.zt);
+  const kv=[['Dauer',fmtDur(s.dur),''],['Ø Leistung',n0(s.avg),'W'],['Max',n0(s.max),'W'],['Arbeit',n0(s.kj),'kJ'],
+    ['TSS',n0(s.tss),''],['IF',n2(s.IF),''],['Ø Puls',n0(s.hrAvg),s.hrAvg?'bpm':''],['Max Puls',n0(s.hrMax),s.hrMax?'bpm':'']];
+  const km=r.dist&&r.dist.length?r.dist[r.dist.length-1]/1000:null;
+  if(km){kv.push(['Distanz',n1(km),'km'],['Ø Tempo',n1(km/(s.dur/3600)),'km/h'],['Höhenmeter',n0(r.gain||0),'m'],['Ø Trittfrequenz',n0(s.cadAvg),s.cadAvg?'rpm':'']);}
+  v.innerHTML=`
+  <div class="crumb"><button type="button" class="lnk" data-go="rides">Fahrten</button><span>/</span><span>${fmtDate(r.start)} · ${fmtTime(r.start)}</span>${r.sample?'<span class="tag">Beispiel</span>':''}${r.route?`<span class="tag acc">${esc(r.route)}</span>`:''}</div>
+  <input class="title-in" id="rideName" value="${esc(r.name)}" aria-label="Name der Fahrt" autocomplete="off">
+  <div class="card hero">
+    <div>
+      <span class="lbl">Normalized Power</span>
+      <div class="hero-num"><b data-count="${Math.round(s.np)}">${n0(s.np)}</b><span class="unit">W</span></div>
+      <span class="sub">${n2(s.np/kg)} W/kg</span>
+    </div>
+    <div class="kv">${kv.map(([l,val,u])=>`<div class="st"><span class="lbl">${l}</span><div class="v">${val}${u?`<small>${u}</small>`:''}</div></div>`).join('')}</div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h3>Leistung</h3>
+        <div class="seg sm" id="smSeg"><span class="thumb"></span>${[[1,'Roh'],[5,'5 s'],[30,'30 s']].map(([k,l])=>`<button type="button" data-sm="${k}"${S.smooth===k?' class="on"':''}>${l}</button>`).join('')}</div>
+      </div>
+      <canvas class="cv tall" id="cvRide" aria-label="Leistung über die Fahrt"></canvas>
+    </div>
+    <div class="two">
+      <div class="card">
+        <div class="card-h"><h3>Bestwerte</h3><span class="legend-in"><span><i></i>Diese Fahrt</span><span><i class="g"></i>Alle Fahrten</span></span></div>
+        <canvas class="cv" id="cvCurveR" aria-label="Leistungskurve"></canvas>
+        <div class="btab">${keys.map(d=>{const b=s.curve.find(x=>x[0]===d)[1],rec=all[d]&&all[d].id===r.id&&!r.sample;return`<div class="r"><span class="lbl">${durLbl(d)}</span><span>${rec?'<span class="tag acc" style="margin:0">Bestwert</span>':''}</span><span class="w">${n0(b)} W</span><span class="k">${n2(b/kg)} W/kg</span></div>`;}).join('')}</div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Zonen</h3><span class="lbl">FTP ${ftp} W</span></div>
+        ${ZONES.map((z,i)=>{const lo=i?Math.round(ZONES[i-1].hi*ftp)+1:0,hi=z.hi===Infinity?null:Math.round(z.hi*ftp);const t=s.zt[i];return`
+        <div class="zb" style="--zc:var(--z${i+1})">
+          <span class="zn"><i></i><span>${z.n} ${z.name}<span class="zw">${hi==null?`ab ${lo}`:`${lo}–${hi}`} W</span></span></span>
+          <span class="tr"><span style="--w:${(t/maxZ*100).toFixed(1)}%"></span></span>
+          <span class="t">${fmtDur(t)}</span><span class="p">${n0(t/s.dur*100)} %</span>
+        </div>`;}).join('')}
+      </div>
+    </div>
+    <div class="acts">
+      <button type="button" class="btn" id="btnTcx">Als TCX speichern</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost warn" id="btnDel">Fahrt löschen</button>
+    </div>
+  </div>`;
+  /* Diagramme */
+  const cr=$('#cvRide'),cc=$('#cvCurveR');
+  cr._prog=1;cr._draw=hv=>drawSeries(cr,S.smooth>1?rolling(r.p,S.smooth):r.p,{ftp,hover:hv,prog:cr._prog});
+  const allPts=DURS.filter(d=>all[d]).map(d=>[d,all[d].w]).filter(p=>p[0]<=Math.max(s.dur,60));
+  cc._prog=1;cc._draw=hv=>drawCurve(cc,[{pts:s.curve,color:'--accent',label:'Fahrt'},{pts:allPts,color:'--fg-3',dash:[4,4],width:1.4,label:'Alle'}],{hover:hv,prog:cc._prog});
+  bindHover(cr,cr._draw);bindHover(cc,cc._draw);
+  cr._draw(null);cc._draw(null);
+  requestAnimationFrame(()=>placeSegThumb($('#smSeg')));
+  $('#rideName').addEventListener('change',async e=>{r.name=e.target.value.trim()||'Rollentraining';e.target.value=r.name;await DB.put(r);});
+  $('#rideName').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});
+  $('#btnTcx').onclick=()=>download(tcx(r),`wattbuch-${r.start.slice(0,10)}-${fmtTime(r.start).replace(':','')}.tcx`,'application/vnd.garmin.tcx+xml');
+  armDelete($('#btnDel'),'Wirklich löschen?',async()=>{await DB.del(r.id);S.rides=S.rides.filter(x=>x!==r);toast('Fahrt gelöscht');go('rides');});
+}
+function placeSegThumb(seg){if(!seg)return;const b=$('button.on',seg),th=$('.thumb',seg);if(b&&th){th.style.width=b.offsetWidth+'px';th.style.transform=`translateX(${b.offsetLeft-3}px)`;th.style.left='3px';}}
+function armDelete(btn,armed,fn){
+  const orig=btn.textContent;let t=null;
+  btn.onclick=()=>{if(btn.classList.contains('armed')){clearTimeout(t);fn();return;}btn.classList.add('armed');btn.textContent=armed;t=setTimeout(()=>{btn.classList.remove('armed');btn.textContent=orig;},3500);};
+}
+
+/* ---------- Bestwerte ---------- */
+function renderBest(){
+  const v=$('#v-best'),agg=aggRides();
+  if(!agg.length){v.innerHTML=`<div class="page-h"><h1>Bestwerte</h1></div><div class="card empty"><b>Noch keine Fahrt</b>Nach der ersten Aufnahme stehen hier deine besten Werte.</div>`;return;}
+  const all=bestsOf(agg),cut=Date.now()-30*864e5,recent=bestsOf(agg.filter(r=>Date.parse(r.start)>=cut));
+  const kg=S.set.weight,ftp=S.set.ftp,est=all[1200]?Math.round(all[1200].w*.95):null;
+  const allPts=DURS.filter(d=>all[d]).map(d=>[d,all[d].w]),recPts=DURS.filter(d=>recent[d]).map(d=>[d,recent[d].w]);
+  const sample=agg.some(r=>r.sample);
+  v.innerHTML=`
+  <div class="page-h"><h1>Bestwerte</h1>${sample?'<span class="tag">Aus der Beispielfahrt</span>':''}</div>
+  <div class="stack" style="margin-top:0">
+    <div class="card ftpc">
+      <div><span class="lbl">FTP geschätzt · 95 % vom besten 20-min-Wert</span><div class="v">${est?`<span data-count="${est}">${est}</span><small>W</small>`:'–'}</div></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="note soft" style="margin:0">Eingestellt: ${ftp} W</span>${est&&est!==ftp?`<button type="button" class="btn sm" id="useEst">${est} W übernehmen</button>`:''}</div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Leistungskurve</h3><span class="legend-in"><span><i></i>Alle Fahrten</span><span><i class="g"></i>Letzte 30 Tage</span></span></div>
+      <canvas class="cv tall" id="cvCurveA" aria-label="Leistungskurve aller Fahrten"></canvas>
+      <div class="btab">${DURS.filter(d=>all[d]&&d>=5).map(d=>`<div class="r"><span class="lbl">${durLbl(d)}</span><button type="button" class="lnk" data-ride="${all[d].id}">${fmtDateY(all[d].start)}</button><span class="w">${n0(all[d].w)} W</span><span class="k">${n2(all[d].w/kg)} W/kg</span></div>`).join('')}</div>
+    </div>
+  </div>`;
+  const c=$('#cvCurveA');c._prog=1;
+  c._draw=hv=>drawCurve(c,[{pts:allPts,color:'--accent',label:'Alle'},{pts:recPts,color:'--fg-3',dash:[4,4],width:1.4,label:'30 Tage'}],{hover:hv,prog:c._prog});
+  bindHover(c,c._draw);c._draw(null);
+  const u=$('#useEst');if(u)u.onclick=()=>{setFtp(est);renderBest();toast(`FTP auf ${est} W gesetzt`);};
+}
+
+/* ---------- Export, Sicherung ---------- */
+function download(text,name,type){
+  const b=new Blob([text],{type}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+}
+function tcx(r){
+  const s=stats(r),t0=Date.parse(r.start);let dist=0,pts='';
+  const hasD=!!(r.dist||r.spd);
+  for(let i=0;i<r.p.length;i++){
+    if(r.dist)dist=r.dist[i]||dist;else if(r.spd)dist+=(r.spd[i]||0)/3.6;
+    const alt=r.alt&&r.alt[i]!=null?`<AltitudeMeters>${r.alt[i]}</AltitudeMeters>`:'';
+    const hr=r.hr&&r.hr[i]>0?`<HeartRateBpm><Value>${r.hr[i]}</Value></HeartRateBpm>`:'';
+    const cad=r.cad?`<Cadence>${Math.min(254,r.cad[i]||0)}</Cadence>`:'';
+    pts+=`<Trackpoint><Time>${new Date(t0+i*1000).toISOString()}</Time>${alt}${hasD?`<DistanceMeters>${dist.toFixed(1)}</DistanceMeters>`:''}${hr}${cad}<Extensions><ns3:TPX><ns3:Watts>${r.p[i]}</ns3:Watts></ns3:TPX></Extensions></Trackpoint>\n`;
+  }
+  return`<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
+<Activities><Activity Sport="Biking"><Id>${new Date(t0).toISOString()}</Id>
+<Lap StartTime="${new Date(t0).toISOString()}"><TotalTimeSeconds>${s.dur}</TotalTimeSeconds><DistanceMeters>${dist.toFixed(1)}</DistanceMeters><Calories>${Math.round(s.kj)}</Calories>${s.hrAvg?`<AverageHeartRateBpm><Value>${Math.round(s.hrAvg)}</Value></AverageHeartRateBpm><MaximumHeartRateBpm><Value>${s.hrMax}</Value></MaximumHeartRateBpm>`:''}<Intensity>Active</Intensity><TriggerMethod>Manual</TriggerMethod>
+<Track>
+${pts}</Track></Lap><Notes>${esc(r.name)}</Notes></Activity></Activities></TrainingCenterDatabase>`;
+}
+
+/* ---------- Einstellungen ---------- */
+async function saveSet(){await DB.set('settings',S.set);}
+function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();$('#setFtp').value=S.set.ftp;renderErg();}
+function openSet(){
+  $('#setFtp').value=S.set.ftp;$('#setKg').value=String(S.set.weight).replace('.',',');$('#setBike').value=String(S.set.bike).replace('.',',');
+  const b=bestsOf(aggRides())[1200],e=$('#ftpEst');
+  if(b){const est=Math.round(b.w*.95);e.innerHTML=`Aus bestem 20-min-Wert<b>${est} W</b>`;e.disabled=false;e.onclick=()=>{setFtp(est);toast(`FTP auf ${est} W gesetzt`);};}
+  else{e.innerHTML='FTP-Schätzung braucht eine Fahrt ab 20 min';e.disabled=true;e.onclick=null;}
+  $('#dlgSet').showModal();
+}
+function rerender(){renderView(S.view);if(S.view!=='live')$$(`#v-${S.view} canvas`).forEach(c=>c._draw&&c._draw(null));}
+
+/* ---------- Beispielfahrt ---------- */
+function makeSample(){
+  let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const ftp=S.set.ftp,p=[],hr=[];let h=66;
+  const plan=[[540,.45,.7],[60,.7,.7],[480,.9,.92],[240,.58,.58],[480,.92,.94],[240,.58,.58],[480,.94,.96],[180,.6,.6],[15,1.75,1.6],[285,.6,.45]];
+  for(const[d,a,b]of plan)for(let i=0;i<d;i++){
+    const f=a+(b-a)*i/d,v=Math.max(0,Math.round(ftp*f*(1+(rnd()-.5)*.14)));p.push(v);
+    h+=((58+v*.44)-h)*.018;hr.push(Math.round(h+(rnd()-.5)*2));
+  }
+  const d=new Date();d.setDate(d.getDate()-1);d.setHours(18,30,0,0);
+  return{id:'sample',start:d.toISOString(),name:'Beispielfahrt',sample:true,p,hr,cad:null,spd:null,ftp,weight:S.set.weight};
+}
+
+/* ---------- Ereignisse ---------- */
+document.addEventListener('click',e=>{
+  const n=e.target.closest('#nav button');if(n){go(n.dataset.v);return;}
+  const gEl=e.target.closest('[data-go]');if(gEl){go(gEl.dataset.go);return;}
+  const rr=e.target.closest('[data-route]');if(rr){if(!rr.disabled)selectRoute(rr.dataset.route);return;}
+  const df=e.target.closest('[data-df]');if(df){S.set.diff=+df.dataset.df;saveSet();renderRoutes();applyControl(true);return;}
+  const rEl=e.target.closest('[data-ride]');if(rEl){S.detail=rEl.dataset.ride;go('detail');return;}
+  const a=e.target.closest('[data-a]');
+  if(a){({start:startRec,pause:pauseRec,resume:resumeRec,end:askEnd,back:backFromEnd,save:saveRec,
+    discard:()=>{if(a.classList.contains('armed'))discardRec();else{a.classList.add('armed');a.textContent='Ja, verwerfen';setTimeout(()=>{if(a.isConnected){a.classList.remove('armed');a.textContent='Verwerfen';}},3500);}}})[a.dataset.a]();return;}
+  const sm=e.target.closest('[data-sm]');
+  if(sm){S.smooth=+sm.dataset.sm;$$('#smSeg button').forEach(b=>b.classList.toggle('on',b===sm));placeSegThumb($('#smSeg'));const c=$('#cvRide');c._prog=1;c._draw(null);return;}
+  const qb=e.target.closest('#ergQuick [data-w]');
+  if(qb){S.erg.target=+qb.dataset.w;if(!S.erg.on)S.erg.on=true;ergChanged();return;}
+  const pm=e.target.closest('#ergCard .pm');
+  if(pm){S.erg.target=clamp(S.erg.target+(+pm.dataset.d),0,1000);ergChanged();return;}
+});
+$('#btnTr').onclick=connectTrainer;
+$('#btnHr').onclick=connectHR;
+$('#btnCd').onclick=connectCd;
+$('#rev').addEventListener('change',e=>{if(S.rec.state!=='idle'){e.target.checked=!!S.set.rev;return;}S.set.rev=e.target.checked;saveSet();resetSim();renderRoutes();applyControl(true);});
+$('#rtLoad').onclick=()=>$('#anyFile').click();
+$('#demo').addEventListener('change',e=>setDemo(e.target.checked));
+$('#ergOn').addEventListener('change',e=>{S.erg.on=e.target.checked;ergChanged();});
+const ergIn=$('#ergW');
+ergIn.addEventListener('focus',()=>ergIn.select());
+ergIn.addEventListener('input',()=>{const v=parseInt(ergIn.value,10);if(fin(v)&&v>=0&&v<=1000){S.erg.target=v;clearTimeout(ergT);ergT=setTimeout(applyErg,500);}});
+ergIn.addEventListener('blur',()=>{S.erg.target=clamp(parseInt(ergIn.value,10)||S.erg.target,0,1000);ergIn.value=S.erg.target;});
+ergIn.addEventListener('keydown',e=>{if(e.key==='Enter')ergIn.blur();if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();S.erg.target=clamp(S.erg.target+(e.key==='ArrowUp'?1:-1),0,1000);ergIn.value=S.erg.target;ergChanged();}});
+bindHover($('#cvLive'),x=>{S.liveHover=x;});
+$('#btnSet').onclick=openSet;
+$('#setFtp').addEventListener('focus',e=>e.target.select());
+$('#setKg').addEventListener('focus',e=>e.target.select());
+$('#setBike').addEventListener('focus',e=>e.target.select());
+$('#setBike').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.bike=clamp(Math.round(v*10)/10,3,30);saveSet();}e.target.value=String(S.set.bike).replace('.',',');});
+$('#setFtp').addEventListener('change',e=>{const v=parseInt(e.target.value,10);if(fin(v))setFtp(v);else e.target.value=S.set.ftp;rerender();});
+$('#setKg').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();}e.target.value=String(S.set.weight).replace('.',',');rerender();});
+$('#dlgSet').addEventListener('close',rerender);
+$('#bkExp').onclick=()=>download(JSON.stringify({app:'wattbuch',version:1,settings:S.set,rides:S.rides.filter(r=>!r.sample)}),`wattbuch-sicherung-${new Date().toISOString().slice(0,10)}.json`,'application/json');
+$('#bkImp').onclick=()=>$('#anyFile').click();
+/* Eine Datei für alles: Sicherung, Streckendatei oder GPX */
+$('#anyFile').addEventListener('change',async e=>{
+  const files=[...e.target.files];e.target.value='';
+  let rides=0,routes=0,err='';
+  for(const f of files){
+    try{
+      const text=await f.text();
+      if(/\.gpx$/i.test(f.name)||/^\s*<\?xml|<gpx/i.test(text.slice(0,300))){routes+=await addRoutes([parseGPX(text,f.name)]);continue;}
+      const d=JSON.parse(text);
+      if(d&&Array.isArray(d.routes))routes+=await addRoutes(d.routes);
+      if(d&&Array.isArray(d.rides)){
+        for(const x of d.rides){if(x&&x.id&&x.start&&Array.isArray(x.p)&&x.p.length){const i=S.rides.findIndex(y=>y.id===x.id);if(i>=0)S.rides[i]=x;else S.rides.push(x);await DB.put(x);rides++;}}
+        if(d.settings&&fin(d.settings.ftp)){S.set.ftp=d.settings.ftp;if(fin(d.settings.weight))S.set.weight=d.settings.weight;saveSet();renderErg();}
+      }
+      if(!(d&&(Array.isArray(d.routes)||Array.isArray(d.rides))))throw new Error('unbekanntes Format');
+    }catch(x){err=`${f.name}: ${x&&x.message?x.message:'nicht lesbar'}`;}
+  }
+  const parts=[];if(routes)parts.push(`${routes} ${routes===1?'Strecke':'Strecken'}`);if(rides)parts.push(`${rides} ${rides===1?'Fahrt':'Fahrten'}`);
+  toast(parts.length?parts.join(' und ')+' geladen':(err||'Nichts gefunden'));
+  if($('#dlgSet').open)$('#dlgSet').close();else rerender();
+});
+armDelete($('#delAll'),'Wirklich alle löschen?',async()=>{for(const r of S.rides)await DB.del(r.id);S.rides=[];await DB.set('seeded',true);toast('Alle Fahrten gelöscht');$('#dlgSet').close();});
+let rzT=null;
+window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{placeThumb();placeSegThumb($('#smSeg'));placeSegThumb($('#diffSeg'));$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null));},120);});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null)));
+
+/* ---------- Start ---------- */
+(async()=>{
+  $('#noBt').hidden=hasBT;document.documentElement.lang='de';
+  renderZoneBar();
+  $('#zonePill span').id='zpTxt';
+  await DB.open();
+  const set=await DB.get('settings');if(set)S.set={...S.set,...set};
+  S.erg.target=Math.round(S.set.ftp*.65/5)*5;
+  S.rides=await DB.all();
+  S.routes=(await DB.get('routes'))||[];
+  if(S.set.routeId&&!S.routes.some(r=>r.id===S.set.routeId))S.set.routeId=null;
+  renderRoutes();resetSim();
+  const draft=await DB.get('draft');
+  if(draft&&draft.p&&draft.p.length>=10){const r=makeRide(draft);r.name='Wiederhergestellte Fahrt';await DB.put(r);S.rides.push(r);toast('Unterbrochene Aufnahme wurde gespeichert');}
+  if(draft)await DB.rm('draft');
+  if(!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
+  go('live',true);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(placeThumb);
+  setInterval(tick,250);tick();
+})();
+</script>
+</body>
+</html>
