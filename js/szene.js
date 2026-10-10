@@ -160,6 +160,11 @@ function drawScene(c,opt={}){
     x+=Math.sin(th)*ds;z+=Math.cos(th)*ds;
     P.push({s,x,z,y:(tr.e-y0)*SCN.ex-z*g0*SCN.ex*.3,e:tr.e});
   }
+  /* Nahebene 1 m vor dir: Die Straße beginnt an einem exakt dorthin gerechneten Punkt, der stufenlos mitgleitet.
+     (Vorher hing sie an einem geklemmten Hilfspunkt – bei jedem 5-m-Schritt knickte der Rand unten kurz, je schneller, desto öfter.) */
+  {const ZN=1;let k=1;while(k<P.length-1&&P[k].z<=ZN)k++;const A=P[k-1],B=P[k],t=clamp((ZN-A.z)/((B.z-A.z)||1),0,1);
+   P.splice(0,k,{s:A.s+(B.s-A.s)*t,x:A.x+(B.x-A.x)*t,z:ZN,y:A.y+(B.y-A.y)*t,e:A.e+(B.e-A.e)*t});}
+  const NP=P.length-1;
   const camX=1.4;
   const pr=p=>{const zz=Math.max(p.z,.5),k=F/zz;return{sx:W/2+(p.x-camX)*k,sy:hy-(p.y-camY)*k,w:SCN.half*k,k};};
   const far=SCN.n*SCN.seg;
@@ -168,36 +173,39 @@ function drawScene(c,opt={}){
   ctx.fillStyle=gr;ctx.fillRect(0,hy-1,W,H-hy+1);
   /* Sichtbarkeit von vorn nach hinten: was hinter einer Kuppe liegt, wird ausgelassen */
   const Q=[],vis=[],crest=[];let clipY=H*4;
-  for(let k=0;k<=SCN.n;k++){const p=pr(P[k]);Q.push(p);crest.push(clipY);const ok=(k===0||P[k].z>.5)&&p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
+  for(let k=0;k<=NP;k++){const p=pr(P[k]);Q.push(p);crest.push(clipY);const ok=p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
   /* Straße als durchgehende Fläche je sichtbarem Abschnitt, Ränder als feine Lichtkante */
   const roadG=ctx.createLinearGradient(0,hy,0,H);roadG.addColorStop(0,rgb(fogC));roadG.addColorStop(.2,mixc(D.r[0],fogC,.5));roadG.addColorStop(1,rgb(D.r[1]));
   const edgeG=ctx.createLinearGradient(0,hy,0,H);edgeG.addColorStop(0,rgb(fogC,0));edgeG.addColorStop(.25,rgb(lerp3([127,95,232],fogC,.4),.7));edgeG.addColorStop(1,'rgba(150,120,245,.9)');
   const strip=(i0,i1,wf,fill)=>{ctx.beginPath();for(let k=i0;k<=i1;k++)ctx.lineTo(Q[k].sx-Q[k].w*wf,Q[k].sy);for(let k=i1;k>=i0;k--)ctx.lineTo(Q[k].sx+Q[k].w*wf,Q[k].sy);ctx.closePath();ctx.fillStyle=fill;ctx.fill();};
-  for(let k=0;k<=SCN.n;k++){
-    if(!vis[k])continue;let e=k;while(e<SCN.n&&vis[e+1])e++;
+  for(let k=0;k<=NP;k++){
+    if(!vis[k])continue;let e=k;while(e<NP&&vis[e+1])e++;
     if(e>k){strip(k,e,1.08,edgeG);strip(k,e,1,roadG);}
     k=e;
   }
   /* Mittelstreifen: 10 m Strich, 10 m Lücke, fest an der Straße – zeigt das Tempo */
   const at3=(A,B,t)=>pr({x:A.x+(B.x-A.x)*t,y:A.y+(B.y-A.y)*t,z:A.z+(B.z-A.z)*t});
-  for(let k=0;k<SCN.n;k++){
+  for(let k=0;k<NP;k++){
     if(!vis[k]||!vis[k+1])continue;
     const A=P[k],B=P[k+1],len=B.s-A.s;if(len<=0)continue;
     /* Strich auf [20n, 20n+10) Metern, angeschnittene Stücke an den Segmentgrenzen mitnehmen */
     for(let d0=Math.floor(A.s/20)*20;d0<B.s;d0+=20){
       const u0=Math.max(A.s,d0),u1=Math.min(B.s,d0+10);if(u1<=u0)continue;
-      const a=at3(A,B,(u0-A.s)/len),b=at3(A,B,(u1-A.s)/len),fz=Math.min(1,A.z/far);
-      ctx.fillStyle=`rgba(240,236,255,${.55*(1-fz)})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
+      /* Nah vor dir blendet der Strich aus: dort springen seine Enden bei Tempo zig Pixel pro Bild
+         und das Auge sieht ein Stroboskop statt Bewegung (je schneller, desto schlimmer) */
+      const a=at3(A,B,(u0-A.s)/len),b=at3(A,B,(u1-A.s)/len),fz=Math.min(1,A.z/far),near=clamp((A.z-14)/26,0,1);
+      if(near<=0)continue;
+      ctx.fillStyle=`rgba(240,236,255,${.55*(1-fz)*near})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
     }
   }
   /* Landschaft am Rand, von hinten nach vorn; tauchen aus dem Dunst auf statt plötzlich da zu sein.
      Jedes Stück wird an der Kuppe davor abgeschnitten (nicht ein-/ausgeblendet) – so gleitet ein Baum
-     weich hinter einem Hügel hervor, statt zu blinken. Ganz nah (unter 30 m) blenden sie aus: dort würden
+     weich hinter einem Hügel hervor, statt zu blinken. Ganz nah (unter 50 m) blenden sie aus: dort würden
      sie in wenigen Bildern quer übers Bild rasen, und das wirkt wie Flackern. */
-  for(let k=SCN.n;k>=1;k--){
-    if(P[k].z<=8||crest[k]<=0)continue;
+  for(let k=NP;k>=1;k--){
+    if(P[k].z<=15||crest[k]<=0)continue;
     ctx.save();ctx.beginPath();ctx.rect(0,0,W,Math.min(H,crest[k]+1));ctx.clip();
-    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6)*clamp((b.z-8)/22,0,1),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
+    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6)*clamp((b.z-15)/35,0,1),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
     ctx.globalAlpha=fade;
     if(bio==='wald'){
       if(s%35===0){fir(ctx,at(side*(SCN.half+3+hash(s+1)*10)),7+hash(s+2)*6,D,fz,fogC);if(hash(s+3)>.6)fir(ctx,at(-side*(SCN.half+4+hash(s+4)*12)),8+hash(s+5)*5,D,fz,fogC);}
@@ -217,12 +225,12 @@ function drawScene(c,opt={}){
   if(Pc&&riding){
     const tg=Pc.total-S.sim.total;if(SCV.gap==null||Math.abs(tg-SCV.gap)>40)SCV.gap=tg;else SCV.gap+=(Pc.v-S.sim.v)*dt+(tg-SCV.gap)*Math.min(1,dt*1.5);
     const gap=SCV.gap;
-    if(gap>1.5&&gap<far-10){const tgt=pos+gap,ii=clamp(Math.floor((tgt-s0)/SCN.seg),0,SCN.n-1),a=P[ii],b=P[ii+1],f=clamp((tgt-a.s)/((b.s-a.s)||1),0,1);
+    if(gap>1.5&&gap<far-10){const tgt=pos+gap;let ii=0;while(ii<NP-1&&P[ii+1].s<tgt)ii++;const a=P[ii],b=P[ii+1],f=clamp((tgt-a.s)/((b.s-a.s)||1),0,1);
       const q=pr({x:a.x+(b.x-a.x)*f-.6,y:a.y+(b.y-a.y)*f,z:a.z+(b.z-a.z)*f});
       cyclist(ctx,q,Pc.kind==='geist',now/1000*(Pc.v>.3?1.45:0),Math.min(1,gap/far*1.5));}
   }
   /* Unten weich in die Anzeige auslaufen lassen */
-  if(!opt.back){gr=ctx.createLinearGradient(0,H*.55,0,H);gr.addColorStop(0,'rgba(8,6,16,0)');gr.addColorStop(.55,'rgba(8,6,16,.38)');gr.addColorStop(1,'rgba(8,6,16,.82)');ctx.fillStyle=gr;ctx.fillRect(0,H*.55,W,H*.45);}
+  if(!opt.back){gr=ctx.createLinearGradient(0,H*.5,0,H);gr.addColorStop(0,'rgba(8,6,16,0)');gr.addColorStop(.45,'rgba(8,6,16,.45)');gr.addColorStop(.75,'rgba(8,6,16,.8)');gr.addColorStop(1,'rgba(8,6,16,.94)');ctx.fillStyle=gr;ctx.fillRect(0,H*.5,W,H*.5);}
   /* Vignette */
   gr=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.3,W/2,H*.55,Math.max(W,H)*.75);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,`rgba(0,0,0,${opt.back?.55:.4})`);ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
 }

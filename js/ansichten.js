@@ -54,6 +54,8 @@ function zonePos(w,ftp){
 }
 function renderLive(){
   const pw=curPow(),ftp=S.set.ftp,R=S.rec;
+  /* Diagramme nur zeichnen, wenn die Übersicht zu sehen ist (nicht hinter der Fahrt-Ansicht) */
+  const shown=$('#full').hidden;
   setT('lvPow',pw==null?'–':String(Math.round(pw)));
   setT('lvWkg',pw==null?'– W/kg':`${n2(pw/S.set.weight)} W/kg`);
   const zp=$('#zonePill'),mk=$('#zMark');
@@ -79,10 +81,10 @@ function renderLive(){
     setT('rlSent',S.erg.on?'Zielleistung aktiv':S.set.diff!==1?`an Rolle ${n1(trainerGrade())} %`:'');
     setT('rlDone',n1(S.sim.d/1000)+' km');setT('rlLeft','noch '+n1((rt.dist-S.sim.d)/1000)+' km');
     $('#rlFill').style.width=(S.sim.d/rt.dist*100).toFixed(2)+'%';
-    drawProfile($('#cvProf'),rt,S.sim.d);drawMap($('#cvMap'),rt,S.sim.d);
+    if(shown){drawProfile($('#cvProf'),rt,S.sim.d);drawMap($('#cvMap'),rt,S.sim.d);}
   }
   const c=$('#cvLive'),data=R.state!=='idle'?p.slice(-300):S.hist.slice(-300);
-  drawSeries(c,data,{span:300,live:true,ftp,hover:S.liveHover});
+  if(shown)drawSeries(c,data,{span:300,live:true,ftp,hover:S.liveHover});
 }
 function renderControls(){
   const el=$('#ctrls'),st=S.rec.state,live=isLive();

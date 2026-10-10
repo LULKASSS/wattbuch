@@ -18,13 +18,13 @@ function gpx() {
 const fake = (page, fn) => page.evaluate(fn);
 const toast = page => page.locator('#toast');
 
-async function open(page, { before, motion = false } = {}) {
+async function open(page, { before, motion = false, realtime = false } = {}) {
   const problems = [];
   // Ohne motion: „Bewegung reduzieren“, die Szene zeichnet dann nur 2-mal pro Sekunde (vorgespulte Fahrten bleiben schnell)
   if (!motion) await page.emulateMedia({ reducedMotion: 'reduce' });
   page.on('pageerror', e => problems.push('Fehler: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') problems.push('Konsole: ' + m.text()); });
-  await page.clock.install();
+  if (!realtime) await page.clock.install();
   await page.addInitScript({ path: FAKE });
   if (before) await page.addInitScript(before);
   await page.goto('/');
@@ -439,20 +439,26 @@ test('Bluetooth nicht verfügbar: Hinweis statt Stille, Abbrechen bleibt still',
   await expect(page.locator('#trSub')).toHaveText('Fake D100 · FTMS');
 });
 
-test('Kein Flackern: Fahrt-Ansicht bleibt bei schwankender Leistung ruhig', async ({ page }) => {
+test('Kein Flackern: Straße bleibt auch bei hohem Tempo ruhig (Echtzeit)', async ({ page }) => {
+  test.skip(!!process.env.CI, 'braucht echte 60 Bilder/s, die der GitHub-Server ohne Grafikkarte nicht liefert');
   test.setTimeout(60_000);
-  await open(page, { motion: true });
-  await page.locator('#rtList [data-route]').filter({ hasText: 'Hügelrunde' }).click();
+  // Echtzeit statt gefälschter Uhr: Flackern entsteht im Zusammenspiel echter Bilder und Bewegung
+  await open(page, { motion: true, realtime: true });
   await connectTrainer(page);
-  await start(page);
-  // Echte Rolle: Leistung schwankt mehrmals pro Sekunde über Zonengrenzen
-  await page.evaluate(() => { let i = 0; setInterval(() => window.__fakeBle.set({ power: [140, 240, 175, 225, 150][i++ % 5] }), 250); S.sim.d = 4000; });
-  await page.clock.runFor(2000);
-  const grab = () => page.evaluate(() => { const c = $('#cvFull'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, a = []; for (let j = 0; j < 50; j++) for (let i = 0; i < 80; i++) { const o = (Math.floor((j + .5) / 50 * c.height) * c.width + Math.floor((i + .5) / 80 * c.width)) * 4; a.push(d[o] * .3 + d[o + 1] * .59 + d[o + 2] * .11); } return a; });
-  const fr = [];
-  for (let n = 0; n < 45; n++) { await page.clock.runFor(17); fr.push(await grab()); }
-  // Flackern = ein Punkt springt hell→dunkel→hell (oder umgekehrt) innerhalb von 3 Bildern
-  let flicker = 0;
-  for (let t = 1; t < fr.length - 1; t++) for (let p = 0; p < fr[t].length; p++) { const d1 = fr[t][p] - fr[t - 1][p], d2 = fr[t + 1][p] - fr[t][p]; if (Math.abs(d1) > 18 && Math.abs(d2) > 18 && Math.sign(d1) !== Math.sign(d2)) flicker++; }
-  expect(flicker).toBeLessThan(10);
+  await page.click('[data-a="start"]');
+  await expect(page.locator('#full')).toBeVisible({ timeout: 6000 });
+  // Kräftig treten und dabei schwanken wie eine echte Rolle
+  await page.evaluate(() => { let i = 0; setInterval(() => window.__fakeBle.set({ power: [720, 820, 760, 880, 740][i++ % 5] }), 1000); });
+  await page.waitForTimeout(6000);
+  const r = await page.evaluate(async () => {
+    const c = $('#cvFull'), ctx = c.getContext('2d'), W = c.width, H = c.height, GX = 120, GY = 80, fr = [];
+    await new Promise(res => { let n = 0; const f = () => { const d = ctx.getImageData(0, 0, W, H).data, a = new Float32Array(GX * GY); for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) { const o = ((Math.floor((j + .5) / GY * H)) * W + Math.floor((i + .5) / GX * W)) * 4; a[j * GX + i] = d[o] * .3 + d[o + 1] * .59 + d[o + 2] * .11; } fr.push(a); if (++n < 180) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+    // Flackern = ein Punkt springt hell→dunkel→hell (oder umgekehrt) innerhalb von 3 Bildern
+    let unten = 0, gesamt = 0;
+    for (let t = 1; t < fr.length - 1; t++) for (let p = 0; p < GX * GY; p++) { const d1 = fr[t][p] - fr[t - 1][p], d2 = fr[t + 1][p] - fr[t][p]; if (Math.abs(d1) > 18 && Math.abs(d2) > 18 && Math.sign(d1) !== Math.sign(d2)) { gesamt++; if (p / GX >= GY * .5) unten++; } }
+    return { kmh: S.sim.v * 3.6, unten, gesamt };
+  });
+  expect(r.kmh).toBeGreaterThan(35);
+  expect(r.unten).toBeLessThan(2); // untere Bildhälfte: Straße, Mittelstreifen, Ränder
+  expect(r.gesamt).toBeLessThan(15);
 });
