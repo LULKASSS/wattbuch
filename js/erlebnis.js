@@ -19,7 +19,7 @@ function beginRide(){
   const el=document.createElement('div');el.className='countdown';el.setAttribute('role','status');
   document.body.appendChild(el);
   let n=3,t=null;
-  const go=()=>{clearTimeout(t);el.remove();startRec();momReset();window.scrollTo({top:0,behavior:'smooth'});};
+  const go=()=>{clearTimeout(t);el.remove();startRec();momReset();window.scrollTo({top:0});S.fullAuto=true;openFull();};
   const step=()=>{if(!n){el.innerHTML='<b class="go">Los</b>';t=setTimeout(go,450);return;}el.innerHTML=`<b>${n}</b>`;n--;t=setTimeout(step,850);};
   el.addEventListener('click',go);step();
 }

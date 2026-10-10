@@ -16,26 +16,26 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   color-scheme:dark;
-  --bg:#09090B; --surface:#131316; --surface-2:#1B1B20; --surface-3:#24242A;
-  --fg:#EEEEF1; --fg-2:#BDBDC6; --fg-3:#8F8F99; --on-accent:#0B0B0F;
-  --line:#232329; --line-2:#33333B;
+  --bg:#0c0a16; --surface:#16121f; --surface-2:#1e1929; --surface-3:#28223a;
+  --fg:#F1EEFF; --fg-2:#C9C2DD; --fg-3:#958DAD; --on-accent:#0B0B0F;
+  --line:#2a2438; --line-2:#3a3350;
   --accent:#A78BFA; --accent-ink:#C4B5FD; --accent-soft:rgba(167,139,250,.15); --accent-line:rgba(167,139,250,.48);
   --gap:#F2555A; --gap-ink:#F2555A; --gap-soft:rgba(242,85,90,.15);
   --ok:#3DB67A; --ok-ink:#3DB67A; --ok-soft:rgba(61,182,122,.14);
-  --z1:#3A3A43; --z2:#41385F; --z3:#56478E; --z4:#7259BF; --z5:#A78BFA; --z6:#C4B5FD; --z7:#E6DEFF;
-  --glass:rgba(9,9,11,.8);
+  --z1:#3a3550; --z2:#41385F; --z3:#56478E; --z4:#7259BF; --z5:#A78BFA; --z6:#C4B5FD; --z7:#E6DEFF;
+  --glass:rgba(12,10,22,.66);
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
 }}
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#09090B; --surface:#131316; --surface-2:#1B1B20; --surface-3:#24242A;
-  --fg:#EEEEF1; --fg-2:#BDBDC6; --fg-3:#8F8F99; --on-accent:#0B0B0F;
-  --line:#232329; --line-2:#33333B;
+  --bg:#0c0a16; --surface:#16121f; --surface-2:#1e1929; --surface-3:#28223a;
+  --fg:#F1EEFF; --fg-2:#C9C2DD; --fg-3:#958DAD; --on-accent:#0B0B0F;
+  --line:#2a2438; --line-2:#3a3350;
   --accent:#A78BFA; --accent-ink:#C4B5FD; --accent-soft:rgba(167,139,250,.15); --accent-line:rgba(167,139,250,.48);
   --gap:#F2555A; --gap-ink:#F2555A; --gap-soft:rgba(242,85,90,.15);
   --ok:#3DB67A; --ok-ink:#3DB67A; --ok-soft:rgba(61,182,122,.14);
-  --z1:#3A3A43; --z2:#41385F; --z3:#56478E; --z4:#7259BF; --z5:#A78BFA; --z6:#C4B5FD; --z7:#E6DEFF;
-  --glass:rgba(9,9,11,.8);
+  --z1:#3a3550; --z2:#41385F; --z3:#56478E; --z4:#7259BF; --z5:#A78BFA; --z6:#C4B5FD; --z7:#E6DEFF;
+  --glass:rgba(12,10,22,.66);
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
 }
 
@@ -520,3 +520,25 @@ dialog::backdrop{background:rgba(10,10,14,.35);backdrop-filter:blur(2px)}
   .full .moment .mt b{font-size:clamp(14.5px,1.1vw,21px)}
   .full .moment .mt span{font-size:clamp(12.5px,.9vw,17px)}
 }
+
+/* ---------- Dämmerung: die ganze App im Look der Fahrt ---------- */
+body{background:radial-gradient(120% 70% at 50% -10%,#2a1740 0%,var(--bg) 60%) fixed,var(--bg)}
+/* Auf „Fahren“ rollt die Straße schon vor dem Start im Hintergrund, Karten liegen wie Glas darüber */
+.backdrop{position:fixed;inset:0;z-index:-1;width:100%;height:100%;display:block;opacity:0;transition:opacity .8s var(--ease);pointer-events:none}
+body[data-view="live"] .backdrop{opacity:1}
+body[data-view="live"] .card{background:color-mix(in srgb,var(--surface) 70%,transparent);backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 48px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.06)}
+body[data-view="live"] .rrow{background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+body[data-view="live"] .rrow.on{background:var(--accent-soft)}
+.top{background:var(--glass)}
+.card.live::before{background:radial-gradient(90% 70% at 18% 0%,color-mix(in srgb,var(--amb) 30%,transparent),transparent 70%)}
+
+/* Zielleistung in der Fahrt-Ansicht */
+.f-bot{grid-template-columns:auto 1fr auto;grid-template-areas:"prof prof prof" "erg keys ctrl"}
+.f-erg{grid-area:erg;display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;background:rgba(10,8,20,.5);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(8px)}
+.f-erg .lbl{padding:0 8px 0 10px}
+.f-erg button{height:36px;min-width:36px;border-radius:999px;border:0;background:transparent;color:#F1EEFF;font-size:18px;font-weight:500}
+.f-erg button:hover{background:rgba(255,255,255,.1)}
+.f-erg .f-erg-v{min-width:76px;font-size:15px;font-weight:600;color:rgba(241,238,255,.6)}
+.f-erg.on .f-erg-v{background:#A78BFA;color:#0B0B0F}
+@media (min-width:901px){.f-erg button{height:clamp(36px,2.6vw,48px);min-width:clamp(36px,2.6vw,48px)}.f-erg .f-erg-v{font-size:clamp(15px,1vw,19px);min-width:clamp(76px,5.5vw,104px)}}
+@media (max-width:900px){.f-bot{grid-template-columns:1fr;grid-template-areas:"prof" "erg" "ctrl"}.f-erg{justify-self:center}}

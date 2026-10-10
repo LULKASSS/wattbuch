@@ -9,7 +9,7 @@ function placeThumb(){
 }
 function go(v,instant){
   const cur=$('.view.active'),next=$('#v-'+v);
-  S.view=v;placeThumb();renderView(v);if(typeof sceneKick==='function')sceneKick();
+  S.view=v;document.body.dataset.view=v;placeThumb();renderView(v);if(typeof sceneKick==='function')sceneKick();
   if(!cur||cur===next||instant){$$('.view').forEach(x=>x.classList.toggle('active',x===next));requestAnimationFrame(()=>onEnter(v));return;}
   const dir=ORDER[v]>=ORDER[cur.id.slice(2)]?1:-1;
   cur.style.setProperty('--dx',(-20*dir)+'px');cur.classList.add('leaving');
@@ -92,7 +92,9 @@ function renderControls(){
   if(st==='rec')h=`<button type="button" class="btn big" data-a="pause">Pause</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;
   if(st==='pause')h=`<button type="button" class="btn primary big" data-a="resume">Weiter</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;
   if(st==='confirm')h=`<span class="q">Fahrt beenden?</span><button type="button" class="btn primary big" data-a="save">Speichern</button><button type="button" class="btn big" data-a="back">Weiterfahren</button><span class="spacer"></span><button type="button" class="btn ghost warn" data-a="discard">Verwerfen</button>`;
-  const full=`<button type="button" class="btn ghost full-b" data-full title="Vollbild (F)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Vollbild</button>`;
+  /* Nach dem Verwerfen zurück aus der Fahrt-Ansicht */
+  if(st==='idle'&&S.fullAuto&&!$('#full').hidden){S.fullAuto=false;closeFull();return;}
+  const full=`<button type="button" class="btn ghost full-b" data-full title="${st==='idle'?'Vorschau der Fahrt-Ansicht':'Zur Fahrt-Ansicht'}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>${st==='idle'?'Vorschau':'Fahrt-Ansicht'}</button>`;
   el.innerHTML=h+(st==='confirm'?'':full);
   const fc=$('#fCtrl');if(fc)fc.innerHTML=$('#full').hidden?'':h;
   if(typeof sceneKick==='function')sceneKick();

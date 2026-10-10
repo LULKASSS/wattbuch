@@ -41,8 +41,8 @@ test('Fahrt wird automatisch gesichert und in neuer Installation wiederhergestel
   await page.click('#chkDemo');
   await page.click('[data-a="start"]');
   await page.waitForTimeout(16_000); // 3 s Countdown + 13 s Fahrt
-  await page.click('[data-a="end"]');
-  await page.click('[data-a="save"]');
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="save"]');
   await expect(page.locator('#toast')).toHaveText('Fahrt gespeichert');
   await expect(page.locator('#dlgSum')).toBeVisible();
 

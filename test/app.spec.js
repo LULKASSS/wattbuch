@@ -43,13 +43,14 @@ async function start(page) {
   await expect(page.locator('.countdown')).toBeVisible();
   await page.clock.runFor(3100);
   await expect(page.locator('.countdown')).toHaveCount(0);
+  await expect(page.locator('#full')).toBeVisible(); // Fahrt-Ansicht öffnet sich von selbst
 }
 
 async function ride(page, seconds, { close = true } = {}) {
   await start(page);
   await page.clock.runFor(seconds * 1000);
-  await page.click('[data-a="end"]');
-  await page.click('[data-a="save"]');
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="save"]');
   if (close && seconds >= 10) { await expect(page.locator('#dlgSum')).toBeVisible(); await page.click('#sumOk'); }
 }
 
@@ -162,7 +163,7 @@ test('Verbindung reißt während der Fahrt ab und kommt wieder', async ({ page }
   await expect(page.locator('#trSub')).toContainText('neuer Versuch 1/5');
   await page.clock.runFor(3000);
   await expect(page.locator('#trSub')).toHaveText('Fake D100 · FTMS');
-  await expect(page.locator('[data-a="pause"]')).toBeVisible(); // Aufnahme läuft weiter
+  await expect(page.locator('#fCtrl [data-a="pause"]')).toBeVisible(); // Aufnahme läuft weiter
   expect(problems).toEqual([]);
 });
 
@@ -226,10 +227,11 @@ test('Fahrt-Modus: Countdown, Zonen-Leuchten, Geräte treten zurück', async ({ 
   await expect(page.locator('#ergCard')).toBeVisible(); // Zielleistung bleibt während der Fahrt bedienbar
   await page.clock.runFor(2000);
   expect(await page.locator('.card.live').evaluate(e => e.style.getPropertyValue('--amb'))).toBe('var(--z3)'); // 180 W bei FTP 200
-  await page.click('[data-a="end"]');
-  await page.click('[data-a="discard"]');
-  await page.click('[data-a="discard"]');
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="discard"]');
+  await page.click('#fCtrl [data-a="discard"]');
   await expect(page.locator('body')).not.toHaveClass(/riding/);
+  await expect(page.locator('#full')).toBeHidden(); // nach dem Verwerfen zurück zu „Fahren“
   expect(problems).toEqual([]);
 });
 
@@ -246,8 +248,8 @@ test('Moment und Zusammenfassung bei neuem Bestwert', async ({ page }) => {
   await expect(page.locator('#moment')).toContainText('Neuer Bestwert 1 min');
   await expect(page.locator('#moment')).toContainText('bisher 150 W');
   await page.clock.runFor(10_000);
-  await page.click('[data-a="end"]');
-  await page.click('[data-a="save"]');
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="save"]');
   const sum = page.locator('#dlgSum');
   await expect(sum).toBeVisible();
   await expect(sum.locator('h2')).toHaveText(/neue Bestwerte|Neuer Bestwert/);
@@ -319,11 +321,13 @@ test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
   expect(await painted(page, '#cvFullProf')).toBeGreaterThan(0.05);
   await page.keyboard.press(' ');
   await expect(page.locator('#fCtrl [data-a="resume"]')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.click('#fClose');
   await expect(page.locator('#full')).toBeHidden();
   await expect(page.locator('body')).toHaveClass(/riding/);
-  await page.clock.runFor(200); // erstes Bild der Mini-Szene abwarten
-  expect(await painted(page, '#cvScene')).toBeGreaterThan(0.3); // Mini-Szene in der Live-Karte
+  await page.clock.runFor(200); // erstes Bild des Hintergrunds abwarten
+  expect(await painted(page, '#cvBack')).toBeGreaterThan(0.2); // Straße läuft hinter der Übersicht weiter
+  await page.click('#ctrls [data-full]');
+  await expect(page.locator('#full')).toBeVisible();
   expect(problems).toEqual([]);
 });
 
@@ -335,8 +339,6 @@ test('Geist der besten Fahrt auf derselben Strecke fährt mit', async ({ page })
   await page.setInputFiles('#anyFile', { name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ app: 'wattbuch', rides: [old] })) });
   await connectTrainer(page);
   await start(page);
-  await page.click('#ctrls [data-full]');
-  await expect(page.locator('#full')).toBeVisible();
   await page.clock.runFor(40_000);
   await expect(page.locator('#fGhost')).toContainText('Dein Geist');
   const gap = await page.evaluate(() => S.pace.total - S.sim.total);
@@ -374,4 +376,40 @@ test('Strecke löschen mit Rückfrage', async ({ page }) => {
   await page.reload();
   await expect(rows).toHaveCount(2);
   expect(problems).toEqual([]);
+});
+
+test('Welt verändert sich: Tageszeit nach Fahrtdauer, Landschaft nach Strecke', async ({ page }) => {
+  await open(page);
+  const r = await page.evaluate(() => ({ d: [0, 25, 45, 60, 85, 120].map(m => dayAt(m).n), alp: biomeAt(activeRoute() || { }, 100, 1500), low: [0, 3500, 7000, 10500, 14000].map(s => biomeAt(null, s, 100)) }));
+  expect(r.d).toEqual(['Abendrot', 'Nacht', 'Morgengrauen', 'Tag', 'Sonnenuntergang', 'Nacht']);
+  expect(r.alp).toBe('alpen');
+  expect(new Set(r.low)).toEqual(new Set(['wald', 'felder']));
+});
+
+test('Fahrt-Ansicht: Zielleistung direkt bedienen', async ({ page }) => {
+  const problems = await open(page);
+  await connectTrainer(page);
+  await start(page);
+  await expect(page.locator('#fErgW')).toHaveText('Aus');
+  await page.click('#fErg [data-ferg="10"]');
+  await page.clock.runFor(1500);
+  await expect(page.locator('#fErg')).toHaveClass(/on/);
+  expect(await fake(page, () => window.__fakeBle.ergTarget)).toBe(140); // 130 + 10
+  await expect(page.locator('#fErgW')).toHaveText('140 W');
+  await page.click('#fErgW');
+  await page.clock.runFor(600);
+  await expect(page.locator('#fErgW')).toHaveText('Aus');
+  expect(problems).toEqual([]);
+});
+
+test('Tageszeit-Wechsel wird gemeldet', async ({ page }) => {
+  await open(page);
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(1500); // erste Sekunde: Abendrot merken
+  await page.evaluate(() => { S.rec.acc = 5 * 60000; S.rec.run = performance.now(); });
+  await page.clock.runFor(2000);
+  await page.evaluate(() => { S.rec.acc = 25 * 60000; S.rec.run = performance.now(); });
+  await page.clock.runFor(2000);
+  expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Die Nacht bricht herein');
 });
