@@ -42,6 +42,14 @@ const dupes = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]).filter((v, i,
 for (const d of new Set(dupes)) errors.push(`ID doppelt vergeben: #${d}`);
 if (/<script[^>]+src="\/?test\//.test(html)) errors.push('index.html lädt Testcode (test/…) – darf nie veröffentlicht werden');
 
+/* Manifest für das automatische Update der Mac-App muss zu den Dateien passen */
+{
+  const { build } = await import('./manifest.mjs');
+  const want = await build();
+  const have = JSON.parse(await readFile(root + 'manifest.json', 'utf8').catch(() => '{}'));
+  if (have.version !== want.version) errors.push('manifest.json ist veraltet → node scripts/manifest.mjs');
+}
+
 /* 3. Persönliche Daten */
 let files = [];
 try { files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean); }

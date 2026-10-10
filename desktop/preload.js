@@ -7,7 +7,8 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
   latestBackup: () => ipcRenderer.invoke('backup:latest'),
   backupDir: () => ipcRenderer.invoke('backup:dir'),
   pendingImports: () => ipcRenderer.invoke('import:pending'),
-  importsDone: names => ipcRenderer.invoke('import:done', names)
+  importsDone: names => ipcRenderer.invoke('import:done', names),
+  onUpdate: cb => ipcRenderer.on('update:ready', (_e, v) => cb(v))
 });
 
 /* Geräteauswahl: Chrome zeigt dafür ein eigenes Fenster, in Electron bauen wir es selbst.

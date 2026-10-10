@@ -8,7 +8,12 @@ const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 
+const { createUpdater } = require('./update');
 const ROOT = path.join(__dirname, '..');
+/* Woher Updates kommen; in Tests per WATTBUCH_UPDATE_URL umgelenkt, WATTBUCH_UPDATE=0 schaltet ab */
+const UPDATE_URL = process.env.WATTBUCH_UPDATE_URL || 'https://lulkasss.github.io/wattbuch';
+const UPDATES = process.env.WATTBUCH_UPDATE !== '0';
+let updater = null, mainWin = null;
 const ICLOUD = path.join(os.homedir(), 'Library/Mobile Documents/com~apple~CloudDocs');
 let backupDir = null;
 
@@ -102,6 +107,8 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { role: 'appMenu' },
     { label: 'Ablage', submenu: [
+      { label: 'Nach Updates suchen …', click: () => backgroundUpdate(true) },
+      { type: 'separator' },
       { label: 'Sicherungsordner öffnen', accelerator: 'CmdOrCtrl+Shift+S', click: () => shell.openPath(backupDir) },
       { type: 'separator' }, { role: 'close' }
     ] },
@@ -111,15 +118,35 @@ function buildMenu() {
   ]));
 }
 
+function setAbout() {
+  app.setAboutPanelOptions({ applicationName: 'Wattbuch', applicationVersion: app.getVersion(), version: `Oberfläche ${updater.active.version}` });
+}
+/* Update im laufenden Betrieb: neu laden nur, wenn gerade keine Aufnahme läuft (fragt die Seite) */
+async function backgroundUpdate(manual) {
+  let fresh = false, err = null;
+  try { fresh = await updater.check(); } catch (e) { err = e; }
+  setAbout();
+  const win = mainWin && !mainWin.isDestroyed() ? mainWin : null;
+  if (fresh && win) win.webContents.send('update:ready', updater.active.version);
+  if (manual && win) dialog.showMessageBox(win, { type: err ? 'warning' : 'info', message: err ? 'Update gerade nicht möglich' : fresh ? 'Neue Version geladen' : 'Wattbuch ist aktuell', detail: err ? err.message : `Oberfläche ${updater.active.version}` });
+}
+
 app.setName('Wattbuch');
 app.whenReady().then(async () => {
   backupDir = await resolveBackupDir();
 
-  protocol.handle('app', req => {
-    const { pathname } = new URL(req.url);
-    const file = path.normalize(path.join(ROOT, decodeURIComponent(pathname)));
-    if (!file.startsWith(ROOT + path.sep)) return new Response('verboten', { status: 403 });
-    return net.fetch(pathToFileURL(file).toString());
+  updater = createUpdater({ bundledRoot: ROOT, dataDir: app.getPath('userData'), baseUrl: UPDATE_URL, log: m => console.log(m) });
+  updater.init();
+
+  /* Oberfläche aus der aktiven Version (heruntergeladen oder eingebaut), alles andere aus der App */
+  protocol.handle('app', async req => {
+    const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '');
+    for (const root of [updater.active.root, ROOT]) {
+      const file = path.normalize(path.join(root, rel));
+      if (!file.startsWith(root + path.sep)) return new Response('verboten', { status: 403 });
+      try { await fs.access(file); return net.fetch(pathToFileURL(file).toString()); } catch {}
+    }
+    return new Response('nicht gefunden', { status: 404 });
   });
 
   /* Bluetooth und Bildschirm-wach-halten erlauben, alles andere nicht */
@@ -134,8 +161,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('import:pending', () => pendingImports());
   ipcMain.handle('import:done', (_e, names) => importsDone(names));
 
+  /* Beim Start kurz (max. 3 s) auf ein Update warten, damit gleich die neueste Fassung erscheint */
+  if (UPDATES) await Promise.race([updater.check().catch(e => console.log('Update:', e.message)), new Promise(r => setTimeout(r, 3000))]);
+  setAbout();
   buildMenu();
-  createWindow();
-  app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
+  mainWin = createWindow();
+  if (UPDATES) setInterval(() => backgroundUpdate(), 30 * 60 * 1000);
+  app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) mainWin = createWindow(); });
 });
 app.on('window-all-closed', () => app.quit());

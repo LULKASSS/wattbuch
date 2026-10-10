@@ -5,6 +5,7 @@ Gehört Lukas, Sprache in App, Code-Kommentaren und Commits: **Deutsch**.
 
 ## Aufbau
 - `index.html` (Markup), `app.css` (Stil), `js/*.js` (Logik, klassische Scripts mit gemeinsamem globalem Bereich, Reihenfolge wie in index.html: basis → geraete → strecken → aufnahme → diagramme → ansichten → erlebnis → szene → daten → start; `erlebnis.js` = Countdown, Momente, Zusammenfassung; `szene.js` = Pseudo-3D-Straße, Vollbild, Geist/Schrittmacher, Tastatur). Szene zeichnet nur bei Fahrt oder Vollbild (`sceneKick`), Tests laufen mit „Bewegung reduzieren“ (2 Bilder/s), sonst wird die gefälschte Uhr langsam. Kein Build-Schritt, keine Abhängigkeiten außer Google Fonts. GitHub Pages liefert das Repo 1:1 aus: https://lulkasss.github.io/wattbuch/
+- `manifest.json` – Prüfsummen der Oberflächen-Dateien, von `scripts/manifest.mjs` erzeugt (automatisch in `npm test`). Darüber aktualisiert sich die Mac-App selbst (`desktop/update.js`).
 - `desktop/` – Mac-App (Electron): `main.js` (Fenster, `app://`-Schema, Bluetooth-Auswahl, Sicherung nach iCloud), `preload.js` (Brücke `window.wattbuchDesktop`, Geräte-Auswahldialog).
 - `test/fake-ble.js` – simulierte Rolle, Pulsgurt, Trittfrequenzsensor (`window.__fakeBle`). **Nie** in `index.html` einbinden.
 - `test/app.spec.js` – Browsertests (Chrome, gefälschte Uhr). `test/desktop.spec.js` – Tests der Mac-App.

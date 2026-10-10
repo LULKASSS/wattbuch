@@ -9,7 +9,7 @@ test.skip(process.platform !== 'darwin', 'nur auf dem Mac');
 test.describe.configure({ mode: 'serial' });
 
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-test-'));
-const launch = (dir = data) => electron.launch({ args: [path.join(__dirname, '..')], env: { ...process.env, WATTBUCH_DATA: dir } });
+const launch = (dir = data, env = { WATTBUCH_UPDATE: '0' }) => electron.launch({ args: [path.join(__dirname, '..')], env: { ...process.env, WATTBUCH_DATA: dir, ...env } });
 
 test.afterAll(() => fs.rmSync(data, { recursive: true, force: true }));
 
@@ -75,5 +75,54 @@ test('Dateien im Import-Ordner werden beim Start übernommen', async () => {
   await expect.poll(() => fs.existsSync(path.join(dir, 'Wattbuch', 'Import', 'Erledigt', 'pass.gpx'))).toBe(true);
   expect(fs.existsSync(path.join(dir, 'Wattbuch', 'Import', 'pass.gpx'))).toBe(false);
   await app.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/* Kleiner Webserver, der eine veränderte Oberfläche samt Manifest ausliefert */
+async function updateServer(change, { breakHash = false } = {}) {
+  const http = require('node:http');
+  const web = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-web-')) + path.sep;
+  const root = path.join(__dirname, '..') + path.sep;
+  fs.mkdirSync(web + 'js');
+  for (const f of ['index.html', 'app.css', ...fs.readdirSync(root + 'js').map(f => 'js/' + f)]) fs.copyFileSync(root + f, web + f);
+  fs.writeFileSync(web + 'index.html', change(fs.readFileSync(web + 'index.html', 'utf8')));
+  const { build } = await import(path.join(root, 'scripts/manifest.mjs'));
+  const m = await build(web);
+  if (breakHash) m.files['index.html'] = '0'.repeat(64);
+  fs.writeFileSync(web + 'manifest.json', JSON.stringify(m));
+  const hits = [];
+  const srv = http.createServer((req, res) => { const p = decodeURIComponent(new URL(req.url, 'http://x').pathname).slice(1); hits.push(p); try { res.end(fs.readFileSync(web + p)); } catch { res.statusCode = 404; res.end(); } });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  return { url: `http://127.0.0.1:${srv.address().port}`, hits, version: m.version, close: () => { srv.close(); fs.rmSync(web, { recursive: true, force: true }); } };
+}
+
+test('Update: neue Oberfläche wird beim Start geladen und bleibt offline erhalten', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-upd-'));
+  const srv = await updateServer(h => h.replace('<title>Wattbuch</title>', '<title>Wattbuch Neu</title>'));
+  const app = await launch(dir, { WATTBUCH_UPDATE_URL: srv.url });
+  const page = await app.firstWindow();
+  await expect(page).toHaveTitle('Wattbuch Neu');
+  await expect(page.locator('#v-live')).toHaveClass(/active/); // Rest der App läuft normal
+  expect(srv.hits).toContain('index.html');
+  expect(srv.hits).not.toContain('js/basis.js'); // unveränderte Dateien werden nicht neu geladen
+  await app.close();
+  srv.close();
+  // Ohne Server (offline): letzte gute Version bleibt aktiv
+  const app2 = await launch(dir, { WATTBUCH_UPDATE_URL: 'http://127.0.0.1:9' });
+  const page2 = await app2.firstWindow();
+  await expect(page2).toHaveTitle('Wattbuch Neu');
+  await app2.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Update mit falscher Prüfsumme wird verworfen', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-upd-'));
+  const srv = await updateServer(h => h.replace('<title>Wattbuch</title>', '<title>Manipuliert</title>'), { breakHash: true });
+  const app = await launch(dir, { WATTBUCH_UPDATE_URL: srv.url });
+  const page = await app.firstWindow();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await expect(page).toHaveTitle('Wattbuch');
+  await app.close();
+  srv.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
