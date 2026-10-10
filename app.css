@@ -433,7 +433,7 @@ dialog::backdrop{background:rgba(10,10,14,.35);backdrop-filter:blur(2px)}
 .f-side>div{display:flex;flex-direction:column;min-width:90px}
 .f-side b{font-size:46px;font-weight:600;letter-spacing:-.04em;line-height:1.05;margin-top:4px}
 .f-side small{font-size:13px;color:rgba(241,238,255,.6)}
-.f-bot{position:absolute;left:0;right:0;bottom:0;padding:0 28px calc(14px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr auto;grid-template-areas:"prof prof" "keys ctrl";gap:10px 16px;align-items:center;z-index:1;background:linear-gradient(transparent,rgba(5,4,10,.7) 45%)}
+.f-bot{position:absolute;left:0;right:0;bottom:0;padding:0 28px calc(14px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr auto;grid-template-areas:"prof prof" "keys ctrl";gap:10px 16px;align-items:center;z-index:1}
 .f-prof{grid-area:prof;width:100%;height:64px;display:block}
 .f-ctrl{grid-area:ctrl;display:flex;gap:10px;align-items:center}
 .f-ctrl .btn{height:44px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#F1EEFF;backdrop-filter:blur(8px)}

@@ -424,3 +424,17 @@ test('Straße bewegt sich in jedem Bild (kein Ruckeln im Takt der Simulation)', 
   const steps = pos.slice(1).map((v, i) => v - pos[i]);
   for (const s of steps) { expect(s).toBeGreaterThan(0.02); expect(s).toBeLessThan(0.6); } // jedes Bild ein kleines Stück, kein Sprung
 });
+
+test('Bluetooth nicht verfügbar: Hinweis statt Stille, Abbrechen bleibt still', async ({ page }) => {
+  await open(page);
+  await fake(page, () => { window.__fakeBle.fail = { name: 'NotFoundError', message: 'User cancelled the requestDevice() chooser.' }; });
+  await page.click('#btnTr');
+  await page.clock.runFor(500);
+  await expect(toast(page)).not.toHaveClass(/show/);
+  await fake(page, () => { window.__fakeBle.fail = { name: 'NotFoundError', message: 'Bluetooth adapter not available.' }; });
+  await page.click('#btnTr');
+  await expect(toast(page)).toContainText('Bluetooth nicht verfügbar');
+  await fake(page, () => { window.__fakeBle.fail = null; });
+  await page.click('#btnTr');
+  await expect(page.locator('#trSub')).toHaveText('Fake D100 · FTMS');
+});

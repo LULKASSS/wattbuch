@@ -96,7 +96,9 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   go('live',true);
   /* Mac-App: neue Version der Oberfläche liegt bereit → neu laden, sobald keine Aufnahme läuft */
   if(window.wattbuchDesktop&&window.wattbuchDesktop.onUpdate)window.wattbuchDesktop.onUpdate(()=>{
-    const go=()=>{if(S.rec.state==='idle'&&!document.querySelector('dialog[open]'))location.reload();else setTimeout(go,10000);};go();
+    /* nicht während einer Fahrt, eines Dialogs, einer Gerätesuche oder eines Verbindungsaufbaus */
+    const busy=()=>S.rec.state!=='idle'||document.querySelector('dialog[open]')||document.getElementById('btPick')||[S.tr,S.hrm,S.cd].some(d=>d.state==='wait');
+    const go=()=>{if(!busy())location.reload();else setTimeout(go,10000);};go();
   });
   /* Mac-App: Dateien aus iCloud Drive/Wattbuch/Import/ übernehmen (z. B. Strecken aus Strava) */
   if(window.wattbuchDesktop&&window.wattbuchDesktop.pendingImports){try{const files=await window.wattbuchDesktop.pendingImports();if(files.length){const res=await importFiles(files);toast(res.msg);if(res.ok)await window.wattbuchDesktop.importsDone(files.map(f=>f.name));renderRoutes();}}catch(_){}}

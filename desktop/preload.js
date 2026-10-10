@@ -34,7 +34,7 @@ function close(id) {
   ipcRenderer.send('bt:choose', id || '');
 }
 
-ipcRenderer.on('bt:open', () => {
+function openBox() {
   if (box) return;
   if (!document.getElementById('btPickCss')) { const s = document.createElement('style'); s.id = 'btPickCss'; s.textContent = css; document.head.appendChild(s); }
   box = document.createElement('div');
@@ -46,10 +46,11 @@ ipcRenderer.on('bt:open', () => {
   document.body.appendChild(box);
   /* Nach 60 s ohne Wahl abbrechen, sonst hängt die Suche */
   timer = setTimeout(() => close(''), 60000);
-});
+}
+ipcRenderer.on('bt:open', openBox);
 
 ipcRenderer.on('bt:list', (_e, list) => {
-  if (!box) return;
+  if (!box) openBox(); /* falls das Öffnen-Signal verloren ging */
   const ul = box.querySelector('ul');
   ul.replaceChildren(...list.map(d => {
     const li = document.createElement('li'), b = document.createElement('button');

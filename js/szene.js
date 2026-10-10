@@ -51,11 +51,13 @@ function headings(rt){
   HEADS.set(rt,h);return h;
 }
 /* Höhe und Richtung an Position d; ohne Strecke eine sanft geschwungene, fast flache Landstraße */
+/* Zusätzliche Kurven nur fürs Auge (Steigung und Distanz bleiben exakt): lange Bögen und dazwischen engere Kehren */
+const bend=d=>.5*Math.sin(d/360)+.28*Math.sin(d/150+1.3)+.12*Math.sin(d/63+.4);
 function trackAt(rt,d){
-  if(!rt)return{e:1.2*Math.sin(d/180)+.6*Math.sin(d/57),h:.55*Math.sin(d/520)+.3*Math.sin(d/190+1)};
+  if(!rt)return{e:1.2*Math.sin(d/180)+.6*Math.sin(d/57),h:.4*Math.sin(d/520)+bend(d)};
   d=rt.loop?((d%rt.dist)+rt.dist)%rt.dist:clamp(d,0,rt.dist);
   const H=headings(rt),x=d/rt.step,i=Math.min(H.length-2,Math.floor(x)),f=x-i;
-  return{e:eleAt(rt,d),h:H[i]+(H[i+1]-H[i])*f};
+  return{e:eleAt(rt,d),h:H[i]+(H[i+1]-H[i])*f+bend(d)*.8};
 }
 const wrapA=a=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
 
@@ -147,12 +149,14 @@ function drawScene(c,opt={}){
     ctx.lineTo(W,hy+1);ctx.closePath();ctx.fill();
   });
   /* Straße: Punkte vor dir berechnen (seitlicher Versatz aus den Richtungsänderungen) */
-  const s0=Math.floor(pos/SCN.seg)*SCN.seg,P=[];let x=0,z=s0-pos;const y0=t0.e;
-  for(let k=0;k<=SCN.n;k++){
-    const s=s0+k*SCN.seg,tr=trackAt(rt,s);if(k){const th=wrapA(tr.h-t0.h);x+=Math.sin(th)*SCN.seg;z+=Math.cos(th)*SCN.seg;}
+  /* Erster Punkt genau unter dir, danach feste Punkte alle 5 m – so reicht die Straße immer bis an den Bildrand */
+  const s0=Math.floor(pos/SCN.seg)*SCN.seg,P=[{s:pos,x:0,z:0,y:0,e:t0.e}];let x=0,z=0,ps=pos;const y0=t0.e;
+  for(let k=1;k<=SCN.n;k++){
+    const s=s0+k*SCN.seg,tr=trackAt(rt,s),ds=s-ps,th=wrapA(tr.h-t0.h);ps=s;
+    x+=Math.sin(th)*ds;z+=Math.cos(th)*ds;
     P.push({s,x,z,y:(tr.e-y0)*SCN.ex-z*g0*SCN.ex*.3,e:tr.e});
   }
-  const camX=P[Math.min(2,P.length-1)].x*.6+1.4;
+  const camX=1.4;
   const pr=p=>{const zz=Math.max(p.z,.5),k=F/zz;return{sx:W/2+(p.x-camX)*k,sy:hy-(p.y-camY)*k,w:SCN.half*k,k};};
   const far=SCN.n*SCN.seg;
   /* Boden: ein ruhiger Verlauf vom Dunst am Horizont zur Wiese vorn – keine Streifen */
@@ -160,7 +164,7 @@ function drawScene(c,opt={}){
   ctx.fillStyle=gr;ctx.fillRect(0,hy-1,W,H-hy+1);
   /* Sichtbarkeit von vorn nach hinten: was hinter einer Kuppe liegt, wird ausgelassen */
   const Q=[],vis=[];let clipY=H*4;
-  for(let k=0;k<=SCN.n;k++){const p=pr(P[k]);Q.push(p);const ok=P[k].z>.6&&p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
+  for(let k=0;k<=SCN.n;k++){const p=pr(P[k]);Q.push(p);const ok=(k===0||P[k].z>.5)&&p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
   /* Straße als durchgehende Fläche je sichtbarem Abschnitt, Ränder als feine Lichtkante */
   const roadG=ctx.createLinearGradient(0,hy,0,H);roadG.addColorStop(0,rgb(fogC));roadG.addColorStop(.2,mixc(D.r[0],fogC,.5));roadG.addColorStop(1,rgb(D.r[1]));
   const edgeG=ctx.createLinearGradient(0,hy,0,H);edgeG.addColorStop(0,rgb(fogC,0));edgeG.addColorStop(.25,rgb(lerp3([127,95,232],fogC,.4),.7));edgeG.addColorStop(1,'rgba(150,120,245,.9)');
@@ -171,10 +175,16 @@ function drawScene(c,opt={}){
     k=e;
   }
   /* Mittelstreifen: 10 m Strich, 10 m Lücke, fest an der Straße – zeigt das Tempo */
-  for(let k=1;k<SCN.n;k++){
-    if(!vis[k]||!vis[k+1]||P[k].z<3||Math.floor(P[k].s/10)%2)continue;
-    const a=Q[k],b=Q[k+1],fz=Math.min(1,P[k].z/far);
-    ctx.fillStyle=`rgba(240,236,255,${.6*(1-fz)})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
+  const at3=(A,B,t)=>pr({x:A.x+(B.x-A.x)*t,y:A.y+(B.y-A.y)*t,z:A.z+(B.z-A.z)*t});
+  for(let k=0;k<SCN.n;k++){
+    if(!vis[k]||!vis[k+1])continue;
+    const A=P[k],B=P[k+1],len=B.s-A.s;if(len<=0)continue;
+    /* Strich auf [20n, 20n+10) Metern, angeschnittene Stücke an den Segmentgrenzen mitnehmen */
+    for(let d0=Math.floor(A.s/20)*20;d0<B.s;d0+=20){
+      const u0=Math.max(A.s,d0),u1=Math.min(B.s,d0+10);if(u1<=u0)continue;
+      const a=at3(A,B,(u0-A.s)/len),b=at3(A,B,(u1-A.s)/len),fz=Math.min(1,A.z/far);
+      ctx.fillStyle=`rgba(240,236,255,${.55*(1-fz)})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
+    }
   }
   /* Landschaft am Rand, von hinten nach vorn; tauchen aus dem Dunst auf statt plötzlich da zu sein */
   for(let k=SCN.n;k>=1;k--){
@@ -198,10 +208,12 @@ function drawScene(c,opt={}){
   if(Pc&&riding){
     const tg=Pc.total-S.sim.total;if(SCV.gap==null||Math.abs(tg-SCV.gap)>40)SCV.gap=tg;else SCV.gap+=(Pc.v-S.sim.v)*dt+(tg-SCV.gap)*Math.min(1,dt*1.5);
     const gap=SCV.gap;
-    if(gap>1.5&&gap<far){const kk=gap/SCN.seg,i=Math.min(SCN.n-1,Math.floor(kk)),f=kk-i,a=P[i],b=P[i+1];
+    if(gap>1.5&&gap<far-10){const tgt=pos+gap,ii=clamp(Math.floor((tgt-s0)/SCN.seg),0,SCN.n-1),a=P[ii],b=P[ii+1],f=clamp((tgt-a.s)/((b.s-a.s)||1),0,1);
       const q=pr({x:a.x+(b.x-a.x)*f-.6,y:a.y+(b.y-a.y)*f,z:a.z+(b.z-a.z)*f});
       cyclist(ctx,q,Pc.kind==='geist',now/1000*(Pc.v>.3?1.45:0),Math.min(1,gap/far*1.5));}
   }
+  /* Unten weich in die Anzeige auslaufen lassen */
+  if(!opt.back){gr=ctx.createLinearGradient(0,H*.55,0,H);gr.addColorStop(0,'rgba(8,6,16,0)');gr.addColorStop(.55,'rgba(8,6,16,.38)');gr.addColorStop(1,'rgba(8,6,16,.82)');ctx.fillStyle=gr;ctx.fillRect(0,H*.55,W,H*.45);}
   /* Vignette */
   gr=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.3,W/2,H*.55,Math.max(W,H)*.75);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,`rgba(0,0,0,${opt.back?.55:.4})`);ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
 }

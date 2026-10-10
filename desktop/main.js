@@ -85,6 +85,11 @@ function createWindow() {
   });
   ipcMain.removeAllListeners('bt:choose');
   ipcMain.on('bt:choose', (_e, id) => { if (pick) { const cb = pick; pick = null; cb(id || ''); } });
+  /* Lädt die Seite neu (z. B. nach einem Update), während eine Suche offen ist: Suche sauber abbrechen,
+     sonst hängt sie und jedes weitere „Verbinden“ bleibt ohne Auswahlfenster */
+  const dropPick = () => { if (pick) { const cb = pick; pick = null; try { cb(''); } catch {} } };
+  win.webContents.on('did-start-navigation', (_e, _url, _inPlace, isMainFrame) => { if (isMainFrame) dropPick(); });
+  win.webContents.on('render-process-gone', dropPick);
 
   /* Aufnahme läuft (beforeunload der Seite) → nachfragen statt still nicht zu schließen */
   win.webContents.on('will-prevent-unload', event => {

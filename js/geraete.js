@@ -72,13 +72,21 @@ function onCP(e){
   try{if(dv.getUint8(0)===0x80){const op=dv.getUint8(1),res=dv.getUint8(2);if(res!==1&&op===0x00){S.tr.ctrl=false;S.tr.denied=true;ergMsg('Die Rolle gibt die Steuerung nicht frei. Läuft noch eine andere App?');}}}catch(_){}
 }
 
+/* requestDevice abgelehnt: Abbrechen durch dich bleibt still, alles andere bekommt einen Hinweis */
+function btFail(e){
+  const m=(e&&e.message)||'';
+  if(/cancel/i.test(m))return;
+  if(/adapter|not available|unavailable|permission|denied|not allowed|globally disabled/i.test(m)){toast('Bluetooth nicht verfügbar. Ist es an? Mac: Systemeinstellungen → Datenschutz → Bluetooth → Wattbuch erlauben');return;}
+  if(e&&e.name==='NotFoundError')return;
+  toast('Verbinden ging nicht: '+m);
+}
 async function connectTrainer(){
   if(S.tr.state!=='off'){disconnectTrainer();return;}
   if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
   let dev;
   try{
     dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1826]},{services:[0x1818]}],optionalServices:[0x1826,0x1818]});
-  }catch(e){if(e.name!=='NotFoundError')toast('Abgebrochen: '+e.message);return;}
+  }catch(e){btFail(e);return;}
   if(S.demo)setDemo(false);
   S.tr.dev=dev;S.tr.manual=false;S.tr.tries=0;
   dev.addEventListener('gattserverdisconnected',onTrDisc);
@@ -133,7 +141,7 @@ async function connectHR(){
   if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
   let dev;
   try{dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}]});}
-  catch(e){if(e.name!=='NotFoundError')toast('Abgebrochen: '+e.message);return;}
+  catch(e){btFail(e);return;}
   S.hrm.dev=dev;S.hrm.manual=false;
   dev.addEventListener('gattserverdisconnected',()=>{if(S.hrm.manual){setHr('off');return;}setHr('wait');setTimeout(setupHR,2000);});
   await setupHR();
@@ -159,7 +167,7 @@ async function connectCd(){
   if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
   let dev;
   try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1816]}]});}
-  catch(e){if(e.name!=='NotFoundError')toast('Abgebrochen: '+e.message);return;}
+  catch(e){btFail(e);return;}
   S.cd.dev=dev;S.cd.manual=false;lastCsc=null;
   dev.addEventListener('gattserverdisconnected',()=>{if(S.cd.manual){setCd('off');return;}setCd('wait');setTimeout(setupCd,2000);});
   await setupCd();

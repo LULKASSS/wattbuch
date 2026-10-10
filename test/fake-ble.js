@@ -11,6 +11,7 @@
  *   refuseControl = true          Rolle verweigert die Steuerung
  *   noControl = true              Rolle ohne Control Point (vor dem Verbinden setzen)
  *   requests                      Filter aller requestDevice-Aufrufe
+ *   fail = {name, message}        requestDevice schlägt so fehl
  */
 (() => {
   const SVC = { ftms: 0x1826, cps: 0x1818, hr: 0x180d, csc: 0x1816 };
@@ -120,6 +121,7 @@
     async getAvailability() { return true; },
     async requestDevice(opts) {
       F.requests.push(opts);
+      if (F.fail) throw new DOMException(F.fail.message, F.fail.name); /* z. B. Bluetooth aus oder keine Erlaubnis */
       const svcs = (opts.filters || []).flatMap(f => f.services || []).map(norm);
       if (svcs.includes(SVC.ftms) || svcs.includes(SVC.cps)) return trainer;
       if (svcs.includes(SVC.hr)) return hrm;

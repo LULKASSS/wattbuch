@@ -126,3 +126,24 @@ test('Update mit falscher Prüfsumme wird verworfen', async () => {
   srv.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('Geräteauswahl hängt nicht, wenn die Seite während einer Suche neu lädt', async () => {
+  const app = await launch();
+  const page = await app.firstWindow();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  // Suche beginnt (wie Chromium es meldet), Auswahl ist offen
+  const emit = () => app.evaluate(({ BrowserWindow }) => { const wc = BrowserWindow.getAllWindows()[0].webContents; global.__picked = global.__picked || []; wc.emit('select-bluetooth-device', { preventDefault() {} }, [{ deviceId: 'd1', deviceName: 'Van Rysel D100' }], id => global.__picked.push(id)); });
+  await emit();
+  await expect(page.locator('#btPick li')).toHaveText(['Van Rysel D100']);
+  // Seite lädt neu (z. B. Update) → offene Suche wird sauber abgebrochen
+  await page.reload();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  expect(await app.evaluate(() => global.__picked)).toEqual(['']);
+  // Nächstes „Verbinden“: Auswahl erscheint wieder und die Wahl kommt an
+  await emit();
+  await expect(page.locator('#btPick li')).toHaveText(['Van Rysel D100']);
+  await page.click('#btPick li button');
+  await expect(page.locator('#btPick')).toHaveCount(0);
+  expect(await app.evaluate(() => global.__picked)).toEqual(['', 'd1']);
+  await app.close();
+});
