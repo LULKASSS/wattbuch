@@ -438,3 +438,21 @@ test('Bluetooth nicht verfügbar: Hinweis statt Stille, Abbrechen bleibt still',
   await page.click('#btnTr');
   await expect(page.locator('#trSub')).toHaveText('Fake D100 · FTMS');
 });
+
+test('Kein Flackern: Fahrt-Ansicht bleibt bei schwankender Leistung ruhig', async ({ page }) => {
+  test.setTimeout(60_000);
+  await open(page, { motion: true });
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Hügelrunde' }).click();
+  await connectTrainer(page);
+  await start(page);
+  // Echte Rolle: Leistung schwankt mehrmals pro Sekunde über Zonengrenzen
+  await page.evaluate(() => { let i = 0; setInterval(() => window.__fakeBle.set({ power: [140, 240, 175, 225, 150][i++ % 5] }), 250); S.sim.d = 4000; });
+  await page.clock.runFor(2000);
+  const grab = () => page.evaluate(() => { const c = $('#cvFull'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, a = []; for (let j = 0; j < 50; j++) for (let i = 0; i < 80; i++) { const o = (Math.floor((j + .5) / 50 * c.height) * c.width + Math.floor((i + .5) / 80 * c.width)) * 4; a.push(d[o] * .3 + d[o + 1] * .59 + d[o + 2] * .11); } return a; });
+  const fr = [];
+  for (let n = 0; n < 45; n++) { await page.clock.runFor(17); fr.push(await grab()); }
+  // Flackern = ein Punkt springt hell→dunkel→hell (oder umgekehrt) innerhalb von 3 Bildern
+  let flicker = 0;
+  for (let t = 1; t < fr.length - 1; t++) for (let p = 0; p < fr[t].length; p++) { const d1 = fr[t][p] - fr[t - 1][p], d2 = fr[t + 1][p] - fr[t][p]; if (Math.abs(d1) > 18 && Math.abs(d2) > 18 && Math.sign(d1) !== Math.sign(d2)) flicker++; }
+  expect(flicker).toBeLessThan(10);
+});

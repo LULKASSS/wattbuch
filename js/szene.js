@@ -70,7 +70,7 @@ function biomeAt(rt,s,e){
 /* Berge: drei Schichten, verschieben sich beim Abbiegen (Parallaxe) */
 const MTN=[0,1,2].map(l=>{const a=[];for(let i=0;i<256;i++){let v=0;for(let o=1;o<=4;o++)v+=Math.sin(i/256*Math.PI*2*(o*2+l)+hash(l*9+o)*6)/o;a.push(v);}return a;});
 const STARS=Array.from({length:140},(_,i)=>({x:hash(i*3.1),y:Math.pow(hash(i*5.7),1.6),r:.5+hash(i*1.3)*1.2,p:hash(i*9.1)*6}));
-const SCV={alp:0,vp:null,gap:null,lastT:0,riding:false}; /* geglättete Werte zwischen den Bildern */
+const SCV={alp:0,vp:null,gap:null,lastT:0,riding:false,pw:0,zc:null,g:0}; /* geglättete Werte zwischen den Bildern */
 
 /* Geist: beste frühere Fahrt auf dieser Strecke, sonst Schrittmacher mit 75 % FTP */
 function paceReset(){
@@ -122,9 +122,13 @@ function drawScene(c,opt={}){
   }
   SCV.riding=riding;
   const pos=SCV.vp;
-  const pw=riding||isLive()?curPow():null,ftp=S.set.ftp;
-  const zi=pw!=null&&pw>0?zoneIdx(pw,ftp):0,zc=hex2(GLOW[zi]);
-  const D=dayAt(rideMin()),t0=trackAt(rt,pos),g0=rt&&riding?routeGradeNow()/100:0;
+  /* Leistung, Zonenfarbe und Steigung kommen in Sprüngen (Rolle, Takt). Fürs Bild weich nachziehen,
+     sonst flackern Himmel und Horizont bei jeder Watt-Schwankung */
+  const pwRaw=riding||isLive()?curPow():null,ftp=S.set.ftp,ease=k=>Math.min(1,dt*k);
+  SCV.pw+=((pwRaw||0)-SCV.pw)*ease(1.2);const pw=pwRaw==null&&SCV.pw<1?null:SCV.pw;
+  const zcT=hex2(GLOW[pw&&pw>0?zoneIdx(pw,ftp):0]);SCV.zc=SCV.zc?lerp3(SCV.zc,zcT,ease(.9)):zcT;const zc=SCV.zc;
+  const D=dayAt(rideMin()),t0=trackAt(rt,pos);
+  SCV.g+=((rt&&riding?gradeAt(rt,rt.loop?pos%rt.dist:Math.min(pos,rt.dist))/100:0)-SCV.g)*ease(2);const g0=SCV.g;
   const hy=H*(opt.back?.5:.42),F=Math.max(W,H*1.5)*.62,camY=1.7;
   const horA=lerp3(D.hor,zc,D.zm*(pw?1:.4)),fogC=horA;
   /* Alpen-Anteil weich überblenden */
@@ -163,8 +167,8 @@ function drawScene(c,opt={}){
   gr=ctx.createLinearGradient(0,hy,0,H);gr.addColorStop(0,rgb(fogC));gr.addColorStop(.18,mixc(D.g[1],fogC,.45));gr.addColorStop(1,rgb(D.g[0]));
   ctx.fillStyle=gr;ctx.fillRect(0,hy-1,W,H-hy+1);
   /* Sichtbarkeit von vorn nach hinten: was hinter einer Kuppe liegt, wird ausgelassen */
-  const Q=[],vis=[];let clipY=H*4;
-  for(let k=0;k<=SCN.n;k++){const p=pr(P[k]);Q.push(p);const ok=(k===0||P[k].z>.5)&&p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
+  const Q=[],vis=[],crest=[];let clipY=H*4;
+  for(let k=0;k<=SCN.n;k++){const p=pr(P[k]);Q.push(p);crest.push(clipY);const ok=(k===0||P[k].z>.5)&&p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
   /* Straße als durchgehende Fläche je sichtbarem Abschnitt, Ränder als feine Lichtkante */
   const roadG=ctx.createLinearGradient(0,hy,0,H);roadG.addColorStop(0,rgb(fogC));roadG.addColorStop(.2,mixc(D.r[0],fogC,.5));roadG.addColorStop(1,rgb(D.r[1]));
   const edgeG=ctx.createLinearGradient(0,hy,0,H);edgeG.addColorStop(0,rgb(fogC,0));edgeG.addColorStop(.25,rgb(lerp3([127,95,232],fogC,.4),.7));edgeG.addColorStop(1,'rgba(150,120,245,.9)');
@@ -186,10 +190,14 @@ function drawScene(c,opt={}){
       ctx.fillStyle=`rgba(240,236,255,${.55*(1-fz)})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
     }
   }
-  /* Landschaft am Rand, von hinten nach vorn; tauchen aus dem Dunst auf statt plötzlich da zu sein */
+  /* Landschaft am Rand, von hinten nach vorn; tauchen aus dem Dunst auf statt plötzlich da zu sein.
+     Jedes Stück wird an der Kuppe davor abgeschnitten (nicht ein-/ausgeblendet) – so gleitet ein Baum
+     weich hinter einem Hügel hervor, statt zu blinken. Ganz nah (unter 30 m) blenden sie aus: dort würden
+     sie in wenigen Bildern quer übers Bild rasen, und das wirkt wie Flackern. */
   for(let k=SCN.n;k>=1;k--){
-    if(!vis[k])continue;
-    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
+    if(P[k].z<=8||crest[k]<=0)continue;
+    ctx.save();ctx.beginPath();ctx.rect(0,0,W,Math.min(H,crest[k]+1));ctx.clip();
+    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6)*clamp((b.z-8)/22,0,1),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
     ctx.globalAlpha=fade;
     if(bio==='wald'){
       if(s%35===0){fir(ctx,at(side*(SCN.half+3+hash(s+1)*10)),7+hash(s+2)*6,D,fz,fogC);if(hash(s+3)>.6)fir(ctx,at(-side*(SCN.half+4+hash(s+4)*12)),8+hash(s+5)*5,D,fz,fogC);}
@@ -201,6 +209,7 @@ function drawScene(c,opt={}){
       if(s%70===0)rock(ctx,at(-side*(SCN.half+2+hash(s+11)*7)),1+hash(s+12)*2.5,D,fz,fogC);
     }
     if(s%1000===0&&s>0&&!opt.back)sign(ctx,at(SCN.half+1.2),s,rt,fz);
+    ctx.restore();
   }
   ctx.globalAlpha=1;
   /* Geist / Schrittmacher als Radfahrer */
