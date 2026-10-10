@@ -7,7 +7,7 @@ description: Wattbuch-Änderungen veröffentlichen – prüfen, committen, auf G
 
 GitHub CLI: `~/.local/bin/gh` (nicht im PATH, immer mit vollem Pfad aufrufen). Repo: `LULKASSS/wattbuch`.
 
-1. **Vorher:** `npm test` muss grün sein. Sonst abbrechen und erst den Skill `fehlercheck` nutzen.
+1. **Vorher:** `npm test` muss grün sein (Exit-Code 0). **Nicht** durch `| tail` o. Ä. leiten, sonst zählt der Exit-Code des letzten Befehls und Fehler rutschen durch – Ausgabe stattdessen mit `npm test > /tmp/test.log; echo $?` prüfen. Sonst abbrechen und erst den Skill `fehlercheck` nutzen.
 2. **Datenschutz:** `git status` ansehen. Nichts aus `daten/`, keine `*.gpx`, `*sicherung*.json`, keine Schlüssel. `npm run check` meldet das auch.
 3. **Commit:** auf Deutsch, eine Zeile was sich für Lukas ändert, z. B. `Zielleistung: Hinweis bleibt stehen, wenn die Rolle blockiert`. Dann `git push`.
    - Schlägt der Push mit Anmeldefehler fehl: `~/.local/bin/gh auth status` prüfen; Lukas soll `~/.local/bin/gh auth login --web` selbst im Terminal ausführen (nie Token eintippen oder anzeigen).

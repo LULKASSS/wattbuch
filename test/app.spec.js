@@ -322,6 +322,7 @@ test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('#full')).toBeHidden();
   await expect(page.locator('body')).toHaveClass(/riding/);
+  await page.clock.runFor(200); // erstes Bild der Mini-Szene abwarten
   expect(await painted(page, '#cvScene')).toBeGreaterThan(0.3); // Mini-Szene in der Live-Karte
   expect(problems).toEqual([]);
 });
