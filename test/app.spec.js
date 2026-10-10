@@ -312,7 +312,7 @@ test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
   await page.keyboard.press(' '); // Start per Leertaste, mit Countdown
   await page.clock.runFor(3100);
   await expect(page.locator('#fCtrl [data-a="pause"]')).toBeVisible();
-  await page.clock.runFor(30_000);
+  await page.clock.runFor(8_000); // kurz halten: mit voller Bewegung ist jedes Bild echte Arbeit (auf GitHub langsamer)
   await expect(page.locator('#fPow')).toHaveText('180');
   await expect(page.locator('#fZone')).toHaveText('Z3 · Tempo');
   await expect(page.locator('#fProg')).toContainText('von 25,5 km');
