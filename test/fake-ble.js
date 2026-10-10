@@ -12,10 +12,11 @@
  *   noControl = true              Rolle ohne Control Point (vor dem Verbinden setzen)
  *   requests                      Filter aller requestDevice-Aufrufe
  *   fail = {name, message}        requestDevice schlägt so fehl
+ *   cdViaPower = true             Kadenzsensor nur mit Leistungsdienst (vor dem Verbinden setzen)
  */
 (() => {
   const SVC = { ftms: 0x1826, cps: 0x1818, hr: 0x180d, csc: 0x1816 };
-  const CHR = { ibd: 0x2ad2, cp: 0x2ad9, hrm: 0x2a37, csc: 0x2a5b };
+  const CHR = { ibd: 0x2ad2, cp: 0x2ad9, hrm: 0x2a37, csc: 0x2a5b, cpm: 0x2a63 };
   const norm = u => (u === 'heart_rate' ? SVC.hr : u === 'heart_rate_measurement' ? CHR.hrm : u);
 
   const F = {
@@ -104,15 +105,19 @@
   hrm._send = function () { this.c.emit([0x00, F.vals.hr & 255]); };
 
   /* Trittfrequenzsensor: Kurbelumdrehungen mit Zeitstempel in 1/1024 s */
+  /* cdViaPower = true: Sensor ohne Kadenzdienst, liefert Kurbeldaten nur über den Leistungsdienst */
   const cd = new Device('cd', 'Fake Kadenz', dev => {
-    dev.c = new Char(CHR.csc, dev); dev.rev = 0; dev.t = 0; dev.frac = 0;
+    dev.rev = 0; dev.t = 0; dev.frac = 0;
+    if (F.cdViaPower) { dev.c = new Char(CHR.cpm, dev); return { [SVC.cps]: new Service(SVC.cps, { [CHR.cpm]: dev.c }) }; }
+    dev.c = new Char(CHR.csc, dev);
     return { [SVC.csc]: new Service(SVC.csc, { [CHR.csc]: dev.c }) };
   });
   cd._send = function () {
     const dt = F.interval / 1000, revs = F.vals.cad / 60 * dt + this.frac, whole = Math.floor(revs);
     this.frac = revs - whole;
     if (whole > 0) { this.rev = (this.rev + whole) & 0xffff; this.t = (this.t + Math.round(whole / (F.vals.cad / 60) * 1024)) & 0xffff; }
-    this.c.emit([0x02, this.rev & 255, this.rev >> 8, this.t & 255, this.t >> 8]);
+    if (F.cdViaPower) this.c.emit([0x20, 0x00, 0, 0, this.rev & 255, this.rev >> 8, this.t & 255, this.t >> 8]);
+    else this.c.emit([0x02, this.rev & 255, this.rev >> 8, this.t & 255, this.t >> 8]);
   };
 
   const devices = { trainer, hr: hrm, cd };
@@ -123,9 +128,9 @@
       F.requests.push(opts);
       if (F.fail) throw new DOMException(F.fail.message, F.fail.name); /* z. B. Bluetooth aus oder keine Erlaubnis */
       const svcs = (opts.filters || []).flatMap(f => f.services || []).map(norm);
+      if (svcs.includes(SVC.csc)) return cd;
       if (svcs.includes(SVC.ftms) || svcs.includes(SVC.cps)) return trainer;
       if (svcs.includes(SVC.hr)) return hrm;
-      if (svcs.includes(SVC.csc)) return cd;
       throw new DOMException('Kein Gerät gefunden', 'NotFoundError');
     }
   };

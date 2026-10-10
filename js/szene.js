@@ -168,12 +168,14 @@ function drawScene(c,opt={}){
   const camX=1.4;
   const pr=p=>{const zz=Math.max(p.z,.5),k=F/zz;return{sx:W/2+(p.x-camX)*k,sy:hy-(p.y-camY)*k,w:SCN.half*k,k};};
   const far=SCN.n*SCN.seg;
-  /* Boden: ein ruhiger Verlauf vom Dunst am Horizont zur Wiese vorn – keine Streifen */
-  gr=ctx.createLinearGradient(0,hy,0,H);gr.addColorStop(0,rgb(fogC));gr.addColorStop(.18,mixc(D.g[1],fogC,.45));gr.addColorStop(1,rgb(D.g[0]));
-  ctx.fillStyle=gr;ctx.fillRect(0,hy-1,W,H-hy+1);
   /* Sichtbarkeit von vorn nach hinten: was hinter einer Kuppe liegt, wird ausgelassen */
   const Q=[],vis=[],crest=[];let clipY=H*4;
   for(let k=0;k<=NP;k++){const p=pr(P[k]);Q.push(p);crest.push(clipY);const ok=p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
+  /* Boden: ein ruhiger Verlauf vom Dunst zur Wiese vorn. Führt die Straße bergauf über den Horizont,
+     wächst der Boden bis zur Kuppe mit, damit sie nicht vor den Bergen schwebt */
+  const gTop=Math.min(hy,clipY);
+  gr=ctx.createLinearGradient(0,gTop,0,H);gr.addColorStop(0,rgb(fogC));gr.addColorStop(.18,mixc(D.g[1],fogC,.45));gr.addColorStop(1,rgb(D.g[0]));
+  ctx.fillStyle=gr;ctx.fillRect(0,gTop-1,W,H-gTop+1);
   /* Straße als durchgehende Fläche je sichtbarem Abschnitt, Ränder als feine Lichtkante */
   const roadG=ctx.createLinearGradient(0,hy,0,H);roadG.addColorStop(0,rgb(fogC));roadG.addColorStop(.2,mixc(D.r[0],fogC,.5));roadG.addColorStop(1,rgb(D.r[1]));
   const edgeG=ctx.createLinearGradient(0,hy,0,H);edgeG.addColorStop(0,rgb(fogC,0));edgeG.addColorStop(.25,rgb(lerp3([127,95,232],fogC,.4),.7));edgeG.addColorStop(1,'rgba(150,120,245,.9)');
@@ -321,6 +323,16 @@ function drawFullProf(c){
   dot(S.sim.d,'#fff',5.5);
 }
 
+/* Steigung als Farbe und Wort: bergab blau, flach grün, dann gelb, orange, rot */
+function gradeStyle(g){
+  if(g<=-2)return{c:'#7DB8FF',w:'bergab'};
+  if(g<2)return{c:'#6EE7B7',w:'flach'};
+  if(g<4)return{c:'#D9F99D',w:'leicht'};
+  if(g<6)return{c:'#FDE68A',w:'mittel'};
+  if(g<9)return{c:'#FDBA74',w:'steil'};
+  return{c:'#FCA5A5',w:'sehr steil'};
+}
+
 /* Fahrt-Ansicht. Öffnet sich beim Start von selbst; os=true schaltet zusätzlich echtes Vollbild ein (Taste F). */
 let fsReq=false,stillT=null;
 function openFull(os){
@@ -348,10 +360,18 @@ function renderFull(){
   $('#full').style.setProperty('--fz',zi<0?'#646a7c':GLOW[zi]);
   const hr=curHR(),cad=curCad();
   setT('fSpd',isLive()?n1(S.sim.v*3.6):'–');setT('fCad',cad==null?'–':String(Math.round(cad)));setT('fHr',hr==null?'–':String(hr));
-  setT('fGrade',rt?((routeGradeNow()>0.05?'+':'')+n1(routeGradeNow())):'0,0');
+  const g=rt?routeGradeNow():0,gs=gradeStyle(g);
+  setT('fGrade',(g>0.05?'+':'')+n1(g));setT('fGradeW',gs.w);
+  if(gs.c!==SCV.gcol){SCV.gcol=gs.c;$('#fGradeBox').style.setProperty('--gc',gs.c);$('#fGradeW').style.setProperty('--gc',gs.c);}
   setT('fTime',fmtDur((R.state==='idle'?0:recElapsed())/1000));
   setT('fRoute',rt?rt.name:'Frei fahren');
-  setT('fProg',(rt?`${n1(S.sim.d/1000)} von ${n1(rt.dist/1000)} km · ${n0(S.sim.gain)} Hm`:`${n1(S.sim.total/1000)} km`)+` · ${dayAt(rideMin()).n}`);
+  /* Distanz groß; auf einer Strecke mit Fortschritt „von … km“ */
+  const km=(R.state==='idle'?0:(rt?S.sim.d:S.sim.total))/1000;
+  setT('fKm',n1(km));setT('fGain',n0(S.sim.gain));
+  $('#fKmProg').hidden=!rt;$('#fMapBox').hidden=!rt;
+  if(rt){setT('fKmOf',`von ${n1(rt.dist/1000)} km · noch ${n1(Math.max(0,rt.dist/1000-km))}`);$('#fKmBar').style.width=clamp(km*1000/rt.dist*100,0,100).toFixed(2)+'%';}
+  const bio={wald:'Wald',felder:'Felder',alpen:'Alpen'}[biomeAt(rt,SCV.vp||0,rt?trackAt(rt,SCV.vp||0).e:0)];
+  setT('fProg',`${dayAt(rideMin()).n} · ${bio}${rt&&rt.loop&&S.sim.lap>1?` · Runde ${S.sim.lap}`:''}`);
   const P=S.pace,gEl=$('#fGhost');
   if(P&&R.state!=='idle'){const gap=P.total-S.sim.total;gEl.hidden=false;gEl.className='f-ghost'+(gap>0?'':' behind');setT('fGhostT',`${P.name} · ${gap>0?n0(gap)+' m vor dir':n0(-gap)+' m hinter dir'}`);}
   else gEl.hidden=true;
@@ -374,7 +394,7 @@ function sceneLoop(){
   if(!sceneWanted()){sceneOn=false;return;}
   if(lowMotion.matches)setTimeout(sceneLoop,500);else requestAnimationFrame(sceneLoop);
   const full=!$('#full').hidden,t=performance.now();if(t-lastFrame<12)return;lastFrame=t;
-  if(full){drawScene($('#cvFull'));drawFullProf($('#cvFullProf'));renderFull();}
+  if(full){drawScene($('#cvFull'));drawFullProf($('#cvFullProf'));renderFull();const rt=activeRoute(),mc=$('#cvFullMap');if(rt&&mc.offsetParent)drawMap(mc,rt,S.rec.state==='idle'?0:clamp(rt.loop?(SCV.vp%rt.dist):SCV.vp,0,rt.dist));}
   else drawScene($('#cvBack'),{back:true});
 }
 document.addEventListener('visibilitychange',sceneKick);

@@ -315,7 +315,9 @@ test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
   await page.clock.runFor(8_000); // kurz halten: mit voller Bewegung ist jedes Bild echte Arbeit (auf GitHub langsamer)
   await expect(page.locator('#fPow')).toHaveText('180');
   await expect(page.locator('#fZone')).toHaveText('Z3 · Tempo');
-  await expect(page.locator('#fProg')).toContainText('von 25,5 km');
+  await expect(page.locator('#fKmOf')).toContainText('von 25,5 km');
+  await expect(page.locator('#fMapBox')).toBeVisible(); // Strecke von oben
+  expect(await painted(page, '#cvFullMap')).toBeGreaterThan(0.01);
   await expect(page.locator('#fGhost')).toContainText('Schrittmacher 150 W');
   expect(await painted(page, '#cvFull')).toBeGreaterThan(0.3);
   expect(await painted(page, '#cvFullProf')).toBeGreaterThan(0.05);
@@ -461,4 +463,39 @@ test('Kein Flackern: Straße bleibt auch bei hohem Tempo ruhig (Echtzeit)', asyn
   expect(r.kmh).toBeGreaterThan(35);
   expect(r.unten).toBeLessThan(2); // untere Bildhälfte: Straße, Mittelstreifen, Ränder
   expect(r.gesamt).toBeLessThan(15);
+});
+
+test('Fahrt-Ansicht: Distanz groß, Steigung farbig mit Wort, Nebenwerte in Pillen', async ({ page }) => {
+  const problems = await open(page);
+  await page.setInputFiles('#anyFile', { name: 'testhuegel.gpx', mimeType: 'application/gpx+xml', buffer: gpx() });
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Testhügel' }).click();
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(2000);
+  await expect(page.locator('#fGradeW')).toHaveText('flach');
+  const flat = await page.locator('#fGradeBox').evaluate(e => e.style.getPropertyValue('--gc'));
+  await page.evaluate(() => { S.sim.d = 2200; }); // mitten im 6-%-Anstieg
+  await page.clock.runFor(2000);
+  await expect(page.locator('#fGradeW')).toHaveText('steil');
+  expect(await page.locator('#fGradeBox').evaluate(e => e.style.getPropertyValue('--gc'))).not.toBe(flat);
+  await expect(page.locator('#fKm')).toHaveText(/^2,[2-3]$/);
+  await expect(page.locator('#fKmOf')).toContainText('noch');
+  await expect(page.locator('.f-pill')).toHaveCount(4);
+  await expect(page.locator('#fHr')).toHaveText('132');
+  await expect(page.locator('#fCad')).toHaveText('88');
+  expect(problems).toEqual([]);
+});
+
+test('Kadenzsensor ohne eigenen Dienst: Trittfrequenz über den Leistungsdienst', async ({ page }) => {
+  const problems = await open(page);
+  await fake(page, () => { window.__fakeBle.cdViaPower = true; window.__fakeBle.set({ cad: 92 }); });
+  await page.click('#btnCd');
+  await expect(page.locator('#cdSub')).toHaveText('Fake Kadenz');
+  await page.clock.runFor(4000);
+  await expect(page.locator('#lvCad')).toHaveText(/^9[1-3]$/);
+  // Suche fragt auch nach Leistungsdienst und üblichen Sensornamen
+  const req = await fake(page, () => window.__fakeBle.requests.at(-1));
+  expect(req.filters.some(f => f.services && f.services.includes(0x1818))).toBe(true);
+  expect(req.filters.some(f => f.namePrefix === 'Wahoo')).toBe(true);
+  expect(problems).toEqual([]);
 });

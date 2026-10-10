@@ -543,3 +543,51 @@ body[data-view="live"] .rrow.on{background:var(--accent-soft)}
 .f-erg.on .f-erg-v{background:#A78BFA;color:#0B0B0F}
 @media (min-width:901px){.f-erg button{height:clamp(36px,2.6vw,48px);min-width:clamp(36px,2.6vw,48px)}.f-erg .f-erg-v{font-size:clamp(15px,1vw,19px);min-width:clamp(76px,5.5vw,104px)}}
 @media (max-width:900px){.f-bot{grid-template-columns:1fr;grid-template-areas:"prof" "erg" "ctrl"}.f-erg{justify-self:center}}
+
+/* ---------- Fahrt-Ansicht: Werte neu geordnet ---------- */
+/* Oben links Name und Karte, unten links Distanz, rechts Steigung (farbig), Nebenwerte in ruhigen Pillen */
+.f-tl{display:flex;flex-direction:column;gap:12px;min-width:0;flex:1}
+.f-tr{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.f-tr .f-ghost{align-self:flex-end}
+.f-map{width:clamp(170px,14vw,260px);aspect-ratio:1.4;border-radius:16px;background:rgba(10,8,20,.48);border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.f-map canvas{display:block;width:100%;height:100%}
+.f-hud{grid-template-columns:1fr auto 1fr;align-items:end}
+.f-col{display:flex;flex-direction:column;gap:12px;text-shadow:0 1px 12px rgba(0,0,0,.55);min-width:0}
+.f-col.r{align-items:flex-end;text-align:right}
+.f-big{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:6px}
+.f-big .lbl{flex-basis:100%}
+.f-big b{font-size:clamp(52px,5.4vw,120px);font-weight:600;letter-spacing:-.045em;line-height:1;margin-top:4px}
+.f-big small{font-size:clamp(16px,1.3vw,26px);color:rgba(241,238,255,.65);font-weight:500}
+.f-col.r .f-big{justify-content:flex-end}
+.f-prog{display:flex;align-items:center;gap:10px}
+.f-bar{width:clamp(130px,12vw,240px);height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
+.f-bar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#7F5FE8,#C4B5FD)}
+.f-of{font-size:clamp(13px,.95vw,18px);color:rgba(241,238,255,.7);white-space:nowrap}
+.f-pills{display:flex;gap:8px;flex-wrap:wrap}
+.f-col.r .f-pills{justify-content:flex-end}
+.f-pill{display:inline-flex;align-items:baseline;gap:7px;padding:clamp(6px,.5vw,9px) clamp(12px,1vw,18px);border-radius:999px;background:rgba(10,8,20,.46);border:1px solid rgba(255,255,255,.12);text-shadow:none;white-space:nowrap}
+.f-pill small{font:500 clamp(10.5px,.72vw,13px) var(--mono);letter-spacing:.06em;text-transform:uppercase;color:rgba(241,238,255,.55)}
+.f-pill b{font-size:clamp(17px,1.35vw,26px);font-weight:600;letter-spacing:-.02em}
+.f-pill em{font-style:normal;font-size:clamp(12px,.85vw,16px);color:rgba(241,238,255,.55)}
+/* Steigung: Farbe nach Steilheit, weich überblendet */
+.f-grade{--gc:#6EE7B7}
+.f-grade b,.f-grade small{color:var(--gc);transition:color .8s var(--ease)}
+.f-grade b{text-shadow:0 0 34px color-mix(in srgb,var(--gc) 45%,transparent),0 2px 18px rgba(0,0,0,.5)}
+.f-gword{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:999px;font-size:clamp(13px,.95vw,17px);font-weight:600;color:var(--gc,#6EE7B7);background:color-mix(in srgb,var(--gc,#6EE7B7) 14%,rgba(10,8,20,.5));border:1px solid color-mix(in srgb,var(--gc,#6EE7B7) 40%,transparent);transition:color .8s,background .8s,border-color .8s}
+@media (max-width:900px){
+  .f-hud{grid-template-columns:1fr 1fr;grid-template-areas:"main main" "l r";gap:12px 10px}
+  .f-col.l{grid-area:l}.f-col.r{grid-area:r}
+  .f-big b{font-size:clamp(34px,9vw,48px)}
+  .f-pill{padding:5px 10px}.f-pill b{font-size:16px}
+  .f-bar{width:min(120px,28vw)}
+  .f-map{width:min(150px,36vw)}
+  .f-tr .f-ghost{flex-basis:auto;margin:0}
+}
+@media (max-width:640px){.f-map{display:none}.f-of{display:none}}
+@media (max-width:640px){
+  .f-route b{white-space:normal;font-size:18px;line-height:1.2}
+  .f-tr .f-ghost{font-size:12px;padding:5px 10px;height:auto}
+  .full .moment{top:118px;bottom:auto}
+  .f-hud{bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+  .f-prof{height:44px}
+}

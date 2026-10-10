@@ -157,23 +157,36 @@
 <div class="full" id="full" hidden>
   <canvas id="cvFull" aria-label="Straße der Strecke"></canvas>
   <div class="f-top">
-    <div class="f-route"><b id="fRoute">Frei fahren</b><span id="fProg"></span></div>
-    <div class="f-ghost" id="fGhost" hidden><i></i><span id="fGhostT"></span></div>
-    <div class="f-r"><span class="f-time" id="fTime">0:00</span><button type="button" class="f-x" id="fClose" aria-label="Zur Übersicht (Esc)" title="Übersicht (Esc)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="f-tl">
+      <div class="f-route"><b id="fRoute">Frei fahren</b><span id="fProg"></span></div>
+      <div class="f-map" id="fMapBox" hidden><canvas id="cvFullMap" aria-label="Strecke von oben"></canvas></div>
+    </div>
+    <div class="f-tr">
+      <div class="f-r"><span class="f-time" id="fTime">0:00</span><button type="button" class="f-x" id="fClose" aria-label="Zur Übersicht (Esc)" title="Übersicht (Esc)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="f-ghost" id="fGhost" hidden><i></i><span id="fGhostT"></span></div>
+    </div>
   </div>
   <div class="f-hud">
-    <div class="f-side">
-      <div><span class="lbl">Tempo</span><b id="fSpd">–</b><small>km/h</small></div>
-      <div><span class="lbl">Trittfrequenz</span><b id="fCad">–</b><small>rpm</small></div>
+    <div class="f-col l">
+      <div class="f-big"><span class="lbl">Distanz</span><b id="fKm">0,0</b><small>km</small></div>
+      <div class="f-prog" id="fKmProg" hidden><span class="f-bar"><i id="fKmBar"></i></span><span class="f-of" id="fKmOf"></span></div>
+      <div class="f-pills">
+        <span class="f-pill"><small>Tempo</small><b id="fSpd">–</b><em>km/h</em></span>
+        <span class="f-pill"><small>Kadenz</small><b id="fCad">–</b><em>rpm</em></span>
+      </div>
     </div>
     <div class="f-main">
       <span class="f-zone" id="fZone">Keine Daten</span>
       <div class="f-pow"><b id="fPow">–</b><span>W</span></div>
       <span class="f-wkg" id="fWkg"></span>
     </div>
-    <div class="f-side r">
-      <div><span class="lbl">Steigung</span><b id="fGrade">0,0</b><small>%</small></div>
-      <div><span class="lbl">Puls</span><b id="fHr">–</b><small>bpm</small></div>
+    <div class="f-col r">
+      <div class="f-big f-grade" id="fGradeBox"><span class="lbl">Steigung</span><b id="fGrade">0,0</b><small>%</small></div>
+      <span class="f-gword" id="fGradeW">flach</span>
+      <div class="f-pills">
+        <span class="f-pill"><small>Puls</small><b id="fHr">–</b><em>bpm</em></span>
+        <span class="f-pill"><small>Höhe</small><b id="fGain">0</b><em>Hm</em></span>
+      </div>
     </div>
   </div>
   <div class="f-bot">

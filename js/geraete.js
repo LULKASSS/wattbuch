@@ -166,20 +166,38 @@ async function connectCd(){
   if(S.cd.state!=='off'){S.cd.manual=true;try{S.cd.dev.gatt.disconnect();}catch(_){}setCd('off');return;}
   if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
   let dev;
-  try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1816]}]});}
+  try{dev=await navigator.bluetooth.requestDevice({filters:CD_FILTERS,optionalServices:[0x1816,0x1818]});}
   catch(e){btFail(e);return;}
-  S.cd.dev=dev;S.cd.manual=false;lastCsc=null;
+  S.cd.dev=dev;S.cd.manual=false;lastCsc=null;lastCrankCd=null;
   dev.addEventListener('gattserverdisconnected',()=>{if(S.cd.manual){setCd('off');return;}setCd('wait');setTimeout(setupCd,2000);});
   await setupCd();
 }
+/* Viele Kadenzsensoren kündigen ihren Dienst erst nach dem Verbinden an oder liefern die Kurbeldaten
+   über den Leistungsdienst. Deshalb auch nach Dienst 0x1818 und nach üblichen Namen suchen. */
+const CD_FILTERS=[{services:[0x1816]},{services:[0x1818]},...['CAD','Cadence','Kadenz','RPM','Wahoo','Garmin','Magene','XOSS','Coospo','COOSPO','Moofit','Decathlon','Van Rysel','Bryton','iGPSPORT','Giant','Bontrager','Polar','BK','Speed'].map(namePrefix=>({namePrefix}))];
 async function setupCd(){
   const dev=S.cd.dev;if(!dev)return;
   setCd('wait');
   try{
-    const srv=await dev.gatt.connect();const s=await srv.getPrimaryService(0x1816);const c=await s.getCharacteristic(0x2a5b);
-    c.addEventListener('characteristicvaluechanged',onCSC);await c.startNotifications();
+    const srv=await dev.gatt.connect();let ok=false;
+    try{const s=await srv.getPrimaryService(0x1816);const c=await s.getCharacteristic(0x2a5b);c.addEventListener('characteristicvaluechanged',onCSC);await c.startNotifications();ok=true;}catch(_){}
+    /* kein Kadenzdienst: Trittfrequenz aus den Kurbeldaten des Leistungsdienstes */
+    if(!ok){const s=await srv.getPrimaryService(0x1818);const c=await s.getCharacteristic(0x2a63);c.addEventListener('characteristicvaluechanged',onCPMcad);await c.startNotifications();}
     S.cd.name=dev.name||'Trittfrequenzsensor';setCd('on');
-  }catch(e){setCd('off');toast('Trittfrequenzsensor nicht erreichbar');}
+  }catch(e){setCd('off');toast('Trittfrequenzsensor nicht erreichbar. Kurbel ein paar Mal drehen, damit er aufwacht, dann erneut verbinden');}
+}
+let lastCrankCd=null;
+function onCPMcad(e){
+  const dv=e.target.value;
+  try{
+    const f=dv.getUint16(0,true);let o=4;if(f&1)o+=1;if(f&4)o+=2;if(f&16)o+=6;
+    if(!(f&32))return;
+    const rev=dv.getUint16(o,true),t=dv.getUint16(o+2,true),now=performance.now();let cad=null;
+    if(lastCrankCd&&rev!==lastCrankCd.rev){const dr=(rev-lastCrankCd.rev+65536)%65536,dt=((t-lastCrankCd.t+65536)%65536)/1024;if(dt>0&&dr<10)cad=Math.round(dr/dt*60);}
+    else if(lastCrankCd&&now-lastCrankCd.at>2500)cad=0;
+    if(!lastCrankCd||rev!==lastCrankCd.rev)lastCrankCd={rev,t,at:now};
+    if(cad!=null)feed({cad},'cd');
+  }catch(_){}
 }
 function setCd(state){
   S.cd.state=state;
