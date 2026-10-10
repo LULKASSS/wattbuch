@@ -34,16 +34,17 @@ test('App startet, Bluetooth ist da, Geräteauswahl funktioniert', async () => {
 });
 
 test('Fahrt wird automatisch gesichert und in neuer Installation wiederhergestellt', async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(75_000);
   const app = await launch();
   const page = await app.firstWindow();
   await expect(page.locator('#v-live')).toHaveClass(/active/);
   await page.click('#chkDemo');
   await page.click('[data-a="start"]');
-  await page.waitForTimeout(12_500);
+  await page.waitForTimeout(16_000); // 3 s Countdown + 13 s Fahrt
   await page.click('[data-a="end"]');
   await page.click('[data-a="save"]');
   await expect(page.locator('#toast')).toHaveText('Fahrt gespeichert');
+  await expect(page.locator('#dlgSum')).toBeVisible();
 
   const file = path.join(data, 'Wattbuch', 'wattbuch-sicherung.json');
   await expect.poll(() => fs.existsSync(file)).toBe(true);
@@ -59,4 +60,20 @@ test('Fahrt wird automatisch gesichert und in neuer Installation wiederhergestel
   await expect(page2.locator('#toast')).toHaveText('1 Fahrten aus der Sicherung wiederhergestellt');
   expect(await page2.evaluate(() => S.rides.filter(r => !r.sample).length)).toBe(1);
   await app2.close();
+});
+
+test('Dateien im Import-Ordner werden beim Start übernommen', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-imp-'));
+  fs.mkdirSync(path.join(dir, 'Wattbuch', 'Import'), { recursive: true });
+  let pts = '';
+  for (let i = 0; i <= 80; i++) pts += `<trkpt lat="${(47 + i * 25 / 111320).toFixed(6)}" lon="10"><ele>${600 + i * 2}</ele></trkpt>`;
+  fs.writeFileSync(path.join(dir, 'Wattbuch', 'Import', 'pass.gpx'), `<?xml version="1.0"?><gpx><trk><name>Testpass</name><trkseg>${pts}</trkseg></trk></gpx>`);
+  const app = await launch(dir);
+  const page = await app.firstWindow();
+  await expect(page.locator('#toast')).toHaveText('1 Strecke geladen');
+  await expect(page.locator('#rtList')).toContainText('Testpass');
+  await expect.poll(() => fs.existsSync(path.join(dir, 'Wattbuch', 'Import', 'Erledigt', 'pass.gpx'))).toBe(true);
+  expect(fs.existsSync(path.join(dir, 'Wattbuch', 'Import', 'pass.gpx'))).toBe(false);
+  await app.close();
+  fs.rmSync(dir, { recursive: true, force: true });
 });

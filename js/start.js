@@ -7,7 +7,7 @@ document.addEventListener('click',e=>{
   const df=e.target.closest('[data-df]');if(df){S.set.diff=+df.dataset.df;saveSet();renderRoutes();applyControl(true);return;}
   const rEl=e.target.closest('[data-ride]');if(rEl){S.detail=rEl.dataset.ride;go('detail');return;}
   const a=e.target.closest('[data-a]');
-  if(a){({start:startRec,pause:pauseRec,resume:resumeRec,end:askEnd,back:backFromEnd,save:saveRec,
+  if(a){({start:beginRide,pause:pauseRec,resume:resumeRec,end:askEnd,back:backFromEnd,save:saveRec,
     discard:()=>{if(a.classList.contains('armed'))discardRec();else{a.classList.add('armed');a.textContent='Ja, verwerfen';setTimeout(()=>{if(a.isConnected){a.classList.remove('armed');a.textContent='Verwerfen';}},3500);}}})[a.dataset.a]();return;}
   const sm=e.target.closest('[data-sm]');
   if(sm){S.smooth=+sm.dataset.sm;$$('#smSeg button').forEach(b=>b.classList.toggle('on',b===sm));placeSegThumb($('#smSeg'));const c=$('#cvRide');c._prog=1;c._draw(null);return;}
@@ -21,6 +21,7 @@ $('#btnHr').onclick=connectHR;
 $('#btnCd').onclick=connectCd;
 $('#rev').addEventListener('change',e=>{if(S.rec.state!=='idle'){e.target.checked=!!S.set.rev;return;}S.set.rev=e.target.checked;saveSet();resetSim();renderRoutes();applyControl(true);});
 $('#rtLoad').onclick=()=>$('#anyFile').click();
+$('#rtRoll').onclick=()=>{if(S.rec.state!=='idle'){toast('Strecke erst nach der Fahrt wechseln');return;}rollRoute();};
 $('#demo').addEventListener('change',e=>setDemo(e.target.checked));
 $('#ergOn').addEventListener('change',e=>{S.erg.on=e.target.checked;ergChanged();});
 const ergIn=$('#ergW');
@@ -40,12 +41,12 @@ $('#dlgSet').addEventListener('close',rerender);
 $('#bkExp').onclick=()=>download(backupJSON(),`wattbuch-sicherung-${new Date().toISOString().slice(0,10)}.json`,'application/json');
 $('#bkImp').onclick=()=>$('#anyFile').click();
 /* Eine Datei für alles: Sicherung, Streckendatei oder GPX */
-$('#anyFile').addEventListener('change',async e=>{
-  const files=[...e.target.files];e.target.value='';
+/* Eine Datei für alles: Sicherung, Streckendatei oder GPX. files: [{name,text}] */
+async function importFiles(files){
   let rides=0,routes=0,err='';
   for(const f of files){
     try{
-      const text=await f.text();
+      const text=f.text;
       if(/\.gpx$/i.test(f.name)||/^\s*<\?xml|<gpx/i.test(text.slice(0,300))){routes+=await addRoutes([parseGPX(text,f.name)]);continue;}
       const d=JSON.parse(text);
       const n=await importData(d);rides+=n.rides;routes+=n.routes;
@@ -53,8 +54,12 @@ $('#anyFile').addEventListener('change',async e=>{
     }catch(x){err=`${f.name}: ${x&&x.message?x.message:'nicht lesbar'}`;}
   }
   const parts=[];if(routes)parts.push(`${routes} ${routes===1?'Strecke':'Strecken'}`);if(rides)parts.push(`${rides} ${rides===1?'Fahrt':'Fahrten'}`);
-  toast(parts.length?parts.join(' und ')+' geladen':(err||'Nichts gefunden'));
   if(parts.length)autoBackup();
+  return{msg:parts.length?parts.join(' und ')+' geladen':(err||'Nichts gefunden'),ok:parts.length>0};
+}
+$('#anyFile').addEventListener('change',async e=>{
+  const files=await Promise.all([...e.target.files].map(async f=>({name:f.name,text:await f.text()})));e.target.value='';
+  toast((await importFiles(files)).msg);
   if($('#dlgSet').open)$('#dlgSet').close();else rerender();
 });
 armDelete($('#delAll'),'Wirklich alle löschen?',async()=>{for(const r of S.rides)await DB.del(r.id);S.rides=[];await DB.set('seeded',true);toast('Alle Fahrten gelöscht');autoBackup();$('#dlgSet').close();});
@@ -77,6 +82,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   S.erg.target=Math.round(S.set.ftp*.65/5)*5;
   S.rides=await DB.all();
   S.routes=(await DB.get('routes'))||[];
+  /* Beim allerersten Start drei Vorschlagsstrecken anlegen */
+  if(!(await DB.get('routesSeeded'))){await addRoutes(GEN_START.map(([t,sd])=>genRoute(t,sd)));await DB.set('routesSeeded',true);}
   if(S.set.routeId&&!S.routes.some(r=>r.id===S.set.routeId))S.set.routeId=null;
   renderRoutes();resetSim();
   const draft=await DB.get('draft');
@@ -84,6 +91,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   if(draft)await DB.rm('draft');
   if(!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
   go('live',true);
+  /* Mac-App: Dateien aus iCloud Drive/Wattbuch/Import/ übernehmen (z. B. Strecken aus Strava) */
+  if(window.wattbuchDesktop&&window.wattbuchDesktop.pendingImports){try{const files=await window.wattbuchDesktop.pendingImports();if(files.length){const res=await importFiles(files);toast(res.msg);if(res.ok)await window.wattbuchDesktop.importsDone(files.map(f=>f.name));renderRoutes();}}catch(_){}}
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(placeThumb);
   setInterval(tick,250);tick();
 })();

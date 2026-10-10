@@ -44,6 +44,19 @@ async function writeBackup(json) {
   return { dir: backupDir, rides: data.rides.length };
 }
 
+/* Import-Ordner: Dateien darin übernimmt die App beim Start, danach wandern sie nach Import/Erledigt */
+async function pendingImports() {
+  const dir = path.join(backupDir, 'Import');
+  await fs.mkdir(dir, { recursive: true });
+  const names = (await fs.readdir(dir)).filter(f => /\.(json|gpx)$/i.test(f) && !f.startsWith('.'));
+  return Promise.all(names.map(async name => ({ name, text: await fs.readFile(path.join(dir, name), 'utf8') })));
+}
+async function importsDone(names) {
+  const dir = path.join(backupDir, 'Import'), done = path.join(dir, 'Erledigt');
+  await fs.mkdir(done, { recursive: true });
+  for (const n of names) if (!n.includes('/') && !n.includes('..')) await fs.rename(path.join(dir, n), path.join(done, n)).catch(() => {});
+}
+
 async function readBackup() {
   try { return JSON.parse(await fs.readFile(path.join(backupDir, 'wattbuch-sicherung.json'), 'utf8')); }
   catch { return null; }
@@ -118,6 +131,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('backup:write', (_e, json) => writeBackup(json));
   ipcMain.handle('backup:latest', () => readBackup());
   ipcMain.handle('backup:dir', () => backupDir);
+  ipcMain.handle('import:pending', () => pendingImports());
+  ipcMain.handle('import:done', (_e, names) => importsDone(names));
 
   buildMenu();
   createWindow();

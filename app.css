@@ -338,3 +338,65 @@ dialog::backdrop{background:rgba(10,10,14,.35);backdrop-filter:blur(2px)}
   .cv.tall{height:200px}
   .field input{font-size:17px}
 }
+
+/* ---------- Fahrt-Erlebnis ---------- */
+@property --amb{syntax:'<color>';inherits:true;initial-value:transparent}
+.card-a{display:flex;gap:14px}
+
+/* Live-Karte: Zonenfarbe als ruhiges Leuchten, wird weich überblendet */
+.card.live{position:relative;overflow:hidden;isolation:isolate;transition:--amb 1.2s var(--ease)}
+.card.live::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(90% 70% at 18% 0%,color-mix(in srgb,var(--amb) 34%,transparent),transparent 70%);opacity:0;transition:opacity .8s var(--ease)}
+.riding .card.live::before{opacity:1}
+.card.live.idle .bignum b{color:var(--line-2);font-weight:300}
+.bignum b{transition:color .4s}
+
+/* Fahrt-Modus: Geräte und Streckenwahl treten zurück, die Zahlen werden größer */
+.riding .side>.card:first-child,.riding #routeCard{display:none}
+.riding .bignum b{font-size:clamp(110px,22vw,210px)}
+.riding .st .v{font-size:28px}
+.riding .live-grid{grid-template-columns:minmax(0,1fr) 300px}
+@media (max-width:640px){.riding .st .v{font-size:22px}.riding .brand{display:none}}
+
+/* Moment-Banner */
+.moment{position:absolute;left:50%;top:18px;z-index:2;display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);padding:10px 18px 10px 10px;border-radius:999px;background:var(--fg);color:var(--bg);box-shadow:0 12px 32px rgba(12,12,20,.22);transform:translate(-50%,-140%) scale(.96);opacity:0;pointer-events:none;transition:transform .5s var(--ease),opacity .35s}
+.moment.show{transform:translate(-50%,0) scale(1);opacity:1}
+.moment .mi{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);flex:none}
+.moment.gold .mi{background:#F5C451;color:#2A1F00}
+.moment .mi svg{width:18px;height:18px}
+.moment .mt{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.moment .mt b{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.moment .mt span{font-size:12.5px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Countdown */
+.countdown{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer}
+.countdown b{font-size:min(42vw,280px);font-weight:600;letter-spacing:-.06em;line-height:1;color:var(--fg);animation:cd .85s var(--ease) both}
+.countdown b.go{color:var(--accent);font-size:min(26vw,180px)}
+@keyframes cd{0%{transform:scale(1.5);opacity:0}25%{opacity:1}100%{transform:scale(.85);opacity:.15}}
+
+/* Zusammenfassung */
+#dlgSum{width:min(520px,calc(100vw - 32px));overflow:hidden}
+.sum{position:relative;padding:28px;display:grid;gap:22px}
+.sum-h{display:grid;gap:6px}
+.sum-h h2{font-size:34px;letter-spacing:-.04em;animation:up .6s var(--ease) both}
+.sum-t{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:14px 10px}
+.sum-t b{display:block;font-size:26px;font-weight:600;letter-spacing:-.035em;margin-top:4px;line-height:1.1}
+.sum-t small{font-size:13px;color:var(--fg-3);font-weight:500;margin-left:2px}
+.sum-t>div{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:2px}
+.sum-t>div .lbl{flex-basis:100%}
+.sum-z{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden}
+.sum-z i{background:var(--zc);transform-origin:left;animation:grow 1s var(--ease) both .2s}
+.sum-l{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sum-l li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--surface-2);animation:up .5s var(--ease) both;animation-delay:calc(.35s + var(--i)*.08s)}
+.sum-l li.gold{background:color-mix(in srgb,#F5C451 9%,var(--surface-2));box-shadow:inset 0 0 0 1px color-mix(in srgb,#F5C451 38%,transparent)}
+.sum-l .mi{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);flex:none}
+.sum-l li.gold .mi{background:#F5C451;color:#2A1F00}
+.sum-l .mi svg{width:17px;height:17px}
+.sum-l b{display:block;font-size:14.5px;font-weight:600}
+.sum-l span span{font-size:13px;color:var(--fg-3)}
+.sum-f{display:flex;gap:10px;flex-wrap:wrap}
+.sum-f .spacer{flex:1}
+.confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.countdown b,.sum-h h2,.sum-l li,.sum-z i{animation:none}.moment{transition:opacity .2s}}
+@media (max-width:640px){.sum{padding:22px}.sum-h h2{font-size:28px}.sum-f{flex-direction:column-reverse}.sum-f .btn{width:100%}.sum-f .spacer{display:none}}

@@ -38,8 +38,8 @@ function simStep(dt){
   if(sim.done)return;
   sim.d+=dd;
   if(sim.d>=rt.dist){
-    if(rt.loop){sim.d-=rt.dist;sim.lap++;toast(`Runde ${sim.lap-1} geschafft`);}
-    else{sim.d=rt.dist;sim.done=true;toast('Ziel erreicht');applyControl(true);}
+    if(rt.loop){sim.d-=rt.dist;sim.lap++;moment('flag',`Runde ${sim.lap-1} geschafft`,rt.name,'gold');}
+    else{sim.d=rt.dist;sim.done=true;moment('flag','Ziel erreicht',`${rt.name} · ${n0(sim.gain)} Hm`,'gold');applyControl(true);}
   }
   const alt=eleAt(rt,sim.d);
   if(sim.lastAlt!=null&&alt>sim.lastAlt)sim.gain+=alt-sim.lastAlt;
@@ -93,4 +93,33 @@ function selectRoute(id){
   if(S.rec.state!=='idle')return;
   S.set.routeId=id||null;saveSet();resetSim();renderRoutes();applyControl(true);
   setTimeout(()=>{const c=$('#cvMap');if(c)c._bounds=null;},0);
+}
+
+/* ---------- Zufallsstrecken ---------- */
+/* Typen nach dem Muster echter Touren: Hügelrunde (~10 Hm/km, Göttinger Umland), Bergwertung
+   (langer Anstieg wie in den Alpen), Flachstück mit Wellen (~3 Hm/km). Abschnitte: [km, Steigung %]. */
+const GEN={
+  huegel:{name:'Hügelrunde',km:[24,36],plan:r=>{const a=[];let left=r(24,36);while(left>0){const up=r(1.2,3.2),dn=r(1,2.6),fl=r(.8,3);a.push([fl,r(-.5,.8)],[up,r(3,7.5)],[dn,-r(3,6)]);left-=fl+up+dn;}return a;}},
+  berg:{name:'Bergwertung',km:[18,26],plan:r=>{const climb=r(7,11),a=[[r(3,5),r(0,1.5)],[r(1,2),r(2,4)]];let c=climb;while(c>0){const l=Math.min(c,r(.6,1.8));a.push([l,r(5,10)]);c-=l;}a.push([r(.5,1),r(1,3)],[climb*.8,-r(5,7)],[r(2,4),r(-1,.5)]);return a;}},
+  flach:{name:'Flachstück mit Wellen',km:[32,46],plan:r=>{const a=[];let left=r(32,46);while(left>0){const l=r(2,6);a.push([l,r(-1,1)],[r(.3,.8),r(2,4)],[r(.3,.8),-r(2,4)]);left-=l+1;}return a;}}
+};
+function genRoute(type,seed){
+  let x=seed>>>0||1;const rnd=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296;};
+  const r=(a,b)=>a+(b-a)*rnd(),g=GEN[type];
+  /* Höhen alle 25 m aus den Abschnitten, mit leichter Welligkeit */
+  const ele=[];let h=r(120,450);
+  for(const[km,gr]of g.plan(r)){const n=Math.round(km*40);for(let i=0;i<n;i++){h+=25*(gr+Math.sin(ele.length/9)*.6)/100;ele.push(h);}}
+  const n=ele.length,L=(n-1)*RSTEP;
+  /* Strecke als verbeulter Ring, damit die Karte etwas zeigt */
+  const R=L/(2*Math.PI),k=[r(.08,.18),r(.05,.12)],ph=[r(0,6),r(0,6)],c=[50+r(-1,1),10+r(-1,1)];
+  const pts=[];for(let i=0;i<n;i+=4){const t=i/(n-1)*2*Math.PI,rr=R*(1+k[0]*Math.sin(3*t+ph[0])+k[1]*Math.sin(5*t+ph[1]));pts.push([c[0]+rr*Math.cos(t)/111320,c[1]+rr*Math.sin(t)/(111320*Math.cos(c[0]*Math.PI/180)),ele[i]]);}
+  const rt=buildRoute(`${g.name} ${String.fromCharCode(65+seed%26)}${seed%9+1}`,pts);
+  rt.id='z'+type+seed;rt.gen=type;return rt;
+}
+/* Erste drei Vorschläge, beim allerersten Start angelegt */
+const GEN_START=[['huegel',7],['berg',23],['flach',41]];
+async function rollRoute(){
+  const types=Object.keys(GEN),type=types[Math.floor(Math.random()*types.length)];
+  const rt=genRoute(type,1+Math.floor(Math.random()*1e6));
+  await addRoutes([rt]);selectRoute(rt.id);toast(`Neue Strecke: ${rt.name} · ${n1(rt.dist/1000)} km · ${n0(rt.gain)} Hm`);
 }

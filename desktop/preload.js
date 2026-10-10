@@ -5,7 +5,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('wattbuchDesktop', {
   backup: json => ipcRenderer.invoke('backup:write', json),
   latestBackup: () => ipcRenderer.invoke('backup:latest'),
-  backupDir: () => ipcRenderer.invoke('backup:dir')
+  backupDir: () => ipcRenderer.invoke('backup:dir'),
+  pendingImports: () => ipcRenderer.invoke('import:pending'),
+  importsDone: names => ipcRenderer.invoke('import:done', names)
 });
 
 /* Geräteauswahl: Chrome zeigt dafür ein eigenes Fenster, in Electron bauen wir es selbst.
@@ -13,13 +15,13 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
 let box = null, timer = null;
 const css = `
 #btPick{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(0,0,0,.38);backdrop-filter:blur(3px);font-family:Geist,system-ui,sans-serif}
-#btPick .in{width:min(380px,calc(100vw - 32px));background:var(--surface,#fff);color:var(--ink,#111);border:1px solid var(--line,#ddd);border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+#btPick .in{width:min(380px,calc(100vw - 32px));background:var(--surface,#fff);color:var(--fg,#111);border:1px solid var(--line,#ddd);border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 #btPick h2{margin:0 0 4px;font-size:17px;font-weight:600}
-#btPick p{margin:0 0 14px;font-size:13px;color:var(--ink-3,#777)}
+#btPick p{margin:0 0 14px;font-size:13px;color:var(--fg-3,#777)}
 #btPick ul{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:6px;max-height:280px;overflow:auto}
 #btPick li button{width:100%;text-align:left;padding:11px 12px;border-radius:10px;border:1px solid var(--line,#ddd);background:transparent;color:inherit;font:inherit;font-size:14px;cursor:pointer}
 #btPick li button:hover{border-color:var(--accent,#7F5FE8);background:var(--accent-soft,rgba(127,95,232,.12))}
-#btPick .scan{font-size:13px;color:var(--ink-3,#777);padding:6px 2px}
+#btPick .scan{font-size:13px;color:var(--fg-3,#777);padding:6px 2px}
 #btPick .scan i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent,#7F5FE8);margin-right:8px;animation:btp 1.2s ease-in-out infinite}
 @keyframes btp{50%{opacity:.25}}
 #btPick .cancel{float:right;padding:8px 14px;border-radius:10px;border:1px solid var(--line,#ddd);background:transparent;color:inherit;font:inherit;font-size:14px;cursor:pointer}

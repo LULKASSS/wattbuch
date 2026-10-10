@@ -4,11 +4,12 @@ Watt-Aufnahme für Rollentrainer (Van Rysel D100, Bluetooth FTMS), Strecken mit 
 Gehört Lukas, Sprache in App, Code-Kommentaren und Commits: **Deutsch**.
 
 ## Aufbau
-- `index.html` (Markup), `app.css` (Stil), `js/*.js` (Logik, klassische Scripts mit gemeinsamem globalem Bereich, Reihenfolge wie in index.html: basis → geraete → strecken → aufnahme → diagramme → ansichten → daten → start). Kein Build-Schritt, keine Abhängigkeiten außer Google Fonts. GitHub Pages liefert das Repo 1:1 aus: https://lulkasss.github.io/wattbuch/
+- `index.html` (Markup), `app.css` (Stil), `js/*.js` (Logik, klassische Scripts mit gemeinsamem globalem Bereich, Reihenfolge wie in index.html: basis → geraete → strecken → aufnahme → diagramme → ansichten → erlebnis → daten → start; `erlebnis.js` = Countdown, Momente während der Fahrt, Zusammenfassung). Kein Build-Schritt, keine Abhängigkeiten außer Google Fonts. GitHub Pages liefert das Repo 1:1 aus: https://lulkasss.github.io/wattbuch/
 - `desktop/` – Mac-App (Electron): `main.js` (Fenster, `app://`-Schema, Bluetooth-Auswahl, Sicherung nach iCloud), `preload.js` (Brücke `window.wattbuchDesktop`, Geräte-Auswahldialog).
 - `test/fake-ble.js` – simulierte Rolle, Pulsgurt, Trittfrequenzsensor (`window.__fakeBle`). **Nie** in `index.html` einbinden.
 - `test/app.spec.js` – Browsertests (Chrome, gefälschte Uhr). `test/desktop.spec.js` – Tests der Mac-App.
 - `scripts/check.mjs` – Fehlercheck ohne Browser (Syntax, IDs, persönliche Daten, Schlüssel).
+- `scripts/strecke-aus-punkten.mjs` – baut Strecken aus Punktlisten (Strava-Streams), siehe Skill `strava`.
 - `scripts/serve.mjs` – Dev-Server auf :5173, `/?fake` blendet die simulierte Rolle ein.
 
 ## Befehle

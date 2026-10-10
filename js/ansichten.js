@@ -57,8 +57,9 @@ function renderLive(){
   setT('lvPow',pw==null?'–':String(Math.round(pw)));
   setT('lvWkg',pw==null?'– W/kg':`${n2(pw/S.set.weight)} W/kg`);
   const zp=$('#zonePill'),mk=$('#zMark');
-  if(pw!=null&&pw>0){const zi=zoneIdx(pw,ftp);setT('zpTxt',`${ZONES[zi].n} ${ZONES[zi].name}`);zp.style.setProperty('--zc',`var(--z${zi+1})`);mk.style.left=(zonePos(pw,ftp)*100)+'%';mk.style.opacity=1;}
-  else{setT('zpTxt',isLive()?'Pausiert':'Keine Daten');zp.style.removeProperty('--zc');mk.style.opacity=0;}
+  const lc=$('.card.live');lc.classList.toggle('idle',pw==null);
+  if(pw!=null&&pw>0){const zi=zoneIdx(pw,ftp);setT('zpTxt',`${ZONES[zi].n} ${ZONES[zi].name}`);zp.style.setProperty('--zc',`var(--z${zi+1})`);lc.style.setProperty('--amb',`var(--z${zi+1})`);mk.style.left=(zonePos(pw,ftp)*100)+'%';mk.style.opacity=1;}
+  else{setT('zpTxt',isLive()?'Pausiert':'Keine Daten');zp.style.removeProperty('--zc');lc.style.removeProperty('--amb');mk.style.opacity=0;}
   const p=R.p,el=R.state==='idle'?0:recElapsed();
   setT('lvTime',fmtDur(el/1000));
   setT('lvAvg',p.length?n0(sum(p)/p.length):'–');
@@ -85,6 +86,7 @@ function renderLive(){
 }
 function renderControls(){
   const el=$('#ctrls'),st=S.rec.state,live=isLive();
+  document.body.classList.toggle('riding',st!=='idle');
   let h='';
   if(st==='idle')h=`<button type="button" class="btn primary big" data-a="start"${live?'':' aria-disabled="true"'}>Aufnahme starten</button>${live?'':'<span class="note soft" style="margin:0">Erst die Rolle verbinden</span>'}`;
   if(st==='rec')h=`<button type="button" class="btn big" data-a="pause">Pause</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;

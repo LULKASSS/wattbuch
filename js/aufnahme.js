@@ -34,7 +34,7 @@ async function saveRec(){
   const r=makeRide(R);
   await DB.put(r);S.rides.push(r);await DB.rm('draft');
   resetRec();toast('Fahrt gespeichert');autoBackup();
-  S.detail=r.id;go('detail');
+  S.detail=r.id;go('detail');showSummary(r);
 }
 async function discardRec(){await DB.rm('draft');resetRec();toast('Fahrt verworfen');}
 function resetRec(){Object.assign(S.rec,{state:'idle',startISO:null,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0});resetSim();wake(false);renderControls();renderRecPill();renderRoutes();}
@@ -58,7 +58,8 @@ function tick(){
   if(now-lastHist>=1000){lastHist=now;if(isLive()){S.hist.push(Math.round(curPow()));if(S.hist.length>600)S.hist.shift();}else S.hist=[];}
   if(S.rec.state==='rec'){
     const target=Math.floor(recElapsed(now)/1000);
-    while(S.rec.p.length<target)pushSample();
+    let added=false;while(S.rec.p.length<target){pushSample();added=true;}
+    if(added)checkMoments();
     if(S.rec.p.length-S.rec.lastDraft>=15)saveDraft();
   }
   if(S.view==='live')renderLive();
