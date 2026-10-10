@@ -12,18 +12,29 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const errors = [], warns = [];
 const html = await readFile(root + 'index.html', 'utf8');
 
-/* 1. Syntax */
-const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-if (!scripts.length) errors.push('index.html: kein <script> gefunden');
-scripts.forEach((code, i) => {
-  try { new vm.Script(code, { filename: `index.html <script #${i + 1}>` }); }
-  catch (e) { errors.push(`Syntaxfehler in Script ${i + 1}: ${e.message}`); }
-});
+/* 1. Syntax: jede eingebundene Datei einzeln, dann alle zusammen (gemeinsamer globaler Gültigkeitsbereich,
+   findet doppelt deklarierte const/let über Dateigrenzen) */
+const srcs = [...html.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map(m => m[1]).filter(s => !/^https?:/.test(s));
+const scripts = [];
+for (const src of srcs) {
+  const code = await readFile(root + src, 'utf8').catch(() => null);
+  if (code == null) { errors.push(`index.html bindet ${src} ein, Datei fehlt`); continue; }
+  scripts.push(code);
+  try { new vm.Script(code, { filename: src }); }
+  catch (e) { errors.push(`Syntaxfehler in ${src}: ${e.message}`); }
+}
+for (const m of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) scripts.push(m[1]);
+if (!scripts.length) errors.push('index.html: kein Script gefunden');
+try { new vm.Script(scripts.join('\n;\n').replace(/'use strict';/g, ''), { filename: 'alle Scripts' }); }
+catch (e) { errors.push(`Scripts passen nicht zusammen: ${e.message}`); }
+for (const l of html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g))
+  if (!/^https?:/.test(l[1])) await readFile(root + l[1]).catch(() => errors.push(`index.html bindet ${l[1]} ein, Datei fehlt`));
 
 /* 2. HTML und IDs */
 for (const need of ['<!doctype html>', '<meta charset', 'name="viewport"', '<title>'])
   if (!html.toLowerCase().includes(need.toLowerCase())) errors.push(`index.html: ${need} fehlt`);
-const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
+/* IDs aus dem HTML und aus den Vorlagen in den Scripts (Ansichten werden per innerHTML gebaut) */
+const ids = new Set([...(html + scripts.join('\n')).matchAll(/\bid="([^"$]+)"/g)].map(m => m[1]));
 const dynamicIds = new Set(['zpTxt']); /* werden zur Laufzeit gesetzt */
 const used = new Set([...scripts.join('\n').matchAll(/\$\(\s*'#([\w-]+)'(?!\s*\+)/g)].map(m => m[1])); /* nur feste IDs, keine zusammengesetzten */
 for (const id of used) if (!ids.has(id) && !dynamicIds.has(id)) errors.push(`#${id} wird im Script benutzt, steht aber nicht im HTML`);
@@ -44,7 +55,7 @@ for (const f of files) {
     const t = await readFile(root + f, 'utf8').catch(() => '');
     if (/"app"\s*:\s*"wattbuch"/.test(t) || /"rides"\s*:\s*\[/.test(t)) errors.push(`Datei sieht nach Wattbuch-Sicherung aus: ${f}`);
   }
-  if (!/node_modules/.test(f) && /\.(js|mjs|html|md|json|yml)$/.test(f)) {
+  if (!/node_modules/.test(f) && /\.(js|mjs|css|html|md|json|yml)$/.test(f)) {
     const t = await readFile(root + f, 'utf8').catch(() => '');
     if (/gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-ant-[A-Za-z0-9-]{20,}/.test(t)) errors.push(`Möglicher Zugangsschlüssel in ${f}`);
   }
@@ -52,4 +63,4 @@ for (const f of files) {
 
 for (const w of warns) console.log('⚠️  ' + w);
 if (errors.length) { console.log('❌ Fehlercheck fehlgeschlagen:'); for (const e of errors) console.log('   • ' + e); process.exit(1); }
-console.log(`✅ Fehlercheck ok (${scripts.length} Script, ${ids.size} IDs, ${files.length} Dateien geprüft)`);
+console.log(`✅ Fehlercheck ok (${scripts.length} Scripts, ${ids.size} IDs, ${files.length} Dateien geprüft)`);

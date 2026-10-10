@@ -24,6 +24,8 @@
     },
     "files": [
       "index.html",
+      "app.css",
+      "js/**/*",
       "desktop/**/*",
       "package.json"
     ],
