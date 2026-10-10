@@ -413,3 +413,14 @@ test('Tageszeit-Wechsel wird gemeldet', async ({ page }) => {
   await page.clock.runFor(2000);
   expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Die Nacht bricht herein');
 });
+
+test('Straße bewegt sich in jedem Bild (kein Ruckeln im Takt der Simulation)', async ({ page }) => {
+  await open(page, { motion: true });
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(4000); // auf Tempo kommen
+  const pos = [];
+  for (let i = 0; i < 16; i++) { await page.clock.runFor(17); pos.push(await page.evaluate(() => SCV.vp)); }
+  const steps = pos.slice(1).map((v, i) => v - pos[i]);
+  for (const s of steps) { expect(s).toBeGreaterThan(0.02); expect(s).toBeLessThan(0.6); } // jedes Bild ein kleines Stück, kein Sprung
+});

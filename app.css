@@ -526,7 +526,8 @@ body{background:radial-gradient(120% 70% at 50% -10%,#2a1740 0%,var(--bg) 60%) f
 /* Auf „Fahren“ rollt die Straße schon vor dem Start im Hintergrund, Karten liegen wie Glas darüber */
 .backdrop{position:fixed;inset:0;z-index:-1;width:100%;height:100%;display:block;opacity:0;transition:opacity .8s var(--ease);pointer-events:none}
 body[data-view="live"] .backdrop{opacity:1}
-body[data-view="live"] .card{background:color-mix(in srgb,var(--surface) 70%,transparent);backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 48px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.06)}
+/* Ohne Weichzeichner: der müsste sonst 60-mal pro Sekunde über dem bewegten Hintergrund neu gerechnet werden */
+body[data-view="live"] .card{background:color-mix(in srgb,var(--surface) 82%,transparent);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 48px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.06)}
 body[data-view="live"] .rrow{background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
 body[data-view="live"] .rrow.on{background:var(--accent-soft)}
 .top{background:var(--glass)}

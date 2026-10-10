@@ -6,7 +6,7 @@
    Landschaft nach Strecke (Wald, Felder, ab 900 m Alpen). Dazu Geist bzw. Schrittmacher als Radfahrer.
    Die Szene ist die Fahrt-Ansicht (#full) und im Leerlauf der Hintergrund von „Fahren“ (#cvBack). */
 
-const SCN={seg:5,n:260,ex:2.4,half:3.2};
+const SCN={seg:5,n:200,ex:2.4,half:3.2};
 /* Leuchtfarben je Zone, von ruhigem Grau-Lila bis Magenta/Rot */
 const GLOW=['#646a7c','#6E62B5','#7F5FE8','#9A6BFF','#C266F0','#F062B8','#FF5C7A'];
 const hex2=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
@@ -68,7 +68,7 @@ function biomeAt(rt,s,e){
 /* Berge: drei Schichten, verschieben sich beim Abbiegen (Parallaxe) */
 const MTN=[0,1,2].map(l=>{const a=[];for(let i=0;i<256;i++){let v=0;for(let o=1;o<=4;o++)v+=Math.sin(i/256*Math.PI*2*(o*2+l)+hash(l*9+o)*6)/o;a.push(v);}return a;});
 const STARS=Array.from({length:140},(_,i)=>({x:hash(i*3.1),y:Math.pow(hash(i*5.7),1.6),r:.5+hash(i*1.3)*1.2,p:hash(i*9.1)*6}));
-const SCV={alp:0,idle:0,lastT:0}; /* geglättete Werte zwischen den Bildern */
+const SCV={alp:0,vp:null,gap:null,lastT:0,riding:false}; /* geglättete Werte zwischen den Bildern */
 
 /* Geist: beste frühere Fahrt auf dieser Strecke, sonst Schrittmacher mit 75 % FTP */
 function paceReset(){
@@ -100,13 +100,26 @@ function paceCheck(){
 
 /* Zeichnen. opt.back: Hintergrund im Leerlauf (langsam rollend, niedrige Auflösung) */
 function drawScene(c,opt={}){
-  const dpr=opt.back?1:Math.min(2,devicePixelRatio||1),W=c.clientWidth,H=c.clientHeight;if(!W||!H)return;
+  /* Auflösung: Hintergrund halb (liegt unter Glas), Fahrt-Ansicht 1:1 – weiche Szene, flüssige 60 Bilder/s */
+  const dpr=opt.back?.5:1,W=c.clientWidth,H=c.clientHeight;if(!W||!H)return;
   if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);}
   const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
   const now=performance.now(),dt=clamp((now-(SCV.lastT||now))/1000,0,.2);SCV.lastT=now;
   const riding=S.rec.state!=='idle',rt=activeRoute();
-  if(!riding)SCV.idle+=dt*6; /* im Leerlauf rollt die Straße gemächlich weiter */
-  const pos=riding?(rt?S.sim.d:S.sim.total):(rt?(rt.loop?SCV.idle%rt.dist:Math.min(SCV.idle,rt.dist)):SCV.idle);
+  /* Die Simulation rechnet 4-mal pro Sekunde. Gezeichnet wird mit der eigenen Geschwindigkeit weitergerollt
+     und sanft an die echte Position herangeführt – so bewegt sich die Straße in jedem Bild ein Stück. */
+  if(riding){
+    const target=rt?S.sim.d:S.sim.total;
+    if(SCV.vp==null||!SCV.riding)SCV.vp=target;
+    SCV.vp+=S.sim.v*dt;const err=target-SCV.vp;
+    if(Math.abs(err)>40)SCV.vp=target;else SCV.vp+=err*Math.min(1,dt*1.5);
+  }else{
+    if(SCV.vp==null||SCV.riding)SCV.vp=0;
+    SCV.vp+=dt*4; /* im Leerlauf rollt die Straße gemächlich weiter */
+    if(rt&&!rt.loop&&SCV.vp>rt.dist)SCV.vp=0;
+  }
+  SCV.riding=riding;
+  const pos=SCV.vp;
   const pw=riding||isLive()?curPow():null,ftp=S.set.ftp;
   const zi=pw!=null&&pw>0?zoneIdx(pw,ftp):0,zc=hex2(GLOW[zi]);
   const D=dayAt(rideMin()),t0=trackAt(rt,pos),g0=rt&&riding?routeGradeNow()/100:0;
@@ -116,7 +129,7 @@ function drawScene(c,opt={}){
   const alpT=biomeAt(rt,pos+600,rt?trackAt(rt,pos+600).e:0)==='alpen'?1:0;SCV.alp+=(alpT-SCV.alp)*Math.min(1,dt*.8);
   /* Himmel */
   let gr=ctx.createLinearGradient(0,0,0,hy);gr.addColorStop(0,rgb(D.top));gr.addColorStop(1,rgb(horA));ctx.fillStyle=gr;ctx.fillRect(0,0,W,hy+2);
-  if(D.stars>.02){for(const s of STARS){const a=D.stars*(.55+.45*Math.sin(now/700+s.p));ctx.fillStyle=`rgba(255,255,255,${a*(1-s.y)})`;ctx.fillRect(s.x*W,s.y*hy*.95,s.r,s.r);}}
+  if(D.stars>.02){for(const s of STARS){const a=D.stars*(.6+.4*Math.sin(now/1600+s.p));ctx.fillStyle=`rgba(255,255,255,${a*(1-s.y)})`;ctx.fillRect(s.x*W,s.y*hy*.95,s.r,s.r);}}
   /* Sonne bzw. Mond */
   const bx=W*.5+Math.sin(t0.h)*-W*.25,by=hy-D.alt*hy*.9,br=Math.min(W,H)*.045;
   gr=ctx.createRadialGradient(bx,by,0,bx,by,br*5);gr.addColorStop(0,rgb(D.body,.5));gr.addColorStop(1,rgb(D.body,0));ctx.fillStyle=gr;ctx.fillRect(bx-br*5,by-br*5,br*10,br*10);
@@ -142,40 +155,55 @@ function drawScene(c,opt={}){
   const camX=P[Math.min(2,P.length-1)].x*.6+1.4;
   const pr=p=>{const zz=Math.max(p.z,.5),k=F/zz;return{sx:W/2+(p.x-camX)*k,sy:hy-(p.y-camY)*k,w:SCN.half*k,k};};
   const far=SCN.n*SCN.seg;
-  ctx.fillStyle=rgb(D.g[0]);ctx.fillRect(0,hy,W,H-hy);
-  const rum=[lerp3([127,95,232],D.r[0],.15),lerp3([70,58,120],D.r[0],.3)];
+  /* Boden: ein ruhiger Verlauf vom Dunst am Horizont zur Wiese vorn – keine Streifen */
+  gr=ctx.createLinearGradient(0,hy,0,H);gr.addColorStop(0,rgb(fogC));gr.addColorStop(.18,mixc(D.g[1],fogC,.45));gr.addColorStop(1,rgb(D.g[0]));
+  ctx.fillStyle=gr;ctx.fillRect(0,hy-1,W,H-hy+1);
+  /* Sichtbarkeit von vorn nach hinten: was hinter einer Kuppe liegt, wird ausgelassen */
+  const Q=[],vis=[];let clipY=H*4;
+  for(let k=0;k<=SCN.n;k++){const p=pr(P[k]);Q.push(p);const ok=P[k].z>.6&&p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
+  /* Straße als durchgehende Fläche je sichtbarem Abschnitt, Ränder als feine Lichtkante */
+  const roadG=ctx.createLinearGradient(0,hy,0,H);roadG.addColorStop(0,rgb(fogC));roadG.addColorStop(.2,mixc(D.r[0],fogC,.5));roadG.addColorStop(1,rgb(D.r[1]));
+  const edgeG=ctx.createLinearGradient(0,hy,0,H);edgeG.addColorStop(0,rgb(fogC,0));edgeG.addColorStop(.25,rgb(lerp3([127,95,232],fogC,.4),.7));edgeG.addColorStop(1,'rgba(150,120,245,.9)');
+  const strip=(i0,i1,wf,fill)=>{ctx.beginPath();for(let k=i0;k<=i1;k++)ctx.lineTo(Q[k].sx-Q[k].w*wf,Q[k].sy);for(let k=i1;k>=i0;k--)ctx.lineTo(Q[k].sx+Q[k].w*wf,Q[k].sy);ctx.closePath();ctx.fillStyle=fill;ctx.fill();};
+  for(let k=0;k<=SCN.n;k++){
+    if(!vis[k])continue;let e=k;while(e<SCN.n&&vis[e+1])e++;
+    if(e>k){strip(k,e,1.08,edgeG);strip(k,e,1,roadG);}
+    k=e;
+  }
+  /* Mittelstreifen: 10 m Strich, 10 m Lücke, fest an der Straße – zeigt das Tempo */
+  for(let k=1;k<SCN.n;k++){
+    if(!vis[k]||!vis[k+1]||P[k].z<3||Math.floor(P[k].s/10)%2)continue;
+    const a=Q[k],b=Q[k+1],fz=Math.min(1,P[k].z/far);
+    ctx.fillStyle=`rgba(240,236,255,${.6*(1-fz)})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
+  }
+  /* Landschaft am Rand, von hinten nach vorn; tauchen aus dem Dunst auf statt plötzlich da zu sein */
   for(let k=SCN.n;k>=1;k--){
-    const a=P[k-1],b=P[k];if(a.z<=.6)continue;
-    const p1=pr(a),p2=pr(b),fz=Math.pow(Math.min(1,b.z/far),.7),par=Math.floor(b.s/(SCN.seg*2))%2;
-    if(p2.sy>=p1.sy&&p1.sy<hy-2)continue;
-    ctx.fillStyle=mixc(D.g[par],fogC,fz);ctx.fillRect(0,Math.min(p1.sy,p2.sy)-.5,W,Math.abs(p1.sy-p2.sy)+1);
-    const quad=(w1,w2,col)=>{ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(p1.sx-w1,p1.sy+.5);ctx.lineTo(p1.sx+w1,p1.sy+.5);ctx.lineTo(p2.sx+w2,p2.sy);ctx.lineTo(p2.sx-w2,p2.sy);ctx.closePath();ctx.fill();};
-    quad(p1.w*1.14,p2.w*1.14,mixc(rum[par],fogC,fz));
-    quad(p1.w,p2.w,mixc(D.r[par],fogC,fz));
-    if(a.z>4&&Math.floor(b.s/SCN.seg)%4<2)quad(p1.k*.06,p2.k*.06,`rgba(240,236,255,${.75*(1-fz)})`);
-    /* Landschaft am Rand */
-    const bio=biomeAt(rt,b.s,b.e),s=b.s,side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
+    if(!vis[k])continue;
+    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
+    ctx.globalAlpha=fade;
     if(bio==='wald'){
-      if(s%25===0){fir(ctx,at(side*(SCN.half+2.5+hash(s+1)*9)),7+hash(s+2)*7,D,fz,fogC);if(hash(s+3)>.55)fir(ctx,at(-side*(SCN.half+3+hash(s+4)*10)),8+hash(s+5)*6,D,fz,fogC);}
+      if(s%35===0){fir(ctx,at(side*(SCN.half+3+hash(s+1)*10)),7+hash(s+2)*6,D,fz,fogC);if(hash(s+3)>.6)fir(ctx,at(-side*(SCN.half+4+hash(s+4)*12)),8+hash(s+5)*5,D,fz,fogC);}
     }else if(bio==='felder'){
-      if(s%15===0)post(ctx,at(SCN.half+.9),fz,fogC);
-      if(s%80===0)leaf(ctx,at(side*(SCN.half+6+hash(s+6)*16)),6+hash(s+7)*4,D,fz,fogC);
+      if(s%20===0)post(ctx,at(SCN.half+.9),fz,fogC);
+      if(s%100===0)leaf(ctx,at(side*(SCN.half+7+hash(s+6)*16)),6+hash(s+7)*4,D,fz,fogC);
     }else{
-      if(s%40===0&&hash(s+8)>.45)fir(ctx,at(side*(SCN.half+3+hash(s+9)*12)),5+hash(s+10)*4,D,fz,fogC);
-      if(s%55===0)rock(ctx,at(-side*(SCN.half+2+hash(s+11)*7)),1+hash(s+12)*2.5,D,fz,fogC);
+      if(s%50===0&&hash(s+8)>.45)fir(ctx,at(side*(SCN.half+3+hash(s+9)*12)),5+hash(s+10)*4,D,fz,fogC);
+      if(s%70===0)rock(ctx,at(-side*(SCN.half+2+hash(s+11)*7)),1+hash(s+12)*2.5,D,fz,fogC);
     }
     if(s%1000===0&&s>0&&!opt.back)sign(ctx,at(SCN.half+1.2),s,rt,fz);
   }
+  ctx.globalAlpha=1;
   /* Geist / Schrittmacher als Radfahrer */
   const Pc=S.pace;
   if(Pc&&riding){
-    const gap=Pc.total-S.sim.total;
+    const tg=Pc.total-S.sim.total;if(SCV.gap==null||Math.abs(tg-SCV.gap)>40)SCV.gap=tg;else SCV.gap+=(Pc.v-S.sim.v)*dt+(tg-SCV.gap)*Math.min(1,dt*1.5);
+    const gap=SCV.gap;
     if(gap>1.5&&gap<far){const kk=gap/SCN.seg,i=Math.min(SCN.n-1,Math.floor(kk)),f=kk-i,a=P[i],b=P[i+1];
       const q=pr({x:a.x+(b.x-a.x)*f-.6,y:a.y+(b.y-a.y)*f,z:a.z+(b.z-a.z)*f});
       cyclist(ctx,q,Pc.kind==='geist',now/1000*(Pc.v>.3?1.45:0),Math.min(1,gap/far*1.5));}
   }
   /* Vignette */
-  gr=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.3,W/2,H*.55,Math.max(W,H)*.75);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,`rgba(0,0,0,${opt.back?.65:.5})`);ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
+  gr=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.3,W/2,H*.55,Math.max(W,H)*.75);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,`rgba(0,0,0,${opt.back?.55:.4})`);ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
 }
 /* Nadelbaum */
 function fir(ctx,q,h,D,fz,fogC){
@@ -316,7 +344,7 @@ function sceneKick(){if(!sceneOn&&sceneWanted()){sceneOn=true;sceneLoop();}}
 function sceneLoop(){
   if(!sceneWanted()){sceneOn=false;return;}
   if(lowMotion.matches)setTimeout(sceneLoop,500);else requestAnimationFrame(sceneLoop);
-  const full=!$('#full').hidden,t=performance.now();if(t-lastFrame<(full?15:31))return;lastFrame=t;
+  const full=!$('#full').hidden,t=performance.now();if(t-lastFrame<12)return;lastFrame=t;
   if(full){drawScene($('#cvFull'));drawFullProf($('#cvFullProf'));renderFull();}
   else drawScene($('#cvBack'),{back:true});
 }

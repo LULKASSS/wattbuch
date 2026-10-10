@@ -1,9 +1,9 @@
 {
  "manifest": "wattbuch-web",
- "version": "d9fe39dc0d10",
+ "version": "3afdbe02e1c4",
  "files": {
   "index.html": "abd71ffbb399adbe1722c5eb14342c25bfd0d63f97cc296fc63c22a0ca686831",
-  "app.css": "e9ea0ea4c7f9e53210e343cd51f97120d61bf9eb389c1f0b593174e3b1417dd2",
+  "app.css": "d24264314a963e58a591cbce8a9d3d961af346f5e1cda90ed7e7e49e66d44bb7",
   "js/ansichten.js": "ef1bcd3a2e8d0bcdae067119cab1f0caa169a1463951c6971930924c37120526",
   "js/aufnahme.js": "37aa01070e6b183a333b9b18e0b7149d9429f6d3c0a2f67c194435d733a2e3bd",
   "js/basis.js": "ab330d37657c78361c2e75c781e5f511ce05cf16c586d2c69ade46b3f27a0709",
@@ -13,6 +13,6 @@
   "js/geraete.js": "b6f7a7bea185f29f551dcb3aab44b65d91d7b69c2bdda43f1448c32e7f88c227",
   "js/start.js": "00888607f82656bf16b993d3bd0f2bead6669edd3fe764c2dd9d5413e3c89167",
   "js/strecken.js": "0a59ca515d4b70e3d0fb57ac3cfd7b5e9693da833f01f23bd8acdb211bbcdc62",
-  "js/szene.js": "cc1a251390d2738e06c3a10452fd94d51956df3155e66dae1c63acac38c58a1c"
+  "js/szene.js": "2f39f0c544cc173b14ec5849d8b72b77b272ee3a0f910be4dd78d9dbaaa9a4f8"
  }
 }
