@@ -6,7 +6,7 @@
    Landschaft nach Strecke (Wald, Felder, ab 900 m Alpen). Dazu Geist bzw. Schrittmacher als Radfahrer.
    Die Szene ist die Fahrt-Ansicht (#full) und im Leerlauf der Hintergrund von „Fahren“ (#cvBack). */
 
-const SCN={seg:5,n:200,ex:2.4,half:3.2};
+const SCN={seg:5,n:200,ex:3,half:3.2};
 /* Leuchtfarben je Zone, von ruhigem Grau-Lila bis Magenta/Rot */
 const GLOW=['#646a7c','#6E62B5','#7F5FE8','#9A6BFF','#C266F0','#F062B8','#FF5C7A'];
 const hex2=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
@@ -130,7 +130,8 @@ function drawScene(c,opt={}){
   const zcT=hex2(GLOW[pw&&pw>0?zoneIdx(pw,ftp):0]);SCV.zc=SCV.zc?lerp3(SCV.zc,zcT,ease(.9)):zcT;const zc=SCV.zc;
   const D=dayAt(rideMin()),t0=trackAt(rt,pos);
   SCV.g+=((rt&&riding?gradeAt(rt,rt.loop?pos%rt.dist:Math.min(pos,rt.dist))/100:0)-SCV.g)*ease(2);const g0=SCV.g;
-  const hy=H*(opt.back?.5:.42),F=Math.max(W,H*1.5)*.62,camY=1.45; /* etwas tiefer: Boden und Striche ziehen schneller vorbei */
+  /* Bergauf sinkt der Horizont (die Straße türmt sich auf), bergab hebt er sich (sie fällt vor dir weg) */
+  const hy=H*(opt.back?.5:.42)+clamp(g0*H*1.1,-H*.1,H*.1),F=Math.max(W,H*1.5)*.62,camY=1.45; /* etwas tiefer: Boden und Striche ziehen schneller vorbei */
   const horA=lerp3(D.hor,zc,D.zm*(pw?1:.4)),fogC=horA;
   /* Alpen-Anteil weich überblenden */
   const alpT=biomeAt(rt,pos+600,rt?trackAt(rt,pos+600).e:0)==='alpen'?1:0;SCV.alp+=(alpT-SCV.alp)*Math.min(1,dt*.8);
@@ -147,10 +148,10 @@ function drawScene(c,opt={}){
   /* Berge, in den Alpen höher und mit Schneegipfeln */
   MTN.forEach((m,l)=>{
     const hgt=H*.11*(1-l*.22)*(1+SCV.alp*(1.5-l*.3)),off=t0.h*256/Math.PI*(.35+l*.25),col=lerp3(D.m[l],fogC,.25-l*.08);
-    const top=hy-hgt*1.2-g0*H*.6;
+    const top=hy-hgt*1.2;
     if(SCV.alp>.05){gr=ctx.createLinearGradient(0,top,0,hy);gr.addColorStop(0,mixc(col,[245,245,255],SCV.alp*.85));gr.addColorStop(.35,rgb(col));gr.addColorStop(1,rgb(col));ctx.fillStyle=gr;}else ctx.fillStyle=rgb(col);
     ctx.beginPath();ctx.moveTo(0,hy+1);
-    for(let x=0;x<=W+8;x+=8){const f=(x/W*128+off)%256,i=((Math.floor(f)%256)+256)%256,j=(i+1)%256,k=f-Math.floor(f),v=m[i]+(m[j]-m[i])*k;ctx.lineTo(x,hy-hgt*(.55+.32*v*(1+SCV.alp*.6))-g0*H*.6);}
+    for(let x=0;x<=W+8;x+=8){const f=(x/W*128+off)%256,i=((Math.floor(f)%256)+256)%256,j=(i+1)%256,k=f-Math.floor(f),v=m[i]+(m[j]-m[i])*k;ctx.lineTo(x,hy-hgt*(.55+.32*v*(1+SCV.alp*.6)));}
     ctx.lineTo(W,hy+1);ctx.closePath();ctx.fill();
   });
   /* Straße: Punkte vor dir berechnen (seitlicher Versatz aus den Richtungsänderungen) */
@@ -159,7 +160,7 @@ function drawScene(c,opt={}){
   for(let k=1;k<=SCN.n;k++){
     const s=s0+k*SCN.seg,tr=trackAt(rt,s),ds=s-ps,th=wrapA(tr.h-t0.h);ps=s;
     x+=Math.sin(th)*ds;z+=Math.cos(th)*ds;
-    P.push({s,x,z,y:(tr.e-y0)*SCN.ex-z*g0*SCN.ex*.3,e:tr.e});
+    P.push({s,x,z,y:(tr.e-y0)*SCN.ex-z*g0*SCN.ex*.2,e:tr.e});
   }
   /* Nahebene 1 m vor dir: Die Straße beginnt an einem exakt dorthin gerechneten Punkt, der stufenlos mitgleitet.
      (Vorher hing sie an einem geklemmten Hilfspunkt – bei jedem 5-m-Schritt knickte der Rand unten kurz, je schneller, desto öfter.) */
@@ -172,15 +173,21 @@ function drawScene(c,opt={}){
   /* Sichtbarkeit von vorn nach hinten: was hinter einer Kuppe liegt, wird ausgelassen */
   const Q=[],vis=[],crest=[];let clipY=H*4;
   for(let k=0;k<=NP;k++){const p=pr(P[k]);Q.push(p);crest.push(clipY);const ok=p.sy<clipY+.5;vis.push(ok);if(ok)clipY=Math.min(clipY,p.sy);}
-  /* Boden: ein ruhiger Verlauf vom Dunst zur Wiese vorn. Führt die Straße bergauf über den Horizont,
-     wächst der Boden bis zur Kuppe mit, damit sie nicht vor den Bergen schwebt */
+  /* Boden: ein ruhiger Verlauf vom Dunst zur Wiese vorn */
   const gTop=Math.min(hy,clipY);
   gr=ctx.createLinearGradient(0,gTop,0,H);gr.addColorStop(0,rgb(fogC));gr.addColorStop(.18,mixc(D.g[1],fogC,.45));gr.addColorStop(1,rgb(D.g[0]));
-  ctx.fillStyle=gr;ctx.fillRect(0,gTop-1,W,H-gTop+1);
+  const groundG=gr;
+  ctx.fillStyle=groundG;ctx.fillRect(0,hy-1,W,H-hy+1);
   /* Straße als durchgehende Fläche je sichtbarem Abschnitt, Ränder als feine Lichtkante */
   const roadG=ctx.createLinearGradient(0,hy,0,H);roadG.addColorStop(0,rgb(fogC));roadG.addColorStop(.2,mixc(D.r[0],fogC,.5));roadG.addColorStop(1,rgb(D.r[1]));
   const edgeG=ctx.createLinearGradient(0,hy,0,H);edgeG.addColorStop(0,rgb(fogC,0));edgeG.addColorStop(.25,rgb(lerp3([127,95,232],fogC,.4),.7));edgeG.addColorStop(1,'rgba(150,120,245,.9)');
   const strip=(i0,i1,wf,fill)=>{ctx.beginPath();for(let k=i0;k<=i1;k++)ctx.lineTo(Q[k].sx-Q[k].w*wf,Q[k].sy);for(let k=i1;k>=i0;k--)ctx.lineTo(Q[k].sx+Q[k].w*wf,Q[k].sy);ctx.closePath();ctx.fillStyle=fill;ctx.fill();};
+  /* Hang: Bergauf hebt sich ein Hügelrücken (±25 m um die Straße) aus der Landschaft, daneben bleiben Berge sichtbar */
+  for(let k=0;k<=NP;k++){
+    if(!vis[k])continue;let e=k;while(e<NP&&vis[e+1])e++;
+    if(e>k)strip(k,e,8,groundG);
+    k=e;
+  }
   for(let k=0;k<=NP;k++){
     if(!vis[k])continue;let e=k;while(e<NP&&vis[e+1])e++;
     if(e>k){strip(k,e,1.08,edgeG);strip(k,e,1,roadG);}
@@ -213,13 +220,17 @@ function drawScene(c,opt={}){
     if(bio==='wald'){
       if(s%35===0){fir(ctx,at(side*(SCN.half+3+hash(s+1)*10)),7+hash(s+2)*6,D,fz,fogC);if(hash(s+3)>.6)fir(ctx,at(-side*(SCN.half+4+hash(s+4)*12)),8+hash(s+5)*5,D,fz,fogC);}
     }else if(bio==='felder'){
-      if(s%20===0)post(ctx,at(SCN.half+.9),fz,fogC);
       if(s%100===0)leaf(ctx,at(side*(SCN.half+7+hash(s+6)*16)),6+hash(s+7)*4,D,fz,fogC);
     }else{
       if(s%50===0&&hash(s+8)>.45)fir(ctx,at(side*(SCN.half+3+hash(s+9)*12)),5+hash(s+10)*4,D,fz,fogC);
       if(s%70===0)rock(ctx,at(-side*(SCN.half+2+hash(s+11)*7)),1+hash(s+12)*2.5,D,fz,fogC);
     }
-    if(s%1000===0&&s>0&&!opt.back)sign(ctx,at(SCN.half+1.2),s,rt,fz);
+    /* Leitpfosten alle 50 m links und rechts, in jeder Landschaft – zeigen das Tempo.
+       Erst ab 20 m und mit halbem Kontrast: dünne helle Pfosten blinken sonst beim Vorbeiziehen */
+    if(s%50===0&&b.z>20){const ga=ctx.globalAlpha;ctx.globalAlpha=ga*.45*clamp((b.z-20)/20,0,1);post(ctx,at(SCN.half+1),fz,fogC);post(ctx,at(-SCN.half-1),fz,fogC);ctx.globalAlpha=ga;}
+    /* Warnschild vor steilen Abschnitten (Schnitt der nächsten 300 m) */
+    if(rt&&s%250===0&&!opt.back){const g=(trackAt(rt,s+300).e-b.e)/3;if(Math.abs(g)>=6)gradeSign(ctx,at(SCN.half+1.8),Math.round(g),fz);}
+    if(s%1000===0&&s>0&&!opt.back)sign(ctx,at(-SCN.half-1.6),s,rt,fz);
     ctx.restore();
   }
   ctx.globalAlpha=1;
@@ -253,10 +264,27 @@ function leaf(ctx,q,h,D,fz,fogC){
   ctx.beginPath();ctx.ellipse(q.sx+hh*.18,q.sy-hh*.55,hh*.22,hh*.2,0,0,7);ctx.fill();
 }
 /* Zaunpfahl mit Reflektor */
+/* Leitpfosten: weiß, schwarzes Band oben, Reflektor */
 function post(ctx,q,fz,fogC){
-  const h=1.1*q.k;if(h<2)return;
-  ctx.fillStyle=mixc([220,215,235],fogC,fz);ctx.fillRect(q.sx-h*.04,q.sy-h,h*.08,h);
-  ctx.fillStyle=`rgba(255,120,90,${1-fz})`;ctx.fillRect(q.sx-h*.04,q.sy-h*.85,h*.08,h*.12);
+  const h=1.05*q.k,w=Math.max(1,h*.1);if(h<2)return;
+  ctx.fillStyle=mixc([232,228,240],fogC,fz);ctx.fillRect(q.sx-w/2,q.sy-h,w,h);
+  ctx.fillStyle=mixc([25,22,32],fogC,fz);ctx.fillRect(q.sx-w/2,q.sy-h,w,h*.24);
+  ctx.fillStyle=`rgba(255,170,90,${1-fz})`;ctx.fillRect(q.sx-w*.3,q.sy-h*.2,w*.6,h*.09);
+}
+/* Verkehrsschild Steigung/Gefälle: rot umrandetes Dreieck mit Prozentzahl */
+function gradeSign(ctx,q,pct,fz){
+  const h=2.4*q.k,a=1.1*q.k;if(a<9)return;
+  ctx.save();ctx.globalAlpha*=1-fz;
+  ctx.fillStyle='#c9c4d6';ctx.fillRect(q.sx-a*.03,q.sy-h,a*.06,h);
+  const cx=q.sx,top=q.sy-h-a*.95,bot=q.sy-h;
+  ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx+a*.55,bot);ctx.lineTo(cx-a*.55,bot);ctx.closePath();ctx.fillStyle='#E5484D';ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx,top+a*.2);ctx.lineTo(cx+a*.38,bot-a*.09);ctx.lineTo(cx-a*.38,bot-a*.09);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();
+  /* kleiner Keil: steigt nach rechts (bergauf) oder fällt (bergab) */
+  ctx.fillStyle='#111';ctx.beginPath();const up=pct>0,y0=bot-a*.15,x0=cx-a*.24,x1=cx+a*.24;
+  ctx.moveTo(x0,y0);ctx.lineTo(x1,y0);ctx.lineTo(up?x1:x0,y0-a*.2);ctx.closePath();ctx.fill();
+  ctx.font=`700 ${Math.max(6,a*.2)}px Geist,system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  ctx.fillText(`${Math.abs(pct)}%`,cx,bot-a*.4);
+  ctx.restore();
 }
 /* Fels */
 function rock(ctx,q,h,D,fz,fogC){

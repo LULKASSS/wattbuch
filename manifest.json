@@ -1,6 +1,6 @@
 {
  "manifest": "wattbuch-web",
- "version": "283b59173163",
+ "version": "450d1abc364a",
  "files": {
   "index.html": "fd2339e2787c02c8cc8e6203e48e9e5f5084b450e3a94e4b0daedab7b2c7bc04",
   "app.css": "b329e14fcd9124c7bf38ce2deee58d1c0eb6b633649c6ea147aa52f9cfd848ff",
@@ -15,6 +15,6 @@
   "js/start.js": "5ef9bd6daf17a62d42be66c8404894f17bbfb6e69155b60229fb1b38d5606ad5",
   "js/strava.js": "fb30694ee28db8bcb3c4f847a87d95d2735fed7fb9244b1902ebf5c9f071afb8",
   "js/strecken.js": "0a59ca515d4b70e3d0fb57ac3cfd7b5e9693da833f01f23bd8acdb211bbcdc62",
-  "js/szene.js": "4b5ba7c343278df16b6281060380d4e8e0ed200d0db10fe3889220cf7ef24096"
+  "js/szene.js": "c92d56a3f73317d93fd02385a3d8f96fff722da64dbe354839c567f6abeb798c"
  }
 }
