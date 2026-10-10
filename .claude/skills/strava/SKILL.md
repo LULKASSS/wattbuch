@@ -17,7 +17,11 @@ Strava ist über den Strava-Connector verbunden (Tools `list_activities`, `get_a
 **Zahlen abgleichen**
 - `get_athlete_zones` liefert FTP und Leistungszonen. Weicht die FTP von Wattbuch ab, Lukas fragen, ob sie übernommen werden soll (Einstellungen → FTP).
 
-**Fahrten zu Strava**
-- Nach jeder Fahrt bietet die Zusammenfassung „Für Strava exportieren“: lädt die TCX und öffnet strava.com/upload/select. Ein automatischer Upload bräuchte eine eigene Strava-API-App mit Geheimschlüssel und gehört nicht in die öffentliche Webseite.
+**Fahrten zu Strava (Upload)**
+- Mac-App lädt direkt hoch (`desktop/strava.js`, Oberfläche `js/strava.js`): Lukas legt einmalig unter strava.com/settings/api eine App an (Website `http://localhost`, Callback-Domain `localhost`) und trägt Client-ID/Secret in Wattbuch → Einstellungen → Strava ein. **Nie selbst Zugangsdaten eintippen oder anzeigen**, das macht Lukas.
+- Zugang liegt in `~/Library/Application Support/Wattbuch/strava.json` (0600), Token werden automatisch erneuert. Upload als TCX mit `trainer=1`, Name = Fahrtname, Beschreibung mit Ø/NP/kJ/TSS, `external_id` = `wattbuch-<id>` (doppelte Uploads erkennt Strava).
+- Option „Nach jeder Fahrt automatisch hochladen“ (`S.set.stravaAuto`). Stand je Fahrt in `r.strava`.
+- Browser/Webseite: „Für Strava exportieren“ (TCX speichern + strava.com/upload/select).
+- Test: `test/desktop.spec.js` „Strava: verbinden und Fahrt hochladen“ gegen nachgebauten Server (`WATTBUCH_STRAVA_URL`).
 
 Bereits übernommen (Okt. 2026): Göttinger Hausrunde, TDE 2026, Ischgl-Bergtour.

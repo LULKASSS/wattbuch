@@ -16,6 +16,8 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 - **Fahrt-Ansicht**: Straße der Strecke zum Durchfahren, Geist der besten Fahrt oder Schrittmacher als Radfahrer, große Anzeige. Tageszeit wechselt mit der Fahrtdauer (Abendrot, Nacht, Morgengrauen, Tag, Sonnenuntergang), Landschaft mit der Strecke (Wald, Felder, Alpen). Taste F für echtes Vollbild
 - Countdown, Momente während der Fahrt (Bestwerte, Meilensteine, Gipfel), Zusammenfassung mit Highlights
 - Zufallsstrecken (Hügelrunde, Bergwertung, Flachstück) per „Würfeln“
+- **FTP-Test** (Rampentest: +20 W pro Minute über die Zielleistung, FTP = 75 % der besten Minute)
+- **Strava**: in der Mac-App direkt hochladen (einmalig eigene Strava-API-App anlegen, Einstellungen → Strava), auf Wunsch automatisch nach jeder Fahrt; im Browser als TCX exportieren
 
 **Tasten am Mac:** Leertaste Start/Pause/Weiter · F Vollbild · ↑↓ Zielleistung ±5 W · Esc Vollbild verlassen
 

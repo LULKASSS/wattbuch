@@ -499,3 +499,32 @@ test('Kadenzsensor ohne eigenen Dienst: Trittfrequenz über den Leistungsdienst'
   expect(req.filters.some(f => f.namePrefix === 'Wahoo')).toBe(true);
   expect(problems).toEqual([]);
 });
+
+test('FTP-Test: Rampe bis zur Erschöpfung, Ergebnis übernehmen', async ({ page }) => {
+  test.setTimeout(90_000);
+  const problems = await open(page);
+  await connectTrainer(page);
+  await expect(page.locator('#ftpNow')).toHaveText('FTP 200 W');
+  await fake(page, () => { window.__fakeBle.maxPower = 200; }); // mehr geht nicht
+  await page.click('#btnFtpTest');
+  await page.clock.runFor(3100); // Countdown
+  await expect(page.locator('#full')).toBeVisible();
+  await page.clock.runFor(30_000);
+  expect(await fake(page, () => window.__fakeBle.ergTarget)).toBe(100); // Start bei 50 % FTP
+  await expect(page.locator('#fRampT')).toContainText('Stufe 1 · 100 W');
+  await page.clock.runFor(120_000);
+  expect(await fake(page, () => window.__fakeBle.ergTarget)).toBe(140); // nach 2:30 dritte Stufe
+  await expect(page.locator('#fGhost')).toBeHidden(); // beim Test fährt niemand mit
+  await page.clock.runFor(380_000); // bis Stufe 260 W, die er nicht mehr schafft
+  expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('FTP-Test geschafft: 150 W');
+  await expect(page.locator('#fRampT')).toContainText('FTP ≈ 150 W');
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="save"]');
+  const sum = page.locator('#dlgSum');
+  await expect(sum.locator('h2')).toHaveText('FTP-Test geschafft');
+  await expect(sum).toContainText('Deine FTP: 150 W');
+  await page.click('#sumFtp');
+  expect(await page.evaluate(() => S.set.ftp)).toBe(150);
+  expect(await page.evaluate(() => S.rides.find(r => r.ftpTest).name)).toBe('FTP-Test');
+  expect(problems).toEqual([]);
+});

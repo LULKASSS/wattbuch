@@ -13,6 +13,7 @@
  *   requests                      Filter aller requestDevice-Aufrufe
  *   fail = {name, message}        requestDevice schlägt so fehl
  *   cdViaPower = true             Kadenzsensor nur mit Leistungsdienst (vor dem Verbinden setzen)
+ *   maxPower                      mehr schafft der Fahrer nicht (z. B. für den FTP-Test)
  */
 (() => {
   const SVC = { ftms: 0x1826, cps: 0x1818, hr: 0x180d, csc: 0x1816 };
@@ -91,7 +92,7 @@
     return { [SVC.ftms]: new Service(SVC.ftms, chars) };
   });
   trainer._send = function () {
-    const v = F.vals, pow = F.ergTarget != null ? F.ergTarget : v.power;
+    const v = F.vals, pow = Math.min(F.ergTarget != null ? F.ergTarget : v.power, F.maxPower ?? Infinity);
     const spd = Math.round(v.speed * 100), cad = Math.round(v.cad * 2), p = Math.round(pow) & 0xffff;
     const flags = 0x04 | 0x40 | 0x200; /* Tempo (Bit 0 = 0), Trittfrequenz, Leistung, Puls */
     this.ibd.emit([flags & 255, flags >> 8, spd & 255, spd >> 8, cad & 255, cad >> 8, p & 255, p >> 8, v.hr & 255]);

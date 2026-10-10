@@ -113,6 +113,12 @@
           </div>
         </div>
 
+        <div class="card" id="ftpCard">
+          <div class="card-h" style="margin-bottom:8px"><h3>FTP-Test</h3><span class="tag acc" id="ftpNow">FTP 200 W</span></div>
+          <p class="ftp-note">Rampentest: Die Rolle erhöht jede Minute um 20 W, bis es nicht mehr geht. Meist 15–25 min. Deine FTP sind 75 % der besten Minute.</p>
+          <button type="button" class="btn sm" id="btnFtpTest">Test starten</button>
+        </div>
+
         <div class="card erg off" id="ergCard">
           <div class="erg-h">
             <h3>Zielleistung</h3>
@@ -144,6 +150,8 @@
     <div class="frow"><label for="setBike">Rad</label><div class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
     <div><button type="button" class="qb" id="ftpEst"></button></div>
     <div class="sep"></div>
+    <div class="sv" id="svBox"></div>
+    <div class="sep"></div>
     <div class="dlg-row">
       <button type="button" class="btn sm" id="bkExp">Sicherung speichern</button>
       <button type="button" class="btn sm" id="bkImp">Datei laden</button>
@@ -164,6 +172,7 @@
     <div class="f-tr">
       <div class="f-r"><span class="f-time" id="fTime">0:00</span><button type="button" class="f-x" id="fClose" aria-label="Zur Übersicht (Esc)" title="Übersicht (Esc)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
       <div class="f-ghost" id="fGhost" hidden><i></i><span id="fGhostT"></span></div>
+      <div class="f-ramp" id="fRamp" hidden><span id="fRampT"></span><span class="f-ramp-bar"><i id="fRampBar"></i></span></div>
     </div>
   </div>
   <div class="f-hud">
@@ -210,6 +219,8 @@
 <script src="js/ansichten.js"></script>
 <script src="js/erlebnis.js"></script>
 <script src="js/szene.js"></script>
+<script src="js/ftptest.js"></script>
+<script src="js/strava.js"></script>
 <script src="js/daten.js"></script>
 <script src="js/start.js"></script>
 </body>

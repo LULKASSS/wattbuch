@@ -35,7 +35,7 @@ for (const need of ['<!doctype html>', '<meta charset', 'name="viewport"', '<tit
   if (!html.toLowerCase().includes(need.toLowerCase())) errors.push(`index.html: ${need} fehlt`);
 /* IDs aus dem HTML und aus den Vorlagen in den Scripts (Ansichten werden per innerHTML gebaut) */
 const ids = new Set([...(html + scripts.join('\n')).matchAll(/\bid="([^"$]+)"/g)].map(m => m[1]));
-const dynamicIds = new Set(['zpTxt']); /* werden zur Laufzeit gesetzt */
+const dynamicIds = new Set(['zpTxt', 'sumStrava', 'btnStrava']); /* werden zur Laufzeit gesetzt */
 const used = new Set([...scripts.join('\n').matchAll(/\$\(\s*'#([\w-]+)'(?!\s*\+)/g)].map(m => m[1])); /* nur feste IDs, keine zusammengesetzten */
 for (const id of used) if (!ids.has(id) && !dynamicIds.has(id)) errors.push(`#${id} wird im Script benutzt, steht aber nicht im HTML`);
 const dupes = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]).filter((v, i, a) => a.indexOf(v) !== i);

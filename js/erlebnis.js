@@ -50,7 +50,7 @@ function momReset(){
 /* Läuft jede Sekunde während der Aufnahme (aus tick) */
 function checkMoments(){
   const M=S.mom,R=S.rec;if(!M)return;
-  paceCheck();
+  paceCheck();rampTick();
   const p=R.p,n=p.length;
   if(M.best)for(const[d,l]of PB_DURS){
     if(n<d||M.pb[d])continue;
@@ -72,6 +72,7 @@ function checkMoments(){
 /* Zusammenfassung nach dem Speichern */
 function showSummary(r){
   closeFull();S.pace=null;
+  const ft=rampSummary(r);
   const s=stats(r),M=S.mom||{pb:{},log:[]},dlg=$('#dlgSum');
   const prev=S.rides.filter(x=>!x.sample&&x.id!==r.id);
   const before=prev.length?bestsOf(prev):{};
@@ -79,8 +80,9 @@ function showSummary(r){
   const pbs=prev.length?KEY_DURS.filter(d=>d<=s.dur).map(d=>{const w=bestAvg(r.p,d),b=before[d];return(!b||w>b.w)?{d,w,b:b&&b.w}:null;}).filter(Boolean):[];
   const km=r.dist&&r.dist.length?r.dist[r.dist.length-1]/1000:0;
   const zMax=s.zt.indexOf(Math.max(...s.zt));
-  const head=pbs.length?(pbs.length>1?`${pbs.length} neue Bestwerte`:'Neuer Bestwert'):s.IF>=.85?'Stark gefahren':s.IF>=.7?'Gute Einheit':'Locker gerollt';
+  const head=ft?'FTP-Test geschafft':pbs.length?(pbs.length>1?`${pbs.length} neue Bestwerte`:'Neuer Bestwert'):s.IF>=.85?'Stark gefahren':s.IF>=.7?'Gute Einheit':'Locker gerollt';
   const hl=[];
+  if(ft)hl.push(['trophy',`Deine FTP: ${ft.ftp} W`,`75 % deiner besten Minute (${ft.best} W) · höchste Stufe ${ft.peak} W · bisher ${ft.before} W`,'gold']);
   for(const x of pbs)hl.push(['trophy',`Bestwert ${durLbl(x.d)}: ${n0(x.w)} W`,x.b?`+${n0(x.w-x.b)} W gegenüber vorher`:'Erster Wert','gold']);
   hl.push(['bolt',`Meiste Zeit in ${ZONES[zMax].n} ${ZONES[zMax].name}`,`${fmtDur(s.zt[zMax])} · ${n0(s.zt[zMax]/s.dur*100)} %`]);
   const snack=SNACK.filter(([k])=>k<=s.kj).pop();if(snack)hl.push(['bolt',`${n0(s.kj)} kJ Arbeit`,`Verbrannt hast du ${snack[1]}`]);
@@ -94,13 +96,16 @@ function showSummary(r){
     <div class="sum-t">${tiles.map(([l,v,u,k])=>`<div><span class="lbl">${l}</span><b ${k?`data-to="${v}" data-dec="${k===2?1:0}"`:''}>${k?0:v}</b>${u?`<small>${u}</small>`:''}</div>`).join('')}</div>
     <div class="sum-z">${s.zt.map((t,i)=>t?`<i style="flex:${t};--zc:var(--z${i+1})" title="${ZONES[i].n}"></i>`:'').join('')}</div>
     <ul class="sum-l">${hl.map(([ic,t,sub,k],i)=>`<li class="${k||''}" style="--i:${i}"><span class="mi">${ico(ic)}</span><span><b>${esc(t)}</b><span>${esc(sub)}</span></span></li>`).join('')}</ul>
-    <div class="sum-f"><button type="button" class="btn" id="sumStrava">Für Strava exportieren</button><span class="spacer"></span><button type="button" class="btn primary" id="sumOk">Details ansehen</button></div>
+    <div class="sum-f">${ft&&ft.ftp!==S.set.ftp?`<button type="button" class="btn primary" id="sumFtp">FTP auf ${ft.ftp} W setzen</button>`:''}${stravaBtn(r,'sumStrava')}<span class="spacer"></span><button type="button" class="btn primary" id="sumOk">Details ansehen</button></div>
   </div>`;
   dlg.showModal();
   $$('[data-to]',dlg).forEach(el=>{const to=+el.dataset.to,dec=+el.dataset.dec;anim(1100,k=>{el.textContent=dec?F1.format(to*k):F0.format(Math.round(to*k));});});
   if(pbs.length)confetti(dlg);
   $('#sumOk').onclick=()=>dlg.close();
-  $('#sumStrava').onclick=()=>{download(tcx(r),`wattbuch-${r.start.slice(0,10)}.tcx`,'application/vnd.garmin.tcx+xml');window.open('https://www.strava.com/upload/select','_blank','noopener');};
+  if(ft&&$('#sumFtp'))$('#sumFtp').onclick=e=>{setFtp(ft.ftp);renderFtpCard();toast(`FTP auf ${ft.ftp} W gesetzt`);e.target.remove();};
+  $('#sumStrava').dataset.ride=r.id;
+  /* automatisch hochladen, wenn eingeschaltet */
+  if(S.set.stravaAuto&&SV()&&S.strava.connected)stravaUpload(r);
 }
 
 /* Kleines Konfetti in Akzentfarben, nur bei neuen Bestwerten, respektiert „weniger Bewegung“ */

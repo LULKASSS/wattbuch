@@ -9,6 +9,7 @@ const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 
 const { createUpdater } = require('./update');
+const { createStrava } = require('./strava');
 const ROOT = path.join(__dirname, '..');
 /* Woher Updates kommen; in Tests per WATTBUCH_UPDATE_URL umgelenkt, WATTBUCH_UPDATE=0 schaltet ab */
 const UPDATE_URL = process.env.WATTBUCH_UPDATE_URL || 'https://lulkasss.github.io/wattbuch';
@@ -164,6 +165,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('backup:latest', () => readBackup());
   ipcMain.handle('backup:dir', () => backupDir);
   ipcMain.handle('import:pending', () => pendingImports());
+  /* Strava: in Tests per WATTBUCH_STRAVA_URL auf einen Prüfserver, Browser-Aufruf landet dann in global.__stravaAuth */
+  const strava = createStrava({
+    dataDir: app.getPath('userData'), baseUrl: process.env.WATTBUCH_STRAVA_URL || 'https://www.strava.com', log: m => console.log(m),
+    openBrowser: process.env.WATTBUCH_STRAVA_URL ? url => { global.__stravaAuth = url; } : url => shell.openExternal(url)
+  });
+  const wrap = fn => async (_e, arg) => { try { return { ok: true, ...(await fn(arg)) }; } catch (e) { return { ok: false, error: e.message }; } };
+  ipcMain.handle('strava:status', wrap(() => strava.status()));
+  ipcMain.handle('strava:setup', wrap(a => strava.setup(a)));
+  ipcMain.handle('strava:connect', wrap(() => strava.connect()));
+  ipcMain.handle('strava:disconnect', wrap(() => strava.disconnect()));
+  ipcMain.handle('strava:upload', wrap(a => strava.upload(a)));
   ipcMain.handle('import:done', (_e, names) => importsDone(names));
 
   /* Beim Start kurz (max. 3 s) auf ein Update warten, damit gleich die neueste Fassung erscheint */

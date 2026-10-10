@@ -147,3 +147,63 @@ test('Geräteauswahl hängt nicht, wenn die Seite während einer Suche neu lädt
   expect(await app.evaluate(() => global.__picked)).toEqual(['', 'd1']);
   await app.close();
 });
+
+/* Nachgebauter Strava-Server: Anmeldung, Token, Upload mit Verarbeitung */
+async function fakeStrava() {
+  const http = require('node:http');
+  const seen = { uploads: [], tokens: [] };
+  const srv = http.createServer((req, res) => {
+    let body = []; req.on('data', d => body.push(d)); req.on('end', () => {
+      body = Buffer.concat(body).toString('utf8');
+      const u = new URL(req.url, 'http://x'), send = o => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(o)); };
+      if (u.pathname === '/oauth/token') { seen.tokens.push(body); return send({ access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Lukas', lastname: 'R.' } }); }
+      if (u.pathname === '/api/v3/uploads' && req.method === 'POST') { seen.uploads.push({ auth: req.headers.authorization, body }); return send({ id: 55, id_str: '55', status: 'Your activity is still being processed.' }); }
+      if (u.pathname === '/api/v3/uploads/55') return send({ id: 55, id_str: '55', activity_id: 987654321, status: 'Your activity is ready.' });
+      res.statusCode = 404; res.end();
+    });
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  return { url: `http://127.0.0.1:${srv.address().port}`, seen, close: () => srv.close() };
+}
+
+test('Strava: verbinden und Fahrt hochladen', async () => {
+  test.setTimeout(60_000);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-strava-'));
+  const sv = await fakeStrava();
+  const app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_STRAVA_URL: sv.url });
+  const page = await app.firstWindow();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  // Zugangsdaten eintragen (ausgedachte Testwerte)
+  await page.click('#btnSet');
+  await expect(page.locator('#svBox')).toContainText('strava.com/settings/api');
+  await page.fill('#svId', '12345');
+  await page.fill('#svSecret', 'a'.repeat(40));
+  await page.click('#svSave');
+  // Strava würde jetzt im Browser fragen – wir folgen der Rückleitung wie der Browser
+  const auth = await expect.poll(() => app.evaluate(() => global.__stravaAuth || null)).not.toBeNull().then(() => app.evaluate(() => global.__stravaAuth));
+  const q = new URL(auth).searchParams;
+  expect(q.get('client_id')).toBe('12345');
+  expect(q.get('scope')).toContain('activity:write');
+  const back = await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=read,activity:write`);
+  expect(await back.text()).toContain('Mit Strava verbunden');
+  await expect(page.locator('#svBox')).toContainText('Verbunden als Lukas R.');
+  expect(sv.seen.tokens[0]).toContain('testcode');
+  // Zugang liegt nur für den eigenen Benutzer lesbar im App-Datenordner
+  const st = fs.statSync(path.join(dir, 'profil', 'strava.json'));
+  expect(st.mode & 0o077).toBe(0);
+  await page.click('#dlgSet .dlg-foot button');
+  // Fahrt laden und hochladen
+  const ride = { id: 'u1', start: '2026-10-09T17:30:00.000Z', name: 'Rollentraining am Abend', p: Array(600).fill(150), hr: Array(600).fill(130), cad: Array(600).fill(88), spd: null, dist: Array.from({ length: 600 }, (_, i) => i * 8), alt: null };
+  await page.setInputFiles('#anyFile', { name: 'f.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ app: 'wattbuch', rides: [ride] })) });
+  await page.evaluate(() => { S.detail = 'u1'; go('detail'); });
+  await page.click('#btnStrava');
+  await expect(page.locator('#btnStrava')).toHaveText('Auf Strava ansehen', { timeout: 15000 });
+  await expect(page.locator('#btnStrava')).toHaveAttribute('href', 'https://www.strava.com/activities/987654321');
+  const up = sv.seen.uploads[0];
+  expect(up.auth).toBe('Bearer testzugang');
+  for (const s of ['name="data_type"', 'tcx', 'name="trainer"', 'Rollentraining am Abend', '<ns3:Watts>150</ns3:Watts>', 'wattbuch-u1']) expect(up.body).toContain(s);
+  expect(await page.evaluate(() => S.rides.find(r => r.id === 'u1').strava.state)).toBe('ok');
+  await app.close();
+  sv.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});

@@ -21,7 +21,7 @@ function go(v,instant){
   },170);
 }
 function renderView(v){
-  if(v==='live'){renderControls();renderErg();renderZoneBar();renderRoutes();}
+  if(v==='live'){renderControls();renderErg();renderZoneBar();renderRoutes();if(typeof renderFtpCard==='function')renderFtpCard();}
   if(v==='rides')renderRides();
   if(v==='detail')renderDetail();
   if(v==='best')renderBest();
@@ -148,7 +148,7 @@ function renderRides(){
     ${list.length?list.map(r=>{const s=stats(r);return`
     <button type="button" class="row" data-ride="${r.id}">
       <span class="d"><b>${fmtDate(r.start).split(' ').slice(1).join(' ')}</b><span>${WD[new Date(r.start).getDay()]} · ${fmtTime(r.start)}</span></span>
-      <span class="nm">${esc(r.name)}${r.sample?'<span class="tag">Beispiel</span>':''}</span>
+      <span class="nm">${esc(r.name)}${r.sample?'<span class="tag">Beispiel</span>':''}${r.strava&&r.strava.state==='ok'?'<span class="tag strava">Strava</span>':''}${r.ftpTest?'<span class="tag acc">FTP '+r.ftpTest.ftp+' W</span>':''}</span>
       <span class="m"><span class="lbl">Dauer</span><b>${fmtDur(s.dur)}</b></span>
       <span class="m"><span class="lbl">Ø Watt</span><b>${n0(s.avg)}</b></span>
       <span class="m np"><span class="lbl">NP</span><b>${n0(s.np)}</b></span>
@@ -170,7 +170,7 @@ function renderDetail(){
   const km=r.dist&&r.dist.length?r.dist[r.dist.length-1]/1000:null;
   if(km){kv.push(['Distanz',n1(km),'km'],['Ø Tempo',n1(km/(s.dur/3600)),'km/h'],['Höhenmeter',n0(r.gain||0),'m'],['Ø Trittfrequenz',n0(s.cadAvg),s.cadAvg?'rpm':'']);}
   v.innerHTML=`
-  <div class="crumb"><button type="button" class="lnk" data-go="rides">Fahrten</button><span>/</span><span>${fmtDate(r.start)} · ${fmtTime(r.start)}</span>${r.sample?'<span class="tag">Beispiel</span>':''}${r.route?`<span class="tag acc">${esc(r.route)}</span>`:''}</div>
+  <div class="crumb"><button type="button" class="lnk" data-go="rides">Fahrten</button><span>/</span><span>${fmtDate(r.start)} · ${fmtTime(r.start)}</span>${r.sample?'<span class="tag">Beispiel</span>':''}${r.route?`<span class="tag acc">${esc(r.route)}</span>`:''}${r.strava&&r.strava.state==='ok'?'<span class="tag strava">Strava</span>':''}</div>
   <input class="title-in" id="rideName" value="${esc(r.name)}" aria-label="Name der Fahrt" autocomplete="off">
   <div class="card hero">
     <div>
@@ -204,6 +204,7 @@ function renderDetail(){
       </div>
     </div>
     <div class="acts">
+      ${stravaBtn(r,'btnStrava')}
       <button type="button" class="btn" id="btnTcx">Als TCX speichern</button>
       <span class="spacer"></span>
       <button type="button" class="btn ghost warn" id="btnDel">Fahrt löschen</button>

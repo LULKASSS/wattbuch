@@ -74,6 +74,7 @@ const SCV={alp:0,vp:null,gap:null,lastT:0,riding:false,pw:0,zc:null,g:0}; /* geg
 
 /* Geist: beste frühere Fahrt auf dieser Strecke, sonst Schrittmacher mit 75 % FTP */
 function paceReset(){
+  if(S.ramp){S.pace=null;return;} /* beim FTP-Test fährt niemand mit */
   const rt=activeRoute(),ftp=S.set.ftp;
   const prev=rt?S.rides.filter(r=>!r.sample&&r.route===rt.name&&r.dist&&r.dist.length>30):[];
   const best=prev.sort((a,b)=>b.dist[b.dist.length-1]/b.dist.length-a.dist[a.dist.length-1]/a.dist.length)[0];
@@ -129,7 +130,7 @@ function drawScene(c,opt={}){
   const zcT=hex2(GLOW[pw&&pw>0?zoneIdx(pw,ftp):0]);SCV.zc=SCV.zc?lerp3(SCV.zc,zcT,ease(.9)):zcT;const zc=SCV.zc;
   const D=dayAt(rideMin()),t0=trackAt(rt,pos);
   SCV.g+=((rt&&riding?gradeAt(rt,rt.loop?pos%rt.dist:Math.min(pos,rt.dist))/100:0)-SCV.g)*ease(2);const g0=SCV.g;
-  const hy=H*(opt.back?.5:.42),F=Math.max(W,H*1.5)*.62,camY=1.7;
+  const hy=H*(opt.back?.5:.42),F=Math.max(W,H*1.5)*.62,camY=1.45; /* etwas tiefer: Boden und Striche ziehen schneller vorbei */
   const horA=lerp3(D.hor,zc,D.zm*(pw?1:.4)),fogC=horA;
   /* Alpen-Anteil weich überblenden */
   const alpT=biomeAt(rt,pos+600,rt?trackAt(rt,pos+600).e:0)==='alpen'?1:0;SCV.alp+=(alpT-SCV.alp)*Math.min(1,dt*.8);
@@ -190,9 +191,9 @@ function drawScene(c,opt={}){
   for(let k=0;k<NP;k++){
     if(!vis[k]||!vis[k+1])continue;
     const A=P[k],B=P[k+1],len=B.s-A.s;if(len<=0)continue;
-    /* Strich auf [20n, 20n+10) Metern, angeschnittene Stücke an den Segmentgrenzen mitnehmen */
-    for(let d0=Math.floor(A.s/20)*20;d0<B.s;d0+=20){
-      const u0=Math.max(A.s,d0),u1=Math.min(B.s,d0+10);if(u1<=u0)continue;
+    /* Strich auf [12n, 12n+4) Metern (4 m Strich, 8 m Lücke), angeschnittene Stücke an den Segmentgrenzen mitnehmen */
+    for(let d0=Math.floor(A.s/12)*12;d0<B.s;d0+=12){
+      const u0=Math.max(A.s,d0),u1=Math.min(B.s,d0+4);if(u1<=u0)continue;
       /* Nah vor dir blendet der Strich aus: dort springen seine Enden bei Tempo zig Pixel pro Bild
          und das Auge sieht ein Stroboskop statt Bewegung (je schneller, desto schlimmer) */
       const a=at3(A,B,(u0-A.s)/len),b=at3(A,B,(u1-A.s)/len),fz=Math.min(1,A.z/far),near=clamp((A.z-14)/26,0,1);
@@ -375,6 +376,7 @@ function renderFull(){
   const P=S.pace,gEl=$('#fGhost');
   if(P&&R.state!=='idle'){const gap=P.total-S.sim.total;gEl.hidden=false;gEl.className='f-ghost'+(gap>0?'':' behind');setT('fGhostT',`${P.name} · ${gap>0?n0(gap)+' m vor dir':n0(-gap)+' m hinter dir'}`);}
   else gEl.hidden=true;
+  renderRamp();
   /* Zielleistung direkt in der Fahrt-Ansicht */
   $('#fErg').classList.toggle('on',S.erg.on);setT('fErgW',S.erg.on?`${Math.round(S.erg.target)} W`:'Aus');
 }

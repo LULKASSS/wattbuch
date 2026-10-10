@@ -22,7 +22,7 @@ function askEnd(){if(S.rec.state==='rec')pauseRec();S.rec.state='confirm';render
 function backFromEnd(){S.rec.state='pause';renderControls();}
 function makeRide(d){
   const any=a=>a&&a.some(v=>v>0);
-  return{id:'r'+Date.parse(d.startISO)+Math.random().toString(36).slice(2,6),start:d.startISO,name:d.route||'Rollentraining',
+  return{id:'r'+Date.parse(d.startISO)+Math.random().toString(36).slice(2,6),start:d.startISO,name:rideName(d.startISO,d.route),
     p:d.p.slice(),hr:any(d.hr)?d.hr.slice():null,cad:any(d.cad)?d.cad.slice():null,spd:any(d.spd)?d.spd.slice():null,
     dist:any(d.dist)?d.dist.slice():null,alt:d.alt&&d.alt.some(v=>v!=null)?d.alt.slice():null,route:d.route||null,gain:d.gain||0,
     ftp:S.set.ftp,weight:S.set.weight};

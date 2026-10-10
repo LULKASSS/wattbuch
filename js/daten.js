@@ -42,6 +42,7 @@ async function importData(d){
 async function saveSet(){await DB.set('settings',S.set);}
 function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();$('#setFtp').value=S.set.ftp;renderErg();}
 function openSet(){
+  if(typeof stravaRefresh==='function'){renderStravaSet();stravaRefresh();}
   $('#setFtp').value=S.set.ftp;$('#setKg').value=String(S.set.weight).replace('.',',');$('#setBike').value=String(S.set.bike).replace('.',',');
   const b=bestsOf(aggRides())[1200],e=$('#ftpEst');
   if(b){const est=Math.round(b.w*.95);e.innerHTML=`Aus bestem 20-min-Wert<b>${est} W</b>`;e.disabled=false;e.onclick=()=>{setFtp(est);toast(`FTP auf ${est} W gesetzt`);};}
