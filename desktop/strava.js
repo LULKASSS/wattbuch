@@ -1,14 +1,17 @@
 /* Strava für die Mac-App: Fahrten hochladen und die eigenen Fahrten lesen (Import nach Wattbuch).
- * Lukas legt einmalig unter strava.com/settings/api eine eigene API-App an und trägt Client-ID und
- * Client-Secret in Wattbuch ein. Beides und die Zugangs-Token liegen nur im App-Datenordner (strava.json,
- * nur für den eigenen Benutzer lesbar) – nie im Repo, nie in der Webseite.
+ * Normalfall: alle nutzen Wattbuchs gemeinsame Strava-App (CENTRAL). Deren Secret liegt nur in der Supabase Edge Function
+ * strava-token (supabase/functions), die Code bzw. Erneuerungs-Token gegen Zugangs-Token tauscht. Gemeinsam heißt nur
+ * Hochladen (Scope ohne activity:read_all): Stravas Regeln erlauben kein dauerhaftes Speichern von Strava-Daten.
+ * Steht in strava.json ein eigenes Client-Secret (Lukas' alte Einrichtung), läuft alles direkt mit dieser App, inklusive
+ * Übernehmen der eigenen Fahrten. Zugangs-Token liegen nur im App-Datenordner (strava.json, nur für den eigenen Benutzer lesbar).
  * Anmeldung: Browser öffnet Strava, Strava leitet auf http://localhost:<port>/strava zurück. */
 const { net, shell } = require('electron');
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const CENTRAL = { clientId: '286463', tokenUrl: 'https://nysoyxbsdsxdvyknnkbc.supabase.co/functions/v1/strava-token', key: 'sb_publishable_ezMnvUv2bU521KyvyqrD7w_-Lh7TJnx' };
 
-function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser = url => shell.openExternal(url), log = () => {} }) {
+function createStrava({ dataDir, baseUrl = 'https://www.strava.com', tokenUrl = CENTRAL.tokenUrl, openBrowser = url => shell.openExternal(url), log = () => {} }) {
   const file = path.join(dataDir, 'strava.json');
   let cfg = null;
   const load = async () => { if (!cfg) { try { cfg = JSON.parse(await fs.readFile(file, 'utf8')); } catch { cfg = {}; } } return cfg; };
@@ -27,17 +30,20 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
     return data;
   }
   const formOf = obj => { const f = new FormData(); for (const [k, v] of Object.entries(obj)) if (v != null) f.append(k, v); return f; };
+  const own = c => !!(c.clientId && c.clientSecret);
+  /* Token holen: eigene App direkt bei Strava, gemeinsame über die Edge Function */
+  async function grant(c, params) {
+    if (own(c)) return api('POST', '/oauth/token', { form: formOf({ client_id: c.clientId, client_secret: c.clientSecret, ...params }) });
+    const { grant_type, ...rest } = params;
+    const r = await net.fetch(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CENTRAL.key }, body: JSON.stringify(rest) });
+    let data = null; try { data = await r.json(); } catch {}
+    if (!r.ok) { const e = new Error((data && data.error) || `Anmeldedienst antwortet ${r.status}`); e.status = r.status; throw e; }
+    return data;
+  }
 
   async function status() {
     const c = await load();
-    return { configured: !!(c.clientId && c.clientSecret), connected: !!c.refresh, athlete: c.athlete || null, canRead: /activity:read/.test(c.scope || '') };
-  }
-  async function setup({ clientId, clientSecret }) {
-    const id = String(clientId || '').trim(), secret = String(clientSecret || '').trim();
-    if (!/^\d{2,10}$/.test(id)) throw new Error('Client-ID besteht nur aus Ziffern');
-    if (!/^[0-9a-f]{20,64}$/i.test(secret)) throw new Error('Client-Secret sieht nicht richtig aus (lange Zeichenfolge aus 0–9 und a–f)');
-    await load(); cfg = { clientId: id, clientSecret: secret }; await save();
-    return status();
+    return { configured: true, central: !own(c), connected: !!c.refresh, athlete: c.athlete || null, canRead: /activity:read/.test(c.scope || '') };
   }
 
   /* Anmeldung über den Browser, wartet bis zu 5 min auf die Rückleitung */
@@ -46,7 +52,6 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
     if (pending) return pending;
     pending = (async () => {
       const c = await load();
-      if (!c.clientId || !c.clientSecret) throw new Error('Erst Client-ID und Client-Secret eintragen');
       const state = Math.random().toString(36).slice(2);
       const { code, scope, server } = await new Promise((resolve, reject) => {
         let srv6 = null;
@@ -66,14 +71,14 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
         srv.listen(0, '127.0.0.1', () => {
           const port = srv.address().port;
           srv6 = http.createServer(handler);srv6.on('error', () => {});srv6.listen(port, '::1');
-          const url = `${baseUrl}/oauth/authorize?` + new URLSearchParams({ client_id: c.clientId, response_type: 'code', redirect_uri: `http://localhost:${port}/strava`, approval_prompt: 'auto', scope: 'read,activity:write,activity:read_all', state });
+          const url = `${baseUrl}/oauth/authorize?` + new URLSearchParams({ client_id: own(c) ? c.clientId : CENTRAL.clientId, response_type: 'code', redirect_uri: `http://localhost:${port}/strava`, approval_prompt: 'auto', scope: own(c) ? 'read,activity:write,activity:read_all' : 'read,activity:write', state });
           Promise.resolve(openBrowser(url)).catch(reject);
         });
         setTimeout(() => reject(Object.assign(new Error('Keine Antwort von Strava (5 min)'), { server: both })), 5 * 60000);
       }).catch(e => { if (e.server) e.server.close(); throw e; });
       server.close();
-      const tok = await api('POST', '/oauth/token', { form: formOf({ client_id: c.clientId, client_secret: c.clientSecret, code, grant_type: 'authorization_code' }) });
-      cfg = { ...c, scope, access: tok.access_token, refresh: tok.refresh_token, expires: tok.expires_at, athlete: tok.athlete ? { id: tok.athlete.id, name: [tok.athlete.firstname, tok.athlete.lastname].filter(Boolean).join(' ') } : null };
+      const tok = await grant(c, { code, grant_type: 'authorization_code' });
+      cfg = { clientId: c.clientId, clientSecret: c.clientSecret, scope, access: tok.access_token, refresh: tok.refresh_token, expires: tok.expires_at, athlete: tok.athlete ? { id: tok.athlete.id, name: [tok.athlete.firstname, tok.athlete.lastname].filter(Boolean).join(' ') } : null };
       await save();
       log('Strava verbunden');
       return status();
@@ -85,7 +90,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
     const c = await load();
     if (!c.refresh) throw new Error('Nicht mit Strava verbunden');
     if (!c.access || (c.expires || 0) * 1000 < Date.now() + 120000) {
-      const tok = await api('POST', '/oauth/token', { form: formOf({ client_id: c.clientId, client_secret: c.clientSecret, grant_type: 'refresh_token', refresh_token: c.refresh }) });
+      const tok = await grant(c, { grant_type: 'refresh_token', refresh_token: c.refresh });
       cfg = { ...c, access: tok.access_token, refresh: tok.refresh_token || c.refresh, expires: tok.expires_at };
       await save();
     }
@@ -95,7 +100,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
   async function disconnect() {
     const c = await load();
     try { if (c.access) await api('POST', '/oauth/deauthorize', { token: c.access }); } catch {}
-    cfg = { clientId: c.clientId, clientSecret: c.clientSecret }; await save();
+    cfg = own(c) ? { clientId: c.clientId, clientSecret: c.clientSecret } : {}; await save();
     return status();
   }
 
@@ -132,7 +137,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
     return { streams: await api('GET', `/api/v3/activities/${id}/streams?keys=${keys}&key_by_type=true`, { token: await token() }) };
   }
 
-  return { status, setup, connect, disconnect, upload, activities, streams };
+  return { status, connect, disconnect, upload, activities, streams };
 }
 
 module.exports = { createStrava };

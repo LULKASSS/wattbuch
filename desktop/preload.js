@@ -11,7 +11,6 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
   onUpdate: cb => ipcRenderer.on('update:ready', (_e, v) => cb(v)),
   strava: {
     status: () => ipcRenderer.invoke('strava:status'),
-    setup: (clientId, clientSecret) => ipcRenderer.invoke('strava:setup', { clientId, clientSecret }),
     connect: () => ipcRenderer.invoke('strava:connect'),
     disconnect: () => ipcRenderer.invoke('strava:disconnect'),
     upload: ride => ipcRenderer.invoke('strava:upload', ride),

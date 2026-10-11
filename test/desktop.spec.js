@@ -150,14 +150,16 @@ test('Geräteauswahl hängt nicht, wenn die Seite während einer Suche neu lädt
   await app.close();
 });
 
-/* Nachgebauter Strava-Server: Anmeldung, Token, Upload mit Verarbeitung */
+/* Nachgebauter Strava-Server: Anmeldung, Token, Upload mit Verarbeitung. Spielt auch die Edge Function strava-token (gemeinsame App) */
 async function fakeStrava() {
   const http = require('node:http');
-  const seen = { uploads: [], tokens: [], lists: [], streams: [] };
+  const seen = { uploads: [], tokens: [], central: [], lists: [], streams: [] };
   const srv = http.createServer((req, res) => {
     let body = []; req.on('data', d => body.push(d)); req.on('end', () => {
       body = Buffer.concat(body).toString('utf8');
       const u = new URL(req.url, 'http://x'), send = o => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(o)); };
+      const tok = { access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Lukas', lastname: 'R.' } };
+      if (u.pathname === '/functions/v1/strava-token') { seen.central.push({ apikey: req.headers.apikey, body: JSON.parse(body) }); return send(tok); }
       if (u.pathname === '/oauth/token') { seen.tokens.push(body); return send({ access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Lukas', lastname: 'R.' } }); }
       if (u.pathname === '/api/v3/uploads' && req.method === 'POST') { seen.uploads.push({ auth: req.headers.authorization, body }); return send({ id: 55, id_str: '55', status: 'Your activity is still being processed.' }); }
       if (u.pathname === '/api/v3/uploads/55') return send({ id: 55, id_str: '55', activity_id: 987654321, status: 'Your activity is ready.' });
@@ -194,24 +196,34 @@ test('Strava: verbinden und Fahrt hochladen', async () => {
   test.setTimeout(60_000);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-strava-'));
   const sv = await fakeStrava();
-  const app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_STRAVA_URL: sv.url });
-  const page = await app.firstWindow();
+  let app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_STRAVA_URL: sv.url });
+  let page = await app.firstWindow();
   await expect(page.locator('#v-live')).toHaveClass(/active/);
-  // Zugangsdaten eintragen (ausgedachte Testwerte)
+  // Gemeinsame Strava-App: nichts eintragen, nur verbinden
   await page.click('#btnSet');
-  await expect(page.locator('#svBox')).toContainText('strava.com/settings/api');
-  await page.fill('#svId', '12345');
-  await page.fill('#svSecret', 'a'.repeat(40));
-  await page.click('#svSave');
+  await expect(page.locator('#svBox input')).toHaveCount(0);
+  await page.click('#svConnect');
   // Strava würde jetzt im Browser fragen – wir folgen der Rückleitung wie der Browser
   const auth = await expect.poll(() => app.evaluate(() => global.__stravaAuth || null)).not.toBeNull().then(() => app.evaluate(() => global.__stravaAuth));
   const q = new URL(auth).searchParams;
-  expect(q.get('client_id')).toBe('12345');
-  expect(q.get('scope')).toContain('activity:write');
+  expect(q.get('client_id')).toBe('286463');
+  expect(q.get('scope')).toBe('read,activity:write'); // nur hochladen, Strava-Daten werden nicht gespeichert
   const back = await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=read,activity:write`);
   expect(await back.text()).toContain('Mit Strava verbunden');
   await expect(page.locator('#svBox')).toContainText('Verbunden als Lukas R.');
-  expect(sv.seen.tokens[0]).toContain('testcode');
+  // Token-Tausch über die Edge Function, ohne Secret in der App
+  expect(sv.seen.central).toEqual([{ apikey: expect.stringMatching(/^sb_publishable_/), body: { code: 'testcode' } }]);
+  expect(sv.seen.tokens).toEqual([]);
+  expect(fs.readFileSync(path.join(dir, 'profil', 'strava.json'), 'utf8')).not.toContain('clientSecret');
+  await expect(page.locator('#svInSt')).toHaveCount(0);
+  await expect(page.locator('#svBox')).not.toContainText('Neu verbinden');
+  await app.close();
+  // Zugang abgelaufen: beim Neustart erneuert die Edge Function ihn
+  const cf = path.join(dir, 'profil', 'strava.json');
+  fs.writeFileSync(cf, JSON.stringify({ ...JSON.parse(fs.readFileSync(cf, 'utf8')), expires: 0 }));
+  app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_STRAVA_URL: sv.url });
+  page = await app.firstWindow();
+  await page.click('#btnSet');
   // Zugang liegt nur für den eigenen Benutzer lesbar im App-Datenordner
   const st = fs.statSync(path.join(dir, 'profil', 'strava.json'));
   expect(st.mode & 0o077).toBe(0);
@@ -225,6 +237,7 @@ test('Strava: verbinden und Fahrt hochladen', async () => {
   await expect(page.locator('#btnStrava')).toHaveAttribute('href', 'https://www.strava.com/activities/987654321');
   const up = sv.seen.uploads[0];
   expect(up.auth).toBe('Bearer testzugang');
+  expect(sv.seen.central[1].body).toEqual({ refresh_token: 'testerneuern' });
   for (const s of ['name="data_type"', 'tcx', 'name="trainer"', 'Rollentraining am Abend', '<ns3:Watts>150</ns3:Watts>', 'wattbuch-u1']) expect(up.body).toContain(s);
   expect(await page.evaluate(() => S.rides.find(r => r.id === 'u1').strava.state)).toBe('ok');
   await app.close();
@@ -236,18 +249,22 @@ test('Strava: alle Fahrten übernehmen, mit und ohne Wattmesser', async () => {
   test.setTimeout(60_000);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-strava-in-'));
   const sv = await fakeStrava();
+  // Eigene Strava-App (Lukas' alte Einrichtung, ausgedachte Testwerte): direkt bei Strava, mit Übernehmen
+  fs.mkdirSync(path.join(dir, 'profil'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'profil', 'strava.json'), JSON.stringify({ clientId: '12345', clientSecret: 'b'.repeat(40) }), { mode: 0o600 });
   const app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_STRAVA_URL: sv.url });
   const page = await app.firstWindow();
   await expect(page.locator('#v-live')).toHaveClass(/active/);
   await page.click('#btnSet');
-  await page.fill('#svId', '12345');
-  await page.fill('#svSecret', 'b'.repeat(40));
-  await page.click('#svSave');
+  await page.click('#svConnect');
   const auth = await expect.poll(() => app.evaluate(() => global.__stravaAuth || null)).not.toBeNull().then(() => app.evaluate(() => global.__stravaAuth));
   const q = new URL(auth).searchParams;
+  expect(q.get('client_id')).toBe('12345');
   expect(q.get('scope')).toContain('activity:read_all');
   await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=read,activity:write,activity:read_all`);
   await expect(page.locator('#svInSt')).toHaveText('2 Fahrten aus Strava in Wattbuch', { timeout: 15000 });
+  expect(sv.seen.tokens[0]).toContain('b'.repeat(40));
+  expect(sv.seen.central).toEqual([]);
   expect(sv.seen.streams.sort()).toEqual(['111', '222']); // Wattbuch-Upload, Wanderung, zu kurz: gar nicht erst geholt
   const rides = await page.evaluate(() => S.rides.filter(r => r.src === 'strava').map(r => ({ id: r.id, noW: !!r.noW, dur: stats(r).dur, p: r.p.length, km: Math.round(r.dist[r.dist.length - 1] / 1000), avg: Math.round(stats(r).avg), strava: r.strava.state })).sort((a, b) => a.id.localeCompare(b.id)));
   expect(rides).toEqual([

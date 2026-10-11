@@ -99,32 +99,19 @@ function renderStravaSet(){
     <label class="chk sm${svAuto()?' on':''}" id="svAutoL"><input type="checkbox" id="svAuto"${svAuto()?' checked':''}><span class="box"></span>Fahrten mit der Rolle automatisch hochladen</label>
     ${typeof svInHTML==='function'?svInHTML():''}
     <div class="dlg-row"><button type="button" class="btn sm ghost" id="svOff">Trennen</button></div>`;
-  else if(st.configured&&!el.dataset.edit)h+=`<p class="ftp-note">Deine Strava-App ist eingetragen. Jetzt einmal verbinden – Strava fragt im Browser nach der Erlaubnis, Fahrten hochzuladen.</p>
-    <div class="dlg-row"><button type="button" class="btn sm primary" id="svConnect">Mit Strava verbinden</button><button type="button" class="lnk" id="svEdit">Zugangsdaten ändern</button></div>`;
-  else h+=`<ol class="sv-steps">
-      <li><a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> öffnen und eine App anlegen</li>
-      <li>Name „Wattbuch“, Website <code>http://localhost</code>, Callback-Domain <code>localhost</code></li>
-      <li>Client-ID und Client-Secret hier eintragen – sie bleiben nur auf diesem Mac</li>
-    </ol>
-    <div class="frow"><label for="svId">Client-ID</label><div class="field left"><input id="svId" inputmode="numeric" autocomplete="off" spellcheck="false"></div></div>
-    <div class="frow"><label for="svSecret">Secret</label><div class="field left"><input id="svSecret" type="password" autocomplete="off" spellcheck="false"></div></div>
-    <div class="dlg-row"><button type="button" class="btn sm primary" id="svSave">Speichern und verbinden</button></div>`;
+  else h+=`<p class="ftp-note">Einmal verbinden: Strava fragt im Browser, ob Wattbuch deine Fahrten hochladen darf. Danach geht jede Fahrt mit der Rolle von selbst hoch.</p>
+    <div class="dlg-row"><button type="button" class="btn sm strava" id="svConnect">Mit Strava verbinden</button></div>`;
   el.innerHTML=h;
 }
 async function stravaConnect(){
-  const sv=SV(),b=$('#svConnect')||$('#svSave');if(b){b.disabled=true;b.textContent='Warte auf Strava im Browser …';}
+  const sv=SV(),b=$('#svConnect');if(b){b.disabled=true;b.textContent='Warte auf Strava im Browser …';}
   const r=await sv.connect();
   if(r.ok){S.strava=r;toast('Mit Strava verbunden');stravaSync();if(typeof stravaImport==='function')stravaImport();}else toast('Strava: '+r.error);
-  delete $('#svBox').dataset.edit;renderStravaSet();
+  renderStravaSet();
 }
 $('#svBox').addEventListener('click',async e=>{
   const sv=SV();if(!sv)return;
-  if(e.target.closest('#svSave')){
-    const r=await sv.setup($('#svId').value,$('#svSecret').value);
-    if(!r.ok){toast(r.error);return;}
-    S.strava=r;stravaConnect();
-  }else if(e.target.closest('#svConnect'))stravaConnect();
-  else if(e.target.closest('#svEdit')){$('#svBox').dataset.edit='1';renderStravaSet();}
+  if(e.target.closest('#svConnect'))stravaConnect();
   else if(e.target.closest('#svOff')){const r=await sv.disconnect();if(r.ok)S.strava=r;renderStravaSet();toast('Von Strava getrennt');}
 });
 $('#svBox').addEventListener('change',e=>{if(e.target.id==='svAuto'){S.set.stravaAuto=e.target.checked;saveSet();$('#svAutoL').classList.toggle('on',svAuto());stravaSync();}});

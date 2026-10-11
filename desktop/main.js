@@ -165,14 +165,14 @@ app.whenReady().then(async () => {
   ipcMain.handle('backup:latest', () => readBackup());
   ipcMain.handle('backup:dir', () => backupDir);
   ipcMain.handle('import:pending', () => pendingImports());
-  /* Strava: in Tests per WATTBUCH_STRAVA_URL auf einen Prüfserver, Browser-Aufruf landet dann in global.__stravaAuth */
+  /* Strava: in Tests per WATTBUCH_STRAVA_URL auf einen Prüfserver (auch für den Token-Tausch), Browser-Aufruf landet dann in global.__stravaAuth */
   const strava = createStrava({
     dataDir: app.getPath('userData'), baseUrl: process.env.WATTBUCH_STRAVA_URL || 'https://www.strava.com', log: m => console.log(m),
+    ...(process.env.WATTBUCH_STRAVA_URL ? { tokenUrl: process.env.WATTBUCH_STRAVA_URL + '/functions/v1/strava-token' } : {}),
     openBrowser: process.env.WATTBUCH_STRAVA_URL ? url => { global.__stravaAuth = url; } : url => shell.openExternal(url)
   });
   const wrap = fn => async (_e, arg) => { try { return { ok: true, ...(await fn(arg)) }; } catch (e) { return { ok: false, error: e.message, status: e.status || 0 }; } };
   ipcMain.handle('strava:status', wrap(() => strava.status()));
-  ipcMain.handle('strava:setup', wrap(a => strava.setup(a)));
   ipcMain.handle('strava:connect', wrap(() => strava.connect()));
   ipcMain.handle('strava:disconnect', wrap(() => strava.disconnect()));
   ipcMain.handle('strava:upload', wrap(a => strava.upload(a)));

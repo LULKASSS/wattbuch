@@ -105,6 +105,7 @@ function svInText(){
 function renderSvIn(){const el=$('#svInSt');if(el)el.textContent=svInText();}
 function svInHTML(){
   const st=S.strava;
+  if(!st.canRead&&st.central)return'';   // gemeinsame Strava-App: nur Hochladen, siehe desktop/strava.js
   if(!st.canRead)return`<p class="ftp-note">Damit Wattbuch deine Strava-Fahrten übernehmen darf, einmal neu verbinden und „Aktivitäten ansehen“ erlauben.</p>
     <div class="dlg-row"><button type="button" class="btn sm primary" id="svConnect">Neu verbinden</button></div>`;
   const on=S.set.stravaIn!==false;
