@@ -1,4 +1,4 @@
-/* Strava-Upload für die Mac-App.
+/* Strava für die Mac-App: Fahrten hochladen und die eigenen Fahrten lesen (Import nach Wattbuch).
  * Lukas legt einmalig unter strava.com/settings/api eine eigene API-App an und trägt Client-ID und
  * Client-Secret in Wattbuch ein. Beides und die Zugangs-Token liegen nur im App-Datenordner (strava.json,
  * nur für den eigenen Benutzer lesbar) – nie im Repo, nie in der Webseite.
@@ -30,7 +30,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
 
   async function status() {
     const c = await load();
-    return { configured: !!(c.clientId && c.clientSecret), connected: !!c.refresh, athlete: c.athlete || null };
+    return { configured: !!(c.clientId && c.clientSecret), connected: !!c.refresh, athlete: c.athlete || null, canRead: /activity:read/.test(c.scope || '') };
   }
   async function setup({ clientId, clientSecret }) {
     const id = String(clientId || '').trim(), secret = String(clientSecret || '').trim();
@@ -48,7 +48,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
       const c = await load();
       if (!c.clientId || !c.clientSecret) throw new Error('Erst Client-ID und Client-Secret eintragen');
       const state = Math.random().toString(36).slice(2);
-      const { code, server } = await new Promise((resolve, reject) => {
+      const { code, scope, server } = await new Promise((resolve, reject) => {
         let srv6 = null;
         const handler = (req, res) => {
           const u = new URL(req.url, 'http://localhost');
@@ -56,7 +56,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
           const ok = u.searchParams.get('state') === state && u.searchParams.get('code') && /activity:write/.test(u.searchParams.get('scope') || '');
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(`<!doctype html><meta charset="utf-8"><title>Wattbuch</title><body style="font:16px system-ui;background:#0c0a16;color:#F1EEFF;display:grid;place-items:center;height:100vh;margin:0"><div style="text-align:center"><h2>${ok ? 'Mit Strava verbunden' : 'Verbindung abgebrochen'}</h2><p>${ok ? 'Du kannst dieses Fenster schließen und zurück zu Wattbuch.' : 'Bitte in Wattbuch erneut verbinden und „Aktivitäten hochladen“ erlauben.'}</p></div>`);
-          if (ok) resolve({ code: u.searchParams.get('code'), server: both });
+          if (ok) resolve({ code: u.searchParams.get('code'), scope: u.searchParams.get('scope') || '', server: both });
           else reject(Object.assign(new Error(u.searchParams.get('error') === 'access_denied' ? 'Bei Strava abgelehnt' : 'Strava hat das Hochladen nicht erlaubt'), { server: both }));
         };
         const srv = http.createServer(handler);
@@ -66,14 +66,14 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
         srv.listen(0, '127.0.0.1', () => {
           const port = srv.address().port;
           srv6 = http.createServer(handler);srv6.on('error', () => {});srv6.listen(port, '::1');
-          const url = `${baseUrl}/oauth/authorize?` + new URLSearchParams({ client_id: c.clientId, response_type: 'code', redirect_uri: `http://localhost:${port}/strava`, approval_prompt: 'auto', scope: 'read,activity:write', state });
+          const url = `${baseUrl}/oauth/authorize?` + new URLSearchParams({ client_id: c.clientId, response_type: 'code', redirect_uri: `http://localhost:${port}/strava`, approval_prompt: 'auto', scope: 'read,activity:write,activity:read_all', state });
           Promise.resolve(openBrowser(url)).catch(reject);
         });
         setTimeout(() => reject(Object.assign(new Error('Keine Antwort von Strava (5 min)'), { server: both })), 5 * 60000);
       }).catch(e => { if (e.server) e.server.close(); throw e; });
       server.close();
       const tok = await api('POST', '/oauth/token', { form: formOf({ client_id: c.clientId, client_secret: c.clientSecret, code, grant_type: 'authorization_code' }) });
-      cfg = { ...c, access: tok.access_token, refresh: tok.refresh_token, expires: tok.expires_at, athlete: tok.athlete ? { id: tok.athlete.id, name: [tok.athlete.firstname, tok.athlete.lastname].filter(Boolean).join(' ') } : null };
+      cfg = { ...c, scope, access: tok.access_token, refresh: tok.refresh_token, expires: tok.expires_at, athlete: tok.athlete ? { id: tok.athlete.id, name: [tok.athlete.firstname, tok.athlete.lastname].filter(Boolean).join(' ') } : null };
       await save();
       log('Strava verbunden');
       return status();
@@ -119,7 +119,19 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
     return { processing: true, uploadId: String(up.id_str || up.id) };
   }
 
-  return { status, setup, connect, disconnect, upload };
+  /* Eigene Aktivitäten lesen (braucht activity:read_all). after = Unix-Sekunden, Seiten zu je 100 */
+  async function activities({ after, page = 1 } = {}) {
+    const q = new URLSearchParams({ per_page: '100', page: String(page) });
+    if (after) q.set('after', String(Math.floor(after)));
+    return { list: await api('GET', `/api/v3/athlete/activities?${q}`, { token: await token() }) };
+  }
+  async function streams(id) {
+    if (!/^\d+$/.test(String(id))) throw new Error('Ungültige Aktivität');
+    const keys = 'time,watts,heartrate,cadence,distance,altitude,moving';
+    return { streams: await api('GET', `/api/v3/activities/${id}/streams?keys=${keys}&key_by_type=true`, { token: await token() }) };
+  }
+
+  return { status, setup, connect, disconnect, upload, activities, streams };
 }
 
 module.exports = { createStrava };

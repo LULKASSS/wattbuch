@@ -151,7 +151,7 @@ test('Geräteauswahl hängt nicht, wenn die Seite während einer Suche neu lädt
 /* Nachgebauter Strava-Server: Anmeldung, Token, Upload mit Verarbeitung */
 async function fakeStrava() {
   const http = require('node:http');
-  const seen = { uploads: [], tokens: [] };
+  const seen = { uploads: [], tokens: [], lists: [], streams: [] };
   const srv = http.createServer((req, res) => {
     let body = []; req.on('data', d => body.push(d)); req.on('end', () => {
       body = Buffer.concat(body).toString('utf8');
@@ -159,6 +159,28 @@ async function fakeStrava() {
       if (u.pathname === '/oauth/token') { seen.tokens.push(body); return send({ access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Lukas', lastname: 'R.' } }); }
       if (u.pathname === '/api/v3/uploads' && req.method === 'POST') { seen.uploads.push({ auth: req.headers.authorization, body }); return send({ id: 55, id_str: '55', status: 'Your activity is still being processed.' }); }
       if (u.pathname === '/api/v3/uploads/55') return send({ id: 55, id_str: '55', activity_id: 987654321, status: 'Your activity is ready.' });
+      /* Eigene Aktivitäten: draußen ohne Wattmesser, Zwift mit Watt, eine aus Wattbuch hochgeladene, eine Wanderung, eine zu kurze */
+      if (u.pathname === '/api/v3/athlete/activities') {
+        seen.lists.push(u.search);
+        if (u.searchParams.get('page') !== '1') return send([]);
+        return send([
+          { id: 111, name: 'Hausrunde', sport_type: 'Ride', start_date: '2026-09-20T15:00:00Z', moving_time: 3000, total_elevation_gain: 380, average_watts: 190, device_watts: false, trainer: false },
+          { id: 222, name: 'Zwift - Watopia', sport_type: 'VirtualRide', start_date: '2026-09-18T17:00:00Z', moving_time: 1200, total_elevation_gain: 90, average_watts: 200, device_watts: true, trainer: false },
+          { id: 333, name: 'Rollentraining', sport_type: 'Ride', start_date: '2026-09-17T17:00:00Z', moving_time: 1800, external_id: 'wattbuch-r1.tcx', trainer: true },
+          { id: 444, name: 'Wanderung', sport_type: 'Hike', start_date: '2026-09-16T09:00:00Z', moving_time: 9000 },
+          { id: 555, name: 'Zum Bäcker', sport_type: 'Ride', start_date: '2026-09-15T09:00:00Z', moving_time: 120 }
+        ]);
+      }
+      const sm = /^\/api\/v3\/activities\/(\d+)\/streams$/.exec(u.pathname);
+      if (sm) {
+        seen.streams.push(sm[1]);
+        const n = sm[1] === '111' ? 3600 : 1200, time = [], d = [];
+        /* 111: nach 1500 s steht man 10 min an der Ampel (Lücke im Zeitstrom) */
+        for (let i = 0; i < n; i++) { time.push(sm[1] === '111' && i >= 1500 ? i + 600 : i); d.push(i * 8); }
+        const out = { time: { data: time }, distance: { data: d }, heartrate: { data: time.map(() => 150) }, cadence: { data: time.map(() => 85) }, altitude: { data: time.map((_, i) => 150 + i / 100) }, moving: { data: time.map(() => true) } };
+        if (sm[1] === '222') out.watts = { data: time.map(() => 200) };
+        return send(out);
+      }
       res.statusCode = 404; res.end();
     });
   });
@@ -203,6 +225,42 @@ test('Strava: verbinden und Fahrt hochladen', async () => {
   expect(up.auth).toBe('Bearer testzugang');
   for (const s of ['name="data_type"', 'tcx', 'name="trainer"', 'Rollentraining am Abend', '<ns3:Watts>150</ns3:Watts>', 'wattbuch-u1']) expect(up.body).toContain(s);
   expect(await page.evaluate(() => S.rides.find(r => r.id === 'u1').strava.state)).toBe('ok');
+  await app.close();
+  sv.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Strava: alle Fahrten übernehmen, mit und ohne Wattmesser', async () => {
+  test.setTimeout(60_000);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-strava-in-'));
+  const sv = await fakeStrava();
+  const app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_STRAVA_URL: sv.url });
+  const page = await app.firstWindow();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await page.click('#btnSet');
+  await page.fill('#svId', '12345');
+  await page.fill('#svSecret', 'b'.repeat(40));
+  await page.click('#svSave');
+  const auth = await expect.poll(() => app.evaluate(() => global.__stravaAuth || null)).not.toBeNull().then(() => app.evaluate(() => global.__stravaAuth));
+  const q = new URL(auth).searchParams;
+  expect(q.get('scope')).toContain('activity:read_all');
+  await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=read,activity:write,activity:read_all`);
+  await expect(page.locator('#svInSt')).toHaveText('2 Fahrten aus Strava in Wattbuch', { timeout: 15000 });
+  expect(sv.seen.streams.sort()).toEqual(['111', '222']); // Wattbuch-Upload, Wanderung, zu kurz: gar nicht erst geholt
+  const rides = await page.evaluate(() => S.rides.filter(r => r.src === 'strava').map(r => ({ id: r.id, noW: !!r.noW, dur: stats(r).dur, p: r.p.length, km: Math.round(r.dist[r.dist.length - 1] / 1000), avg: Math.round(stats(r).avg), strava: r.strava.state })).sort((a, b) => a.id.localeCompare(b.id)));
+  expect(rides).toEqual([
+    { id: 'sv111', noW: true, dur: 3598, p: 0, km: 29, avg: 190, strava: 'ok' }, // Ampelpause fällt raus
+    { id: 'sv222', noW: false, dur: 1199, p: 1199, km: 10, avg: 200, strava: 'ok' }
+  ]);
+  /* Zweiter Durchlauf holt nichts doppelt und fragt nur noch nach Neuem */
+  await page.evaluate(() => stravaImport());
+  expect(sv.seen.streams).toHaveLength(2);
+  expect(sv.seen.lists[sv.seen.lists.length - 1]).toContain('after=');
+  /* Detail einer Draußen-Fahrt */
+  await page.click('#dlgSet .dlg-foot button');
+  await page.evaluate(() => { S.detail = 'sv111'; go('detail'); });
+  await expect(page.locator('#v-detail .hero')).toContainText('Ohne Wattmesser');
+  await expect(page.locator('#btnStrava')).toHaveText('Auf Strava ansehen');
   await app.close();
   sv.close();
   fs.rmSync(dir, { recursive: true, force: true });

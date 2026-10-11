@@ -170,12 +170,14 @@ app.whenReady().then(async () => {
     dataDir: app.getPath('userData'), baseUrl: process.env.WATTBUCH_STRAVA_URL || 'https://www.strava.com', log: m => console.log(m),
     openBrowser: process.env.WATTBUCH_STRAVA_URL ? url => { global.__stravaAuth = url; } : url => shell.openExternal(url)
   });
-  const wrap = fn => async (_e, arg) => { try { return { ok: true, ...(await fn(arg)) }; } catch (e) { return { ok: false, error: e.message }; } };
+  const wrap = fn => async (_e, arg) => { try { return { ok: true, ...(await fn(arg)) }; } catch (e) { return { ok: false, error: e.message, status: e.status || 0 }; } };
   ipcMain.handle('strava:status', wrap(() => strava.status()));
   ipcMain.handle('strava:setup', wrap(a => strava.setup(a)));
   ipcMain.handle('strava:connect', wrap(() => strava.connect()));
   ipcMain.handle('strava:disconnect', wrap(() => strava.disconnect()));
   ipcMain.handle('strava:upload', wrap(a => strava.upload(a)));
+  ipcMain.handle('strava:activities', wrap(a => strava.activities(a)));
+  ipcMain.handle('strava:streams', wrap(id => strava.streams(id)));
   ipcMain.handle('import:done', (_e, names) => importsDone(names));
 
   /* Beim Start kurz (max. 3 s) auf ein Update warten, damit gleich die neueste Fassung erscheint */

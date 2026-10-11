@@ -834,3 +834,28 @@ test('Fahrt zeigt Ø Watt und Ø km/h', async ({ page }) => {
   await expect(page.locator('#lvSpdAvg')).toHaveText(/^Ø \d+,\d$/);
   expect(problems).toEqual([]);
 });
+
+test('Fahrt ohne Wattmesser (aus Strava): Liste, Detail, Übersicht, keine Rekorde', async ({ page }) => {
+  const problems = await open(page, { url: '/?handy', view: 'home' });
+  const n = 3600, out = { id: 'sv1', start: new Date(Date.now() - 2 * 864e5).toISOString(), name: 'Hausrunde', src: 'strava', noW: true, dur: n, estW: 180,
+    p: [], hr: Array(n).fill(150), cad: Array(n).fill(80), spd: null, dist: Array.from({ length: n }, (_, i) => (i + 1) * 8), alt: Array(n).fill(200), gain: 400,
+    strava: { state: 'ok', id: '1', url: 'https://www.strava.com/activities/1' } };
+  const b = backupOf(1); b.rides.push(out);
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', b));
+  await expect(toast(page)).toHaveText('2 Fahrten geladen');
+  await page.click('[data-per="a"]');
+  await expect(page.locator('.hp-big b')).toHaveText('1:30'); // 30 min Rolle + 60 min draußen
+  await expect(page.locator('.hrec-t').nth(3)).toContainText('200'); // Rekorde nur aus echter Messung
+  await page.click('#nav [data-v="rides"]');
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-rides .row[data-ride="sv1"]')).toContainText('~180');
+  await page.locator('#v-rides .row[data-ride="sv1"]').click();
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-detail .hero')).toContainText('28,8'); // km
+  await expect(page.locator('#v-detail .kv')).toContainText('~180');
+  await expect(page.locator('#cvRide')).toBeVisible(); // Pulsverlauf
+  await page.click('#nav [data-v="best"]');
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-best')).toHaveClass(/active/);
+  expect(problems).toEqual([]);
+});

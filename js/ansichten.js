@@ -130,10 +130,10 @@ function rideRow(r){const s=stats(r);return`
       <span class="d"><b>${fmtDate(r.start).split(' ').slice(1).join(' ')}</b><span>${WD[new Date(r.start).getDay()]} · ${fmtTime(r.start)}</span></span>
       <span class="nm">${esc(r.name)}${r.sample?'<span class="tag">Beispiel</span>':''}${r.strava&&r.strava.state==='ok'?'<span class="tag strava">Strava</span>':''}${r.ftpTest?'<span class="tag acc">FTP '+r.ftpTest.ftp+' W</span>':''}</span>
       <span class="m"><span class="lbl">Dauer</span><b>${fmtDur(s.dur)}</b></span>
-      <span class="m"><span class="lbl">Ø Watt</span><b>${n0(s.avg)}</b></span>
-      <span class="m np"><span class="lbl">NP</span><b>${n0(s.np)}</b></span>
+      <span class="m"><span class="lbl">Ø Watt</span><b>${s.est&&s.avg?'~':''}${n0(s.avg)}</b></span>
+      <span class="m np"><span class="lbl">${s.est?'km':'NP'}</span><b>${s.est?n1(r.dist&&r.dist.length?r.dist[r.dist.length-1]/1000:null):n0(s.np)}</b></span>
       <span class="m kj"><span class="lbl">kJ</span><b>${n0(s.kj)}</b></span>
-      ${spark(r.p)}
+      ${spark(r.p.length?r.p:r.hr||[])}
     </button>`;}
 function renderRides(){
   const v=$('#v-rides'),agg=aggRides(),now=new Date(),w0=weekStart(now);
@@ -165,6 +165,7 @@ function renderRides(){
 function renderDetail(){
   const v=$('#v-detail'),r=S.rides.find(x=>x.id===S.detail);
   if(!r){v.innerHTML='';setTimeout(()=>go('rides'),0);return;}
+  if(r.noW){renderDetailOut(v,r);return;}
   const s=stats(r),kg=S.set.weight,ftp=S.set.ftp,all=bestsOf(aggRides());
   const keys=KEY_DURS.filter(d=>d<=s.dur);
   const maxZ=Math.max(1,...s.zt);
@@ -224,6 +225,37 @@ function renderDetail(){
   $('#rideName').addEventListener('change',async e=>{r.name=e.target.value.trim()||'Rollentraining';r.edited=Date.now();e.target.value=r.name;await DB.put(r);changed();});
   $('#rideName').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});
   $('#btnTcx').onclick=()=>download(tcx(r),`wattbuch-${r.start.slice(0,10)}-${fmtTime(r.start).replace(':','')}.tcx`,'application/vnd.garmin.tcx+xml');
+  armDelete($('#btnDel'),'Wirklich löschen?',async()=>{await forget(r);toast('Fahrt gelöscht');go('rides');});
+}
+/* Fahrt ohne Wattmesser (aus Strava): Strecke, Zeit, Höhe, Puls; Leistung nur als Schätzung */
+function renderDetailOut(v,r){
+  const s=stats(r),km=r.dist&&r.dist.length?r.dist[r.dist.length-1]/1000:0;
+  const kv=[['Dauer',fmtDur(s.dur),''],['Ø Tempo',km?n1(km/(s.dur/3600)):'–',km?'km/h':''],['Höhenmeter',n0(r.gain||0),'m'],['Ø Trittfrequenz',n0(s.cadAvg),s.cadAvg?'rpm':''],
+    ['Ø Puls',n0(s.hrAvg),s.hrAvg?'bpm':''],['Max Puls',n0(s.hrMax),s.hrMax?'bpm':''],['Ø Leistung',s.avg?'~'+n0(s.avg):'–',s.avg?'W':''],['TSS',s.tss?'~'+n0(s.tss):'–','']];
+  const series=r.hr&&r.hr.some(x=>x>0)?['Puls',r.hr]:r.alt&&r.alt.length?['Höhe',r.alt]:null;
+  v.innerHTML=`
+  <div class="crumb"><button type="button" class="lnk" data-go="rides">Fahrten</button><span>/</span><span>${fmtDate(r.start)} · ${fmtTime(r.start)}</span><span class="tag strava">Strava</span>${r.sport==='GravelRide'?'<span class="tag">Gravel</span>':''}</div>
+  <input class="title-in" id="rideName" value="${esc(r.name)}" aria-label="Name der Fahrt" autocomplete="off">
+  <div class="card hero">
+    <div>
+      <span class="lbl">Distanz</span>
+      <div class="hero-num"><b data-count="${Math.round(km*10)/10}" data-dec="1">${n1(km)}</b><span class="unit">km</span></div>
+      <span class="sub">Ohne Wattmesser gefahren${s.avg?', Leistung von Strava geschätzt':''}</span>
+    </div>
+    <div class="kv">${kv.map(([l,val,u])=>`<div class="st"><span class="lbl">${l}</span><div class="v">${val}${u?`<small>${u}</small>`:''}</div></div>`).join('')}</div>
+  </div>
+  <div class="stack">
+    ${series?`<div class="card"><div class="card-h"><h3>${series[0]}</h3></div><canvas class="cv tall" id="cvRide" aria-label="${series[0]} über die Fahrt"></canvas></div>`:''}
+    <div class="acts">
+      ${stravaBtn(r,'btnStrava')}
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost warn" id="btnDel">Fahrt löschen</button>
+    </div>
+  </div>`;
+  const cr=$('#cvRide');
+  if(cr){const d=rolling(series[1],10);cr._prog=1;cr._draw=hv=>drawSeries(cr,d,{hover:hv,prog:cr._prog,unit:series[0]==='Puls'?'bpm':'m'});bindHover(cr,cr._draw);cr._draw(null);}
+  $('#rideName').addEventListener('change',async e=>{r.name=e.target.value.trim()||'Ausfahrt';r.edited=Date.now();e.target.value=r.name;await DB.put(r);changed();});
+  $('#rideName').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});
   armDelete($('#btnDel'),'Wirklich löschen?',async()=>{await forget(r);toast('Fahrt gelöscht');go('rides');});
 }
 function placeSegThumb(seg){if(!seg)return;const b=$('button.on',seg),th=$('.thumb',seg);if(b&&th){th.style.width=b.offsetWidth+'px';th.style.transform=`translateX(${b.offsetLeft-3}px)`;th.style.left='3px';}}

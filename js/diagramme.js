@@ -48,7 +48,7 @@ function drawSeries(c,data,o={}){
     ctx.strokeStyle=css('--line-2');ctx.beginPath();ctx.moveTo(Math.round(px)+.5,T);ctx.lineTo(Math.round(px)+.5,T+ih);ctx.stroke();
     ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fillStyle=css('--surface');ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=css('--accent');ctx.stroke();
     const tl=o.live?`vor ${fmtDur(n-1-i)}`:fmtDur(i);
-    tip(ctx,px,py,[`${Math.round(data[i])} W`,tl],w,h);
+    tip(ctx,px,py,[`${Math.round(data[i])} ${o.unit||'W'}`,tl],w,h);
   }
   return{L,iw,span,off,n};
 }

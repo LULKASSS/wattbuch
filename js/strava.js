@@ -11,7 +11,7 @@ let svWait=15000;                 // so lange lässt sich der automatische Uploa
 const svAuto=()=>S.set.stravaAuto!==false,svOn=()=>!!(SV()&&S.strava.connected&&svAuto()),svBusy=new Set();
 let svT=null;
 
-async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.status();if(r.ok)S.strava=r;renderStravaSet();stravaSync();}
+async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.status();if(r.ok)S.strava=r;renderStravaSet();stravaSync();if(typeof stravaImport==='function')stravaImport();}
 
 function stravaDesc(r){
   const s=stats(r);
@@ -97,6 +97,7 @@ function renderStravaSet(){
   if(!sv)h+='<p class="ftp-note">Direkt hochladen geht in der Mac-App. Hier im Browser: nach der Fahrt „Für Strava exportieren“, die Datei landet in Downloads und Strava öffnet die Upload-Seite.</p>';
   else if(st.connected)h+=`<p class="sv-ok"><i></i>Verbunden${st.athlete&&st.athlete.name?` als ${esc(st.athlete.name)}`:''}</p>
     <label class="chk sm${svAuto()?' on':''}" id="svAutoL"><input type="checkbox" id="svAuto"${svAuto()?' checked':''}><span class="box"></span>Fahrten mit der Rolle automatisch hochladen</label>
+    ${typeof svInHTML==='function'?svInHTML():''}
     <div class="dlg-row"><button type="button" class="btn sm ghost" id="svOff">Trennen</button></div>`;
   else if(st.configured&&!el.dataset.edit)h+=`<p class="ftp-note">Deine Strava-App ist eingetragen. Jetzt einmal verbinden – Strava fragt im Browser nach der Erlaubnis, Fahrten hochzuladen.</p>
     <div class="dlg-row"><button type="button" class="btn sm primary" id="svConnect">Mit Strava verbinden</button><button type="button" class="lnk" id="svEdit">Zugangsdaten ändern</button></div>`;
@@ -113,7 +114,7 @@ function renderStravaSet(){
 async function stravaConnect(){
   const sv=SV(),b=$('#svConnect')||$('#svSave');if(b){b.disabled=true;b.textContent='Warte auf Strava im Browser …';}
   const r=await sv.connect();
-  if(r.ok){S.strava=r;toast('Mit Strava verbunden');stravaSync();}else toast('Strava: '+r.error);
+  if(r.ok){S.strava=r;toast('Mit Strava verbunden');stravaSync();if(typeof stravaImport==='function')stravaImport();}else toast('Strava: '+r.error);
   delete $('#svBox').dataset.edit;renderStravaSet();
 }
 $('#svBox').addEventListener('click',async e=>{

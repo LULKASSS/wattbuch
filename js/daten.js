@@ -23,9 +23,10 @@ function tcx(r){
 ${pts}</Track></Lap><Notes>${esc(r.name)}</Notes></Activity></Activities></TrainingCenterDatabase>`;
 }
 
-/* Sicherung: Einstellungen, echte Fahrten und Strecken. In der Mac-App (window.wattbuchDesktop)
+/* Sicherung: Einstellungen, echte Fahrten und Strecken. Aus Strava übernommene Fahrten nicht (groß, liegen in Strava und im Konto,
+   die Mac-App holt sie nach einer Neuinstallation von selbst wieder). In der Mac-App (window.wattbuchDesktop)
    wird sie nach jeder Änderung automatisch geschrieben, im Browser nur über „Sicherung speichern“. */
-function backupJSON(){return JSON.stringify({app:'wattbuch',version:1,saved:new Date().toISOString(),from:HANDY?'handy':'mac',settings:S.set,rides:S.rides.filter(r=>!r.sample),routes:S.routes,gone:[...S.gone]});}
+function backupJSON(){return JSON.stringify({app:'wattbuch',version:1,saved:new Date().toISOString(),from:HANDY?'handy':'mac',settings:S.set,rides:S.rides.filter(r=>!r.sample&&r.src!=='strava'),routes:S.routes,gone:[...S.gone]});}
 let bkT=null;
 function autoBackup(){const d=window.wattbuchDesktop;if(!d)return;clearTimeout(bkT);bkT=setTimeout(()=>d.backup(backupJSON()).catch(()=>toast('Automatische Sicherung fehlgeschlagen')),400);}
 /* Etwas an den Daten wurde von Hand geändert (Name, Löschen, FTP, Gewicht). Am Handy merken, dass der Mac es noch nicht hat. */
@@ -41,7 +42,7 @@ async function importData(d){
   }
   if(d&&Array.isArray(d.rides)){
     for(const x of d.rides){
-      if(!(x&&x.id&&x.start&&Array.isArray(x.p)&&x.p.length)||S.gone.has(x.id))continue;
+      if(!okRide(x)||S.gone.has(x.id))continue;
       /* Gleiche Fahrt: die zuletzt von Hand bearbeitete gewinnt, ein erfolgter Strava-Upload geht nie verloren */
       const i=S.rides.findIndex(y=>y.id===x.id),o=i>=0?S.rides[i]:null,ok=r=>r&&r.strava&&r.strava.state==='ok';
       let y=x;

@@ -51,7 +51,7 @@ const standalone=()=>!!(navigator.standalone||(window.matchMedia&&matchMedia('(d
 const dayKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const rideKm=r=>r.dist&&r.dist.length?r.dist[r.dist.length-1]/1000:0;
 /* TSS mit der FTP zur Zeit der Fahrt, damit alte Fahrten nicht mit der heutigen FTP neu bewertet werden */
-function tssOf(r){const s=stats(r),f=r.ftp||s.ftp;return s.dur*s.np*s.np/(f*f*36);}
+function tssOf(r){const s=stats(r),f=r.ftp||s.ftp;return r.noW?s.tss:s.dur*s.np*s.np/(f*f*36);}
 function daily(rides){
   const m=new Map();
   for(const r of rides){const k=dayKey(new Date(r.start)),o=m.get(k)||{tss:0,sec:0,n:0,km:0};o.tss+=tssOf(r);o.sec+=stats(r).dur;o.n++;o.km+=rideKm(r);m.set(k,o);}

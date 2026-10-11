@@ -71,7 +71,7 @@ async function kApply(x){
     if(!S.gone.has(x.id)){S.gone.add(x.id);await DB.set('gone',[...S.gone]);}
     return loc?1:0;
   }
-  const r=x.data;if(!r||!Array.isArray(r.p)||!r.p.length)return 0;
+  const r=x.data;if(!okRide(r))return 0;
   if(S.gone.delete(x.id))await DB.set('gone',[...S.gone]);
   const i=S.rides.indexOf(loc);if(i>=0)S.rides[i]=r;else S.rides.push(r);
   await DB.put(r,true);return 1;
@@ -87,10 +87,10 @@ function sync(){
     try{
       /* 1. Holen, was im Konto neu ist */
       for(;;){
-        const rows=await sb('wattbuch_fahrten?select=id,data,geloescht,geaendert&order=geaendert.asc&limit=25'+(K.pulled?'&geaendert=gt.'+encodeURIComponent(K.pulled):''));
+        const rows=await sb('wattbuch_fahrten?select=id,data,geloescht,geaendert&order=geaendert.asc&limit=10'+(K.pulled?'&geaendert=gt.'+encodeURIComponent(K.pulled):''));
         for(const x of rows){n+=await kApply(x);K.pulled=x.geaendert;}
         await kSave();
-        if(rows.length<25)break;
+        if(rows.length<10)break;
       }
       const w=(await sb('wattbuch_werte?select=werte,geaendert'))[0];
       if(w&&w.geaendert!==K.wg&&(K.first||!K.werte)){
@@ -98,11 +98,15 @@ function sync(){
         if(fin(v.ftp))S.set.ftp=v.ftp;if(fin(v.weight))S.set.weight=v.weight;if(fin(v.bike))S.set.bike=v.bike;
         await saveSet();K.werte=false;K.wg=w.geaendert;n++;if(typeof renderErg==='function')renderErg();
       }
-      /* 2. Ausgang schicken, je fünf Fahrten */
+      /* 2. Ausgang schicken: bis fünf Fahrten oder gut 1,5 MB pro Anfrage (lange Touren sind groß) */
       const ids=[...K.out.keys()];
-      for(let k=0;k<ids.length;k+=5){
-        const part=ids.slice(k,k+5).map(id=>[id,K.out.get(id)]);
-        const rows=part.map(([id])=>{const r=S.rides.find(x=>x.id===id);return r?{id,start:r.start,data:r,geloescht:false}:{id,start:null,data:null,geloescht:true};});
+      for(let k=0;k<ids.length;){
+        const part=[],rows=[];let size=0;
+        while(k<ids.length&&part.length<5&&(!part.length||size<1.5e6)){
+          const id=ids[k++],r=S.rides.find(x=>x.id===id);
+          const row=r?{id,start:r.start,data:r,geloescht:false}:{id,start:null,data:null,geloescht:true};
+          size+=r?JSON.stringify(r).length:50;part.push([id,K.out.get(id)]);rows.push(row);
+        }
         const res=await sb('wattbuch_fahrten?on_conflict=user_id,id&select=id,geaendert',{method:'POST',body:rows,prefer:'resolution=merge-duplicates,return=representation'});
         for(const x of res||[])K.mine[x.id]=x.geaendert;
         for(const [id,st] of part)if(K.out.get(id)===st)K.out.delete(id);   // in der Zwischenzeit neu vorgemerkt? Dann bleibt es drin

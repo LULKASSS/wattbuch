@@ -50,9 +50,19 @@ function bestAvg(p,d){
   return m/d;
 }
 const SC=new WeakMap();
+/* Gültige Fahrt: Leistung je Sekunde, oder (aus Strava, draußen ohne Wattmesser) noW mit Dauer dur in Sekunden */
+const okRide=x=>!!(x&&x.id&&x.start&&Array.isArray(x.p)&&(x.p.length||x.noW&&x.dur>0));
 function stats(r){
   const ftp=S.set.ftp, c=SC.get(r);
   if(c&&c.ftp===ftp)return c;
+  if(r.noW){
+    /* Ohne Wattmessung: Zeit, Puls, Kadenz echt; Leistung, Arbeit und TSS aus Stravas geschätztem Durchschnitt */
+    const dur=r.dur||0,avg=r.estW||null,f=r.ftp||ftp,IF=avg?avg/f:null;
+    const hv=r.hr?r.hr.filter(v=>v>0):[],cv=r.cad?r.cad.filter(v=>v>0):[];
+    const s={ftp,dur,avg,np:null,max:null,kj:avg?avg*dur/1000:0,IF,tss:IF?dur*IF*IF/36:0,est:true,
+      hrAvg:hv.length?sum(hv)/hv.length:null,hrMax:hv.length?Math.max(...hv):null,cadAvg:cv.length?sum(cv)/cv.length:null,curve:[],zt:[0,0,0,0,0,0,0]};
+    SC.set(r,s);return s;
+  }
   const p=r.p,dur=p.length;
   let max=0;for(const v of p)if(v>max)max=v;
   const avg=dur?sum(p)/dur:0,np=calcNP(p);
