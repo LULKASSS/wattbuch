@@ -139,15 +139,17 @@ addEventListener('online',()=>syncSoon(300));
 function kontoHTML(){
   if(!K.s)return`<div class="k-form">
     <p class="ftp-note">Mit Konto gleichen sich Mac und Handy von selbst ab.</p>
-    <input class="k-in" type="email" name="email" autocomplete="username" placeholder="E-Mail" aria-label="E-Mail">
-    <input class="k-in" type="password" name="pw" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort">
-    <div class="dlg-row"><button type="button" class="btn sm primary" data-k="in">Anmelden</button><button type="button" class="btn sm" data-k="neu">Konto anlegen</button></div>
+    <div class="k-ins"><input class="k-in" type="email" name="email" autocomplete="username" placeholder="E-Mail" aria-label="E-Mail">
+    <input class="k-in" type="password" name="pw" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort"></div>
+    <div class="dlg-row"><button type="button" class="btn sm primary" data-k="in">Anmelden</button><button type="button" class="btn sm ghost" data-k="neu">Konto anlegen</button></div>
     <p class="note k-msg" hidden></p>
   </div>`;
   const st=K.busy?'Gleicht ab …':K.err?`Abgleich klappt gerade nicht (${esc(K.err)}), wird wiederholt`:K.last?`Abgeglichen ${fmtDate(K.last)}, ${fmtTime(K.last)} Uhr`:'Noch nicht abgeglichen';
-  return`<p class="k-ok"><i></i>Angemeldet als <b>${esc(K.s.email||'')}</b></p>
-    <p class="ftp-note k-st">${st}${K.out.size&&!K.busy?` · ${K.out.size} ${K.out.size===1?'Änderung wartet':'Änderungen warten'}`:''}</p>
-    <div class="dlg-row"><button type="button" class="btn sm ghost" data-k="aus">Abmelden</button></div>`;
+  const em=K.s.email||'';
+  return`<div class="k-me"><span class="k-av" aria-hidden="true">${esc((em[0]||'?').toUpperCase())}</span>
+    <div class="k-t"><span class="k-ok">Angemeldet als <b>${esc(em)}</b></span>
+    <span class="k-st${K.err?' warn':''}"><i></i>${st}${K.out.size&&!K.busy?` · ${K.out.size} ${K.out.size===1?'Änderung wartet':'Änderungen warten'}`:''}</span></div>
+    <button type="button" class="btn sm ghost" data-k="aus">Abmelden</button></div>`;
 }
 function renderKonto(force){$$('.konto').forEach(el=>{if(force||!el.contains(document.activeElement)||!K.s===!el.querySelector('.k-form'))el.innerHTML=kontoHTML();});}
 async function kSubmit(box,neu){

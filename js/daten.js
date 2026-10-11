@@ -67,7 +67,7 @@ function openSet(){
   e.hidden=!!g&&g.w===S.set.ftp;
   if(g){e.innerHTML=`${g.lbl}<b>${g.w} W</b>`;e.disabled=false;e.onclick=()=>{setFtp(g.w);e.hidden=true;toast(`FTP auf ${g.w} W gesetzt`);};}
   else{e.innerHTML='Für einen FTP-Vorschlag: FTP-Test machen oder 20 min am Stück fahren';e.disabled=true;e.onclick=null;}
-  $('#dlgSet').showModal();
+  $('#dlgSet').showModal();$('#dlgSet').focus();
 }
 function rerender(){renderView(S.view);if(S.view!=='live')$$(`#v-${S.view} canvas`).forEach(c=>c._draw&&c._draw(null));}
 

@@ -71,6 +71,9 @@ function renderLive(){
   const hr=curHR(),cad=curCad();
   setT('lvHR',hr==null?'–':String(hr));
   setT('lvCad',cad==null?'–':String(Math.round(cad)));
+  setT('trVal',isLive()&&pw!=null?`${Math.round(pw)} W`:'');
+  setT('hrVal',S.hrm.state==='on'&&hr!=null?`${hr} bpm`:'');
+  setT('cdVal',S.cd.state==='on'&&cad!=null?`${Math.round(cad)} rpm`:'');
   setT('lvDist',n1(R.state==='idle'?0:S.sim.total/1000));
   setT('lvSpd',isLive()?n1(S.sim.v*3.6):'–');
   setT('lvSpdAvg',R.state!=='idle'&&p.length>=5?`Ø ${n1(S.sim.total/p.length*3.6)}`:'');
@@ -79,29 +82,39 @@ function renderLive(){
   if(rt){
     const g=routeGradeNow();
     setT('rlName',rt.name+(rt.loop&&S.sim.lap>1?` · Runde ${S.sim.lap}`:''));
+    setT('rlMeta',`${n1(rt.dist/1000)} km · ${n0(rt.gain)} Hm · ${rt.loop?'Rundkurs':'A nach B'}`);
     setT('rlGrade',(g>0.05?'+':'')+n1(g)+' %');
     setT('rlSent',S.erg.on?'Zielleistung aktiv':S.set.diff!==1?`an Rolle ${n1(trainerGrade())} %`:'');
     setT('rlDone',n1(S.sim.d/1000)+' km');setT('rlLeft','noch '+n1((rt.dist-S.sim.d)/1000)+' km');
     $('#rlFill').style.width=(S.sim.d/rt.dist*100).toFixed(2)+'%';
-    if(shown){drawProfile($('#cvProf'),rt,S.sim.d);drawMap($('#cvMap'),rt,S.sim.d);}
+    if(shown){const pv=R.state==='idle';drawProfile($('#cvProf'),rt,S.sim.d,pv);drawMap($('#cvMap'),rt,S.sim.d,pv);}
   }
   const c=$('#cvLive'),data=R.state!=='idle'?p.slice(-300):S.hist.slice(-300);
-  if(shown)drawSeries(c,data,{span:300,live:true,ftp,hover:S.liveHover});
+  if(shown&&R.state!=='idle')drawSeries(c,data,{span:300,live:true,ftp,hover:S.liveHover});
 }
 function renderControls(){
   const el=$('#ctrls'),st=S.rec.state,live=isLive();
   document.body.classList.toggle('riding',st!=='idle');
+  placeRouteLive();
   let h='';
-  if(st==='idle')h=`<button type="button" class="btn primary big" data-a="start"${live?'':' aria-disabled="true"'}>Aufnahme starten</button>${live?'':'<span class="note soft" style="margin:0">Erst die Rolle verbinden</span>'}`;
+  if(st==='idle')h=`<button type="button" class="btn primary big" data-a="start"${live?'':' aria-disabled="true"'}>Fahrt starten</button>${live?'':'<span class="go-hint">Erst die Rolle verbinden</span>'}`;
   if(st==='rec')h=`<button type="button" class="btn big" data-a="pause">Pause</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;
   if(st==='pause')h=`<button type="button" class="btn primary big" data-a="resume">Weiter</button><button type="button" class="btn dark big" data-a="end">Beenden</button>`;
   if(st==='confirm')h=`<span class="q">Fahrt beenden?</span><button type="button" class="btn primary big" data-a="save">Speichern</button><button type="button" class="btn big" data-a="back">Weiterfahren</button><span class="spacer"></span><button type="button" class="btn ghost warn" data-a="discard">Verwerfen</button>`;
   /* Nach dem Verwerfen zurück aus der Fahrt-Ansicht */
   if(st==='idle'&&S.fullAuto&&!$('#full').hidden){S.fullAuto=false;closeFull();return;}
   const full=`<button type="button" class="btn ghost full-b" data-full title="${st==='idle'?'Vorschau der Fahrt-Ansicht':'Zur Fahrt-Ansicht'}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>${st==='idle'?'Vorschau':'Fahrt-Ansicht'}</button>`;
-  el.innerHTML=h+(st==='confirm'?'':full);
+  /* Vor der Fahrt steht der Start in der Startkarte, danach in der Live-Karte */
+  const btns=h+(st==='confirm'?'':full);
+  el.innerHTML=st==='idle'?'':btns;
+  $('#startCtrls').innerHTML=st==='idle'?btns:'';
   const fc=$('#fCtrl');if(fc)fc.innerHTML=$('#full').hidden?'':h;
   if(typeof sceneKick==='function')sceneKick();
+}
+/* Streckenanzeige: vor der Fahrt oben in der Startkarte, während der Fahrt in der Live-Karte */
+function placeRouteLive(){
+  const el=$('#routeLive'),host=S.rec.state==='idle'?$('#startRoute'):$('.card.live .live-r');
+  if(el.parentNode!==host){host.prepend(el);const c=$('#cvMap');if(c)c._bounds=null;}
 }
 function renderRecPill(){
   const st=S.rec.state,p=$('#recpill');
@@ -137,18 +150,24 @@ function rideRow(r){const s=stats(r);return`
     </button>`;}
 function renderRides(){
   const v=$('#v-rides'),agg=aggRides(),now=new Date(),w0=weekStart(now);
-  const weeks=[];for(let k=7;k>=0;k--){const s=new Date(w0);s.setDate(s.getDate()-7*k);const e=new Date(s);e.setDate(e.getDate()+7);weeks.push({s,e,sec:0,kj:0,n:0});}
-  for(const r of agg){const t=new Date(r.start);const wk=weeks.find(x=>t>=x.s&&t<x.e);if(wk){const s=stats(r);wk.sec+=s.dur;wk.kj+=s.kj;wk.n++;}}
+  const weeks=[];for(let k=7;k>=0;k--){const s=new Date(w0);s.setDate(s.getDate()-7*k);const e=new Date(s);e.setDate(e.getDate()+7);weeks.push({s,e,sec:0,kj:0,km:0,n:0});}
+  for(const r of agg){const t=new Date(r.start);const wk=weeks.find(x=>t>=x.s&&t<x.e);if(wk){const s=stats(r);wk.sec+=s.dur;wk.kj+=s.kj;wk.km+=rideKm(r);wk.n++;}}
   const cw=weeks[7],mxs=Math.max(1800,...weeks.map(x=>x.sec));
   const list=[...S.rides].sort((a,b)=>b.start.localeCompare(a.start));
+  /* Nach Monaten gruppiert, jeder Monat mit Summe */
+  const groups=[];
+  for(const r of list){const d=new Date(r.start),k=d.getFullYear()*12+d.getMonth();let g=groups[groups.length-1];if(!g||g.k!==k){g={k,d,rides:[],sec:0,km:0};groups.push(g);}g.rides.push(r);g.sec+=stats(r).dur;g.km+=rideKm(r);}
+  const tot=agg.reduce((a,r)=>{a.sec+=stats(r).dur;a.km+=rideKm(r);return a;},{sec:0,km:0});
+  const mName=d=>d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
   v.innerHTML=`
-  <div class="page-h"><h1>Fahrten</h1></div>
+  <div class="page-h"><div><h1>Fahrten</h1>${list.length?`<p class="sub-h">${list.length} ${list.length===1?'Fahrt':'Fahrten'} · ${fmtHM(tot.sec)} h${tot.km?` · ${n0(tot.km)} km`:''}</p>`:''}</div></div>
   <div class="card week">
-    <div>
+    <div class="week-l">
       <span class="lbl">Diese Woche · KW ${isoWeek(now)}</span>
-      <div class="week-nums big3" style="margin-top:12px">
+      <div class="week-nums big3">
         <div><span class="lbl">Fahrten</span><div class="v">${cw.n}</div></div>
         <div><span class="lbl">Zeit</span><div class="v">${fmtHM(cw.sec)}<small>h</small></div></div>
+        <div><span class="lbl">Distanz</span><div class="v">${n0(cw.km)}<small>km</small></div></div>
         <div><span class="lbl">Arbeit</span><div class="v">${n0(cw.kj)}<small>kJ</small></div></div>
       </div>
     </div>
@@ -156,9 +175,11 @@ function renderRides(){
       ${weeks.map((x,i)=>`<div class="wb${i===7?' cur':''}"><span class="val">${x.sec?fmtHM(x.sec):''}</span><span class="bar" style="--h:${Math.max(x.sec?4:2,x.sec/mxs*92)}px"></span><span class="kw">KW${isoWeek(x.s)}</span></div>`).join('')}
     </div>
   </div>
-  <div class="list">
-    ${list.length?list.map(rideRow).join(''):HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Aufnahme starten.</div>`}
-  </div>`;
+  ${list.length?groups.map(g=>`<div class="card list-g">
+    <div class="list-gh"><h3>${mName(g.d)}</h3><span>${g.rides.length} ${g.rides.length===1?'Fahrt':'Fahrten'} · ${fmtHM(g.sec)} h${g.km?` · ${n0(g.km)} km`:''}</span></div>
+    <div class="row-h" aria-hidden="true"><span>Datum</span><span>Name</span><span>Dauer</span><span>Ø Watt</span><span class="np">NP</span><span class="kj">kJ</span><span>Verlauf</span></div>
+    <div class="list">${g.rides.map(rideRow).join('')}</div>
+  </div>`).join(''):`<div class="list">${HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Fahrt starten.</div>`}</div>`}`;
 }
 
 /* ---------- Detail ---------- */
@@ -180,7 +201,8 @@ function renderDetail(){
     <div>
       <span class="lbl">Normalized Power</span>
       <div class="hero-num"><b data-count="${Math.round(s.np)}">${n0(s.np)}</b><span class="unit">W</span></div>
-      <span class="sub">${n2(s.np/kg)} W/kg</span>
+      <span class="sub">${n2(s.np/kg)} W/kg · IF ${n2(s.IF)}</span>
+      <div class="hero-z" aria-label="Zeit in den Zonen">${s.zt.map((x,i)=>x?`<i style="flex:${x};--zc:var(--z${i+1})" title="${ZONES[i].n} ${ZONES[i].name}"></i>`:'').join('')}</div>
     </div>
     <div class="kv">${kv.map(([l,val,u])=>`<div class="st"><span class="lbl">${l}</span><div class="v">${val}${u?`<small>${u}</small>`:''}</div></div>`).join('')}</div>
   </div>
@@ -208,7 +230,7 @@ function renderDetail(){
       </div>
     </div>
     <div class="acts">
-      ${stravaBtn(r,'btnStrava')}
+      ${stravaBtn(r,'btnStrava')}${routeFromBtn(r)}
       <button type="button" class="btn" id="btnTcx">Als TCX speichern</button>
       <span class="spacer"></span>
       <button type="button" class="btn ghost warn" id="btnDel">Fahrt löschen</button>
@@ -247,7 +269,7 @@ function renderDetailOut(v,r){
   <div class="stack">
     ${series?`<div class="card"><div class="card-h"><h3>${series[0]}</h3></div><canvas class="cv tall" id="cvRide" aria-label="${series[0]} über die Fahrt"></canvas></div>`:''}
     <div class="acts">
-      ${stravaBtn(r,'btnStrava')}
+      ${stravaBtn(r,'btnStrava')}${routeFromBtn(r)}
       <span class="spacer"></span>
       <button type="button" class="btn ghost warn" id="btnDel">Fahrt löschen</button>
     </div>
@@ -267,22 +289,29 @@ function armDelete(btn,armed,fn){
 /* ---------- Bestwerte ---------- */
 function renderBest(){
   const v=$('#v-best'),agg=aggRides();
-  if(!agg.length){v.innerHTML=`<div class="page-h"><h1>Bestwerte</h1></div><div class="card empty"><b>Noch keine Fahrt</b>Nach der ersten Aufnahme stehen hier deine besten Werte.</div>`;return;}
+  if(!agg.length){v.innerHTML=`<div class="page-h"><h1>Bestwerte</h1></div><div class="card empty"><b>Noch keine Fahrt</b>Nach der ersten Fahrt stehen hier deine besten Werte.</div>`;return;}
   const all=bestsOf(agg),cut=Date.now()-30*864e5,recent=bestsOf(agg.filter(r=>Date.parse(r.start)>=cut));
   const kg=S.set.weight,ftp=S.set.ftp,g=ftpSuggest(agg),est=g&&g.w;
   const allPts=DURS.filter(d=>all[d]).map(d=>[d,all[d].w]),recPts=DURS.filter(d=>recent[d]).map(d=>[d,recent[d].w]);
-  const sample=agg.some(r=>r.sample);
+  const sample=agg.some(r=>r.sample),b20=all[1200]||all[600]||all[300];
+  const lv=typeof wkgLevel==='function'?wkgLevel(ftp/kg):'';
   v.innerHTML=`
-  <div class="page-h"><h1>Bestwerte</h1>${sample?'<span class="tag">Aus der Beispielfahrt</span>':''}</div>
-  <div class="stack" style="margin-top:0">
-    <div class="card ftpc">
-      <div><span class="lbl">FTP-Vorschlag · ${g?(g.lbl.startsWith('Aus FTP')?g.lbl.replace('Aus ','aus '):'95 % vom besten 20-min-Wert'):'FTP-Test oder 20 min am Stück'}</span><div class="v">${est?`<span data-count="${est}">${est}</span><small>W</small>`:'–'}</div></div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="note soft" style="margin:0">Eingestellt: ${ftp} W</span>${est&&est!==ftp?`<button type="button" class="btn sm" id="useEst">${est} W übernehmen</button>`:''}</div>
-    </div>
+  <div class="page-h"><div><h1>Bestwerte</h1><p class="sub-h">Aus ${agg.length} ${agg.length===1?'Fahrt':'Fahrten'}${sample?' · nur die Beispielfahrt':''}</p></div></div>
+  <div class="kpis">
+    <div class="card kpi"><span class="lbl">FTP</span><div class="v">${ftp}<small>W</small></div><span class="sub">${n2(ftp/kg)} W/kg${lv?` · ${lv}`:''}</span></div>
+    <div class="card kpi ftpc"><span class="lbl">FTP-Vorschlag</span><div class="v">${est?`<span data-count="${est}">${est}</span><small>W</small>`:'–'}</div>
+      <span class="sub">${g?(g.lbl.startsWith('Aus FTP')?g.lbl.replace('Aus ','aus '):'95 % vom besten 20-min-Wert'):'FTP-Test oder 20 min am Stück fahren'}</span>
+      ${est&&est!==ftp?`<button type="button" class="btn sm primary" id="useEst">Übernehmen</button>`:''}</div>
+    ${b20?`<div class="card kpi"><span class="lbl">Rekord ${durLbl(all[1200]?1200:all[600]?600:300)}</span><div class="v">${n0(b20.w)}<small>W</small></div><span class="sub">${n2(b20.w/kg)} W/kg · <button type="button" class="lnk" data-ride="${b20.id}">${fmtDateY(b20.start)}</button></span></div>`:''}
+  </div>
+  <div class="stack">
     <div class="card">
       <div class="card-h"><h3>Leistungskurve</h3><span class="legend-in"><span><i></i>Alle Fahrten</span><span><i class="g"></i>Letzte 30 Tage</span></span></div>
       <canvas class="cv tall" id="cvCurveA" aria-label="Leistungskurve aller Fahrten"></canvas>
-      <div class="btab">${DURS.filter(d=>all[d]&&d>=5).map(d=>`<div class="r"><span class="lbl">${durLbl(d)}</span><button type="button" class="lnk" data-ride="${all[d].id}">${fmtDateY(all[d].start)}</button><span class="w">${n0(all[d].w)} W</span><span class="k">${n2(all[d].w/kg)} W/kg</span></div>`).join('')}</div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Rekorde</h3></div>
+      <div class="btab two-c">${DURS.filter(d=>all[d]&&d>=5).map(d=>`<div class="r"><span class="lbl">${durLbl(d)}</span><button type="button" class="lnk" data-ride="${all[d].id}">${fmtDateY(all[d].start)}</button><span class="w">${n0(all[d].w)} W</span><span class="k">${n2(all[d].w/kg)} W/kg</span></div>`).join('')}</div>
     </div>
   </div>`;
   const c=$('#cvCurveA');c._prog=1;

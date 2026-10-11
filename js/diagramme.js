@@ -64,7 +64,8 @@ function drawCurve(c,lines,o={}){
   ctx.textAlign='right';ctx.textBaseline='middle';
   for(let y=0;y<=ym;y+=ys){const py=Math.round(Y(y))+.5;ctx.beginPath();ctx.moveTo(L,py);ctx.lineTo(w-R,py);ctx.stroke();ctx.fillText(y,L-8,py);}
   ctx.textBaseline='top';
-  [1,5,15,60,300,1200,3600,7200].filter(d=>d<=dmax).forEach((d,k,arr)=>{const px=X(d);ctx.textAlign=k===0?'left':(k===arr.length-1&&px>w-R-30)?'right':'center';ctx.fillText(durLbl(d),px,h-B+8);});
+  /* Beschriftung nur, wo Platz ist (schmale Bildschirme): Abstand zur vorigen mindestens 52 px */
+  let lastX=-1e9;[1,5,15,60,300,1200,3600,7200].filter(d=>d<=dmax).forEach((d,k,arr)=>{const px=X(d),last=k===arr.length-1;if(px-lastX<52&&!last)return;if(last&&px-lastX<52&&k>0)return;lastX=px;ctx.textAlign=k===0?'left':(last&&px>w-R-30)?'right':'center';ctx.fillText(durLbl(d),px,h-B+8);});
   const cut=L+iw*prog;
   for(const l of lines){
     const pts=l.pts.map(([d,v])=>[X(d),Y(v)]).filter(p=>p[0]<=cut+.5);if(pts.length<1)continue;
@@ -86,7 +87,8 @@ function bindHover(c,redraw){
 }
 
 /* Höhenprofil mit gefahrenem Teil und Punkt */
-function drawProfile(c,rt,d){
+/* pv: Vorschau vor der Fahrt, ganzes Profil in Flieder mit Verlauf */
+function drawProfile(c,rt,d,pv){
   const{ctx,w,h}=prep(c);if(w<10)return;
   const L=36,R=6,T=8,B=20,iw=w-L-R,ih=h-T-B;
   let mn=1e9,mx=-1e9;for(const e of rt.ele){if(e<mn)mn=e;if(e>mx)mx=e;}
@@ -101,13 +103,14 @@ function drawProfile(c,rt,d){
   const area=(arr,col)=>{if(arr.length<2)return;ctx.beginPath();ctx.moveTo(arr[0][0],T+ih);arr.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.lineTo(arr[arr.length-1][0],T+ih);ctx.closePath();ctx.fillStyle=col;ctx.fill();};
   const line=(arr,col,wd)=>{if(arr.length<2)return;ctx.beginPath();arr.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.strokeStyle=col;ctx.lineWidth=wd;ctx.lineJoin='round';ctx.stroke();};
   const done=pts.filter(p=>p[2]<=d);const px=X(d),py=Y(eleAt(rt,d));done.push([px,py,d]);
-  area(pts,css('--surface-2'));line(pts,css('--line-2'),1.4);
-  area(done,css('--accent-soft'));line(done,css('--accent'),2);
+  if(pv){const g=ctx.createLinearGradient(0,T,0,T+ih);g.addColorStop(0,css('--accent-line'));g.addColorStop(1,'rgba(167,139,250,0)');area(pts,g);line(pts,css('--accent'),2);}
+  else{area(pts,css('--surface-2'));line(pts,css('--line-2'),1.4);
+  area(done,css('--accent-soft'));line(done,css('--accent'),2);}
   ctx.beginPath();ctx.arc(px,py,5.5,0,7);ctx.fillStyle=css('--surface');ctx.fill();
   ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fillStyle=css('--accent');ctx.fill();
 }
 /* Streckenverlauf ohne Kartenkacheln */
-function drawMap(c,rt,d){
+function drawMap(c,rt,d,pv){
   const{ctx,w,h}=prep(c);if(w<10)return;
   let a=90,b=-90,l=180,r=-180;for(const p of rt.line){if(p[0]<a)a=p[0];if(p[0]>b)b=p[0];if(p[1]<l)l=p[1];if(p[1]>r)r=p[1];}
   const kx=Math.cos((a+b)/2*Math.PI/180),W=(r-l)*kx||1e-6,H=(b-a)||1e-6,pad=12;
@@ -115,7 +118,7 @@ function drawMap(c,rt,d){
   const P=p=>[ox+(p[1]-l)*kx*sc,oy+(b-p[0])*sc];
   const pos=posAt(rt,d),t=clamp(d/rt.dist,0,1)*rt.cum[rt.cum.length-1];
   ctx.lineJoin='round';ctx.lineCap='round';
-  ctx.beginPath();rt.line.forEach((p,i)=>{const q=P(p);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);});ctx.strokeStyle=css('--line-2');ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();rt.line.forEach((p,i)=>{const q=P(p);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);});ctx.strokeStyle=css(pv?'--accent':'--line-2');ctx.lineWidth=pv?2.4:2;ctx.stroke();
   ctx.beginPath();let first=true;for(let i=0;i<rt.line.length&&rt.cum[i]<=t;i++){const q=P(rt.line[i]);first?ctx.moveTo(q[0],q[1]):ctx.lineTo(q[0],q[1]);first=false;}
   const cp=P(pos);if(!first){ctx.lineTo(cp[0],cp[1]);ctx.strokeStyle=css('--accent');ctx.lineWidth=2.5;ctx.stroke();}
   const s0=P(rt.line[0]);ctx.beginPath();ctx.arc(s0[0],s0[1],3,0,7);ctx.fillStyle=css('--fg-3');ctx.fill();

@@ -15,7 +15,7 @@ const ico=n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 /* Countdown 3-2-1, Klick überspringt */
 function beginRide(){
   if(HANDY||S.rec.state!=='idle')return;
-  if(!isLive()){toast('Erst die Rolle verbinden oder „Ohne Rolle testen“ einschalten');return;}
+  if(!isLive()){toast('Erst die Rolle verbinden');return;}
   const el=document.createElement('div');el.className='countdown';el.setAttribute('role','status');
   document.body.appendChild(el);
   let n=3,t=null;

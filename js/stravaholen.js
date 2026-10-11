@@ -179,3 +179,28 @@ async function favRoutes(force){
   finally{favRun=false;}
   if(added){autoBackup();toast(added===1?'Deine meistgefahrene Runde ist jetzt als Strecke da':`${added} deiner meistgefahrenen Runden sind jetzt als Strecken da`);}
 }
+
+/* ---------- Eine Strava-Fahrt als Strecke speichern ---------- */
+/* Draußen gefahrene Strava-Fahrt → Strecke mit Linie und Höhe (id 'sr<Strava-ID>'), danach unter „Fahren“ wählbar */
+const canRouteFrom=r=>!!(r&&r.src==='strava'&&r.strava&&r.strava.id&&!r.trainer&&SV()&&S.strava.connected&&S.strava.canRead);
+function routeFromBtn(r){
+  if(!canRouteFrom(r))return'';
+  const has=S.routes.some(x=>x.id==='sr'+r.strava.id);
+  return`<button type="button" class="btn" id="btnRouteFrom" data-route-from="${esc(r.id)}"${has?' disabled':''}>${has?'Als Strecke gespeichert':'Als Strecke speichern'}</button>`;
+}
+async function routeFrom(r,btn){
+  btn.disabled=true;btn.textContent='Hole die Strecke …';
+  try{
+    const sm=(await svCall(()=>SV().streams(r.strava.id,'route'))).streams||{};
+    const L=sm.latlng&&sm.latlng.data,A=sm.altitude&&sm.altitude.data;
+    if(!L||!A||L.length!==A.length)throw new Error('Strava liefert keine Linie mit Höhe');
+    const rt=buildRoute(r.name.slice(0,60)||'Strecke',L.map((p,i)=>[p[0],p[1],A[i]]));rt.id='sr'+r.strava.id;
+    await addRoutes([rt]);autoBackup();
+    toast(`${rt.name} ist jetzt eine Strecke · ${n1(rt.dist/1000)} km · ${n0(rt.gain)} Hm`);
+    btn.textContent='Als Strecke gespeichert';
+  }catch(e){btn.disabled=false;btn.textContent='Als Strecke speichern';toast('Strecke: '+((e&&e.message)||'hat nicht geklappt'));}
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-route-from]');if(!b||b.disabled)return;
+  const r=S.rides.find(x=>x.id===b.dataset.routeFrom);if(r)routeFrom(r,b);
+});

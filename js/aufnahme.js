@@ -12,7 +12,7 @@ function pushSample(){
   const rt=activeRoute();R.alt.push(rt?Math.round(eleAt(rt,S.sim.d)*10)/10:null);
 }
 function startRec(){
-  if(!isLive()){toast('Erst die Rolle verbinden oder „Ohne Rolle testen“ einschalten');return;}
+  if(!isLive()){toast('Erst die Rolle verbinden');return;}
   Object.assign(S.rec,{state:'rec',startISO:new Date().toISOString(),trainer:false,acc:0,run:performance.now(),p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0});
   resetSim();wake(true);renderControls();renderRoutes();
   if(innerWidth<900)$('.card.live').scrollIntoView({behavior:'smooth',block:'start'});

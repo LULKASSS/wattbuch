@@ -183,6 +183,7 @@ async function fakeStrava() {
         for (let i = 0; i < n; i++) { time.push(sm[1] === '111' && i >= 1500 ? i + 600 : i); d.push(i * 8); }
         const out = { time: { data: time }, distance: { data: d }, heartrate: { data: time.map(() => 150) }, cadence: { data: time.map(() => 85) }, altitude: { data: time.map((_, i) => 150 + i / 100) }, moving: { data: time.map(() => true) } };
         if (sm[1] === '222') out.watts = { data: time.map(() => 200) };
+        if ((u.searchParams.get('keys') || '').includes('latlng')) out.latlng = { data: time.map((_, i) => [50 + i * 8 / 111320, 8]) }; // gerade nach Norden
         return send(out);
       }
       res.statusCode = 404; res.end();
@@ -280,6 +281,14 @@ test('Strava: alle Fahrten übernehmen, mit und ohne Wattmesser', async () => {
   await page.evaluate(() => { S.detail = 'sv111'; go('detail'); });
   await expect(page.locator('#v-detail .hero')).toContainText('Ohne Wattmesser');
   await expect(page.locator('#btnStrava')).toHaveText('Auf Strava ansehen');
+  /* Draußen-Fahrt als Strecke speichern, danach unter „Fahren“ wählbar */
+  await page.click('#btnRouteFrom');
+  await expect(page.locator('#btnRouteFrom')).toHaveText('Als Strecke gespeichert');
+  await expect(page.locator('#btnRouteFrom')).toBeDisabled();
+  const rt = await page.evaluate(() => { const r = S.routes.find(x => x.id === 'sr111'); return r && { name: r.name, km: Math.round(r.dist / 1000) }; });
+  expect(rt).toEqual({ name: 'Hausrunde', km: 29 });
+  await page.click('#nav [data-v="live"]');
+  await expect(page.locator('#rtList [data-route="sr111"]')).toContainText('Hausrunde');
   await app.close();
   sv.close();
   fs.rmSync(dir, { recursive: true, force: true });

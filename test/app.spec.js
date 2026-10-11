@@ -93,6 +93,34 @@ test('Rolle verbinden zeigt Live-Watt, Tempo und Puls der Rolle', async ({ page 
   expect(problems).toEqual([]);
 });
 
+test('Startkarte: Strecke, Geräte mit Live-Werten und Start, die Live-Karte erst während der Fahrt', async ({ page }) => {
+  const problems = await open(page);
+  await expect(page.locator('#startCard')).toBeVisible();
+  await expect(page.locator('.card.live')).toBeHidden(); // keine leeren Nullen vor der Fahrt
+  await expect(page.locator('#stFree')).toBeVisible(); // frei fahren ist vorgewählt
+  await expect(page.locator('#startCtrls [data-a="start"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('#startCtrls')).toContainText('Erst die Rolle verbinden');
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Bergwertung' }).click();
+  await expect(page.locator('#startCard #routeLive')).toBeVisible();
+  await expect(page.locator('#stFree')).toBeHidden();
+  await expect(page.locator('#rlMeta')).toContainText('km ·');
+  await connectTrainer(page);
+  await page.clock.runFor(2000);
+  await expect(page.locator('#trVal')).toHaveText('180 W');
+  await expect(page.locator('#startCtrls [data-a="start"]')).not.toHaveAttribute('aria-disabled', 'true');
+  await start(page);
+  await page.click('#fClose');
+  await expect(page.locator('#startCard')).toBeHidden();
+  await expect(page.locator('.card.live')).toBeVisible();
+  await expect(page.locator('.card.live #routeLive')).toBeVisible(); // Strecke wandert in die Live-Karte
+  await expect(page.locator('#startCtrls')).toBeEmpty();
+  await page.click('#ctrls [data-a="end"]');
+  await page.click('#ctrls [data-a="discard"]');
+  await page.click('#ctrls [data-a="discard"]');
+  await expect(page.locator('#startCard #routeLive')).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
 test('Fahrt aufnehmen, speichern und nach Neuladen wiederfinden', async ({ page }) => {
   const problems = await open(page);
   await connectTrainer(page);

@@ -37,9 +37,48 @@
 
 <main class="wrap">
 
-  <!-- Fahren -->
+  <!-- Fahren: vor der Fahrt die Startkarte (Strecke, Geräte, Start), während der Fahrt die Live-Karte -->
   <section class="view" id="v-live">
     <div class="live-grid">
+      <div class="main-col">
+      <div class="card start" id="startCard">
+        <div class="start-route" id="startRoute">
+          <div class="st-free" id="stFree">
+            <div class="rl-head"><div class="rl-t"><span class="lbl">Frei fahren</span><span class="rl-name">Flache Straße</span><span class="rl-meta">Ohne Steigung, ohne Ziel</span></div></div>
+            <svg class="st-flat" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="gFlat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs><path d="M0 60H600V120H0Z" fill="url(#gFlat)"/><path d="M0 60H600" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+          </div>
+        </div>
+        <div class="rt-opts" id="rtOpts">
+          <div class="rt-row"><span class="lbl">Steigungsstärke</span>
+            <div class="seg sm" id="diffSeg"><span class="thumb"></span><button type="button" data-df="0.25">25 %</button><button type="button" data-df="0.5">50 %</button><button type="button" data-df="0.75">75 %</button><button type="button" data-df="1">100 %</button></div>
+          </div>
+          <label class="chk sm" id="chkRev"><input type="checkbox" id="rev"><span class="box"></span>Umgekehrt fahren</label>
+        </div>
+        <div class="devs" aria-label="Geräte">
+          <div class="dev">
+            <span class="dot" id="trDot"></span>
+            <div class="dev-t"><b>Rollentrainer</b><span id="trSub">Nicht verbunden</span></div>
+            <span class="dev-v" id="trVal"></span>
+            <button type="button" class="btn sm" id="btnTr">Verbinden</button>
+          </div>
+          <div class="dev">
+            <span class="dot" id="hrDot"></span>
+            <div class="dev-t"><b>Pulsgurt</b><span id="hrSub">Nicht verbunden</span></div>
+            <span class="dev-v" id="hrVal"></span>
+            <button type="button" class="btn sm" id="btnHr">Verbinden</button>
+          </div>
+          <div class="dev">
+            <span class="dot" id="cdDot"></span>
+            <div class="dev-t"><b>Trittfrequenz</b><span id="cdSub">Nicht verbunden</span></div>
+            <span class="dev-v" id="cdVal"></span>
+            <button type="button" class="btn sm" id="btnCd">Verbinden</button>
+          </div>
+        </div>
+        <button type="button" class="lnk sm-lnk" id="btnCdAll" hidden>Sensor nicht in der Liste? Alle Geräte zeigen</button>
+        <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac die <a href="https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip">Wattbuch-App laden</a> oder Chrome nehmen.</p>
+        <div class="start-go" id="startCtrls"></div>
+      </div>
+
       <div class="card live">
         <div class="live-l">
         <div class="live-top">
@@ -54,11 +93,12 @@
           <div class="zbar-lbl" id="zLbl"></div>
         </div>
         <div class="controls" id="ctrls"></div>
+        <div class="chart-live"><span class="lbl">Leistung · letzte 5 min</span><canvas class="cv" id="cvLive" aria-label="Leistung der letzten fünf Minuten"></canvas></div>
         </div>
         <div class="live-r">
         <div class="route-live" id="routeLive" hidden>
           <div class="rl-head">
-            <span class="rl-name" id="rlName"></span>
+            <div class="rl-t"><span class="lbl">Strecke</span><span class="rl-name" id="rlName"></span><span class="rl-meta" id="rlMeta"></span></div>
             <span class="rl-grade"><span class="lbl">Steigung</span><b id="rlGrade">0,0 %</b><small id="rlSent"></small></span>
           </div>
           <div class="rl-body">
@@ -78,47 +118,14 @@
           <div class="st"><span class="lbl">Trittfrequenz</span><div class="v"><span id="lvCad">–</span><small>rpm</small></div></div>
           <div class="st"><span class="lbl">Höhenmeter</span><div class="v"><span id="lvGain">0</span><small>m</small></div></div>
         </div>
-        <div class="chart-live"><span class="lbl">Leistung · letzte 5 min</span><canvas class="cv" id="cvLive" aria-label="Leistung der letzten fünf Minuten"></canvas></div>
         </div>
+      </div>
       </div>
 
       <div class="side">
-        <div class="card">
-          <div class="card-h" style="margin-bottom:8px"><h3>Geräte</h3></div>
-          <div class="dev">
-            <span class="dot" id="trDot"></span>
-            <div class="dev-t"><b>Rollentrainer</b><span id="trSub">Nicht verbunden</span></div>
-            <button type="button" class="btn sm" id="btnTr">Verbinden</button>
-          </div>
-          <div class="dev">
-            <span class="dot" id="hrDot"></span>
-            <div class="dev-t"><b>Pulsgurt</b><span id="hrSub">Nicht verbunden</span></div>
-            <button type="button" class="btn sm" id="btnHr">Verbinden</button>
-          </div>
-          <div class="dev">
-            <span class="dot" id="cdDot"></span>
-            <div class="dev-t"><b>Trittfrequenzsensor</b><span id="cdSub">Nicht verbunden</span></div>
-            <button type="button" class="btn sm" id="btnCd">Verbinden</button>
-          </div>
-          <button type="button" class="lnk" id="btnCdAll" hidden>Sensor nicht in der Liste? Alle Geräte zeigen</button>
-          <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac die <a href="https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip">Wattbuch-App laden</a> oder Chrome nehmen.</p>
-        </div>
-
         <div class="card" id="routeCard">
-          <div class="card-h" style="margin-bottom:6px"><h3>Strecke</h3><span class="card-a"><button type="button" class="lnk" id="rtRoll" title="Zufallsstrecke nach dem Muster deiner Touren">Würfeln</button><button type="button" class="lnk" id="rtLoad">Laden</button></span></div>
+          <div class="card-h"><h3>Strecken</h3><span class="card-a"><button type="button" class="lnk" id="rtRoll" title="Zufallsstrecke nach dem Muster deiner Touren">Würfeln</button><button type="button" class="lnk" id="rtLoad" title="GPX-Datei einlesen">GPX laden</button></span></div>
           <div class="rlist" id="rtList"></div>
-          <div class="rt-opts" id="rtOpts">
-            <div class="rt-row"><span class="lbl">Steigungsstärke</span>
-              <div class="seg sm" id="diffSeg"><span class="thumb"></span><button type="button" data-df="0.25">25 %</button><button type="button" data-df="0.5">50 %</button><button type="button" data-df="0.75">75 %</button><button type="button" data-df="1">100 %</button></div>
-            </div>
-            <label class="chk sm" id="chkRev"><input type="checkbox" id="rev"><span class="box"></span>Umgekehrt fahren</label>
-          </div>
-        </div>
-
-        <div class="card" id="ftpCard">
-          <div class="card-h" style="margin-bottom:8px"><h3>FTP-Test</h3><span class="tag acc" id="ftpNow">FTP 200 W</span></div>
-          <p class="ftp-note">Rampentest: Die Rolle erhöht jede Minute um 20 W, bis es nicht mehr geht. Meist 15–25 min. Deine FTP sind 75 % der besten Minute.</p>
-          <button type="button" class="btn sm" id="btnFtpTest">Test starten</button>
         </div>
 
         <div class="card erg off" id="ergCard">
@@ -135,6 +142,12 @@
           <div class="quick" id="ergQuick"></div>
           <p class="note" id="ergMsg" hidden></p>
         </div>
+
+        <div class="card ftp-c" id="ftpCard">
+          <div class="ftp-c-t"><h3>FTP-Test</h3><span class="ftp-note">+20 W pro Minute, bis nichts mehr geht</span></div>
+          <span class="tag acc" id="ftpNow">FTP 200 W</span>
+          <button type="button" class="btn sm" id="btnFtpTest">Starten</button>
+        </div>
       </div>
     </div>
   </section>
@@ -145,20 +158,24 @@
   <section class="view" id="v-best"></section>
 </main>
 
-<dialog id="dlgSet">
-  <form method="dialog" class="dlg">
-    <h2>Einstellungen</h2>
-    <div class="sv"><h3>Konto</h3><div class="konto"></div></div>
-    <div class="sep"></div>
-    <div class="frow"><label for="setFtp">FTP</label><div class="field left"><input id="setFtp" inputmode="numeric" autocomplete="off"><span class="u">W</span></div></div>
-    <div class="frow"><label for="setKg">Gewicht</label><div class="field left"><input id="setKg" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
-    <div class="frow no-handy"><label for="setBike">Rad</label><div class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
-    <div><button type="button" class="qb" id="ftpEst"></button></div>
-    <div class="sep no-handy"></div>
-    <div class="sv no-handy" id="svBox"></div>
-    <div class="no-handy" id="tvWrap" hidden><div class="sep"></div><div class="sv" id="tvBox"></div></div>
-    <div class="sep"></div>
-    <div class="dlg-row"><button type="button" class="btn sm ghost warn" id="delAll">Alle Fahrten löschen</button></div>
+<dialog id="dlgSet" aria-labelledby="setTitle" tabindex="-1" autofocus>
+  <form method="dialog" class="dlg set">
+    <div class="dlg-h"><h2 id="setTitle">Einstellungen</h2><button class="icon-btn" value="x" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="set-body">
+      <section class="sv"><h3>Konto</h3><div class="konto"></div></section>
+      <section class="sv">
+        <h3>Deine Werte</h3>
+        <div class="vals">
+          <label class="vf" for="setFtp"><span class="lbl">FTP</span><span class="field left"><input id="setFtp" inputmode="numeric" autocomplete="off"><span class="u">W</span></span></label>
+          <label class="vf" for="setKg"><span class="lbl">Gewicht</span><span class="field left"><input id="setKg" inputmode="decimal" autocomplete="off"><span class="u">kg</span></span></label>
+          <label class="vf no-handy" for="setBike"><span class="lbl">Rad</span><span class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></span></label>
+        </div>
+        <button type="button" class="qb" id="ftpEst"></button>
+      </section>
+      <section class="sv no-handy" id="svBox"></section>
+      <div class="no-handy" id="tvWrap" hidden><section class="sv" id="tvBox"></section></div>
+      <section class="sv"><h3>Daten</h3><div class="sv-line"><span class="ftp-note">Löscht nur auf diesem Gerät, das Konto behält alles.</span><button type="button" class="btn sm ghost warn" id="delAll">Alle Fahrten löschen</button></div></section>
+    </div>
     <div class="dlg-foot"><button class="btn primary" value="ok">Fertig</button></div>
   </form>
 </dialog>

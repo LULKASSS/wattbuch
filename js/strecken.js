@@ -84,12 +84,12 @@ function renderRoutes(){
   const rows=[`<button type="button" class="rrow${!sel?' on':''}" data-route=""${busy?' disabled':''}><span class="rd"></span><span class="rn"><b>Frei fahren</b><span>Flache Straße</span></span><span></span></button>`];
   /* Meistgefahrene Runden zuerst, sonst in der Reihenfolge des Anlegens */
   for(const r of S.routes.slice().sort((a,b)=>(b.fav?b.fav.n:0)-(a.fav?a.fav.n:0)))rows.push(`<div class="rwrap"><button type="button" class="rrow${sel===r.id?' on':''}" data-route="${esc(r.id)}"${busy?' disabled':''}><span class="rd"></span><span class="rn"><b>${esc(r.name)}</b><span>${n1(r.dist/1000)} km · ${n0(r.gain)} Hm${r.fav?` · ${r.fav.n}× gefahren`:''}</span></span>${routeSpark(r.ele)}</button>${busy&&sel===r.id?'':`<button type="button" class="rdel" data-rdel="${esc(r.id)}" aria-label="Strecke ${esc(r.name)} löschen" title="Löschen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`}</div>`);
-  $('#rtList').innerHTML=rows.join('')+(S.routes.length?'':'<p class="rt-empty">Noch keine Strecke. Über „Laden“ eine Streckendatei oder GPX einlesen.</p>');
+  $('#rtList').innerHTML=rows.join('')+(S.routes.length?'':'<p class="rt-empty">Noch keine Strecke. Würfeln oder eine GPX-Datei laden.</p>');
   $('#rtOpts').hidden=!sel;
   $('#rev').checked=!!S.set.rev;$('#chkRev').classList.toggle('on',!!S.set.rev);$('#rev').disabled=busy;
   $$('#diffSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.df===S.set.diff));
   requestAnimationFrame(()=>placeSegThumb($('#diffSeg')));
-  $('#routeLive').hidden=!activeRoute();
+  $('#routeLive').hidden=!activeRoute();$('#stFree').hidden=!!activeRoute();
 }
 /* Löschen in zwei Schritten: erster Klick fragt, zweiter löscht */
 async function delRoute(btn){

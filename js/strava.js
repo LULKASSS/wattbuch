@@ -94,14 +94,11 @@ document.addEventListener('click',async e=>{
 function renderStravaSet(){
   const el=$('#svBox');if(!el)return;const sv=SV(),st=S.strava;
   let h='<h3>Strava</h3>';
-  if(!sv)h+=`<p class="ftp-note">Direkt und von selbst hochladen geht in der Mac-App (Mac mit Apple-Chip). Hier im Browser: nach der Fahrt „Für Strava exportieren“, die Datei landet in Downloads und Strava öffnet die Upload-Seite.</p>
-    <div class="dlg-row"><a class="btn sm strava" id="svMacApp" href="${MAC_APP}">Mac-App laden</a></div>`;
-  else if(st.connected)h+=`<p class="sv-ok"><i></i>Verbunden${st.athlete&&st.athlete.name?` als ${esc(st.athlete.name)}`:''}</p>
+  if(!sv)h+=`<div class="sv-line"><span class="ftp-note">Von selbst hochladen geht in der Mac-App. Hier im Browser nach der Fahrt „Für Strava exportieren“.</span><a class="btn sm strava" id="svMacApp" href="${MAC_APP}">Mac-App laden</a></div>`;
+  else if(st.connected)h+=`<div class="sv-line"><p class="sv-ok"><i></i>Verbunden${st.athlete&&st.athlete.name?` als ${esc(st.athlete.name)}`:''}</p><button type="button" class="btn sm ghost" id="svOff">Trennen</button></div>
     <label class="chk sm${svAuto()?' on':''}" id="svAutoL"><input type="checkbox" id="svAuto"${svAuto()?' checked':''}><span class="box"></span>Fahrten mit der Rolle automatisch hochladen</label>
-    ${typeof svInHTML==='function'?svInHTML():''}
-    <div class="dlg-row"><button type="button" class="btn sm ghost" id="svOff">Trennen</button></div>`;
-  else h+=`<p class="ftp-note">Einmal verbinden: Strava fragt im Browser, ob Wattbuch deine Fahrten hochladen darf. Danach geht jede Fahrt mit der Rolle von selbst hoch.</p>
-    <div class="dlg-row"><button type="button" class="btn sm strava" id="svConnect">Mit Strava verbinden</button></div>`;
+    ${typeof svInHTML==='function'?svInHTML():''}`;
+  else h+=`<div class="sv-line"><span class="ftp-note">Einmal verbinden, dann geht jede Fahrt mit der Rolle von selbst hoch.</span><button type="button" class="btn sm strava" id="svConnect">Mit Strava verbinden</button></div>`;
   el.innerHTML=h;
 }
 async function stravaConnect(){
