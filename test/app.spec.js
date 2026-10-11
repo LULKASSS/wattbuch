@@ -543,7 +543,7 @@ test('Fahrt-Ansicht: Distanz groß, Steigung farbig mit Wort, Nebenwerte in Pill
   expect(await page.locator('#fGradeBox').evaluate(e => e.style.getPropertyValue('--gc'))).not.toBe(flat);
   await expect(page.locator('#fKm')).toHaveText(/^2,[2-3]$/);
   await expect(page.locator('#fKmOf')).toContainText('noch');
-  await expect(page.locator('.f-pill')).toHaveCount(4);
+  await expect(page.locator('.f-pill')).toHaveCount(6); // Tempo, Ø Tempo, Kadenz · Ø Watt, Puls, Höhe
   await expect(page.locator('#fHr')).toHaveText('132');
   await expect(page.locator('#fCad')).toHaveText('88');
   expect(problems).toEqual([]);
@@ -610,6 +610,15 @@ test('Handy: Übersicht statt Aufnahme, Sicherung vom Mac laden @mobil', async (
   await expect(page.locator('.hd')).toContainText('Stand: Sicherung vom');
   await expect(page.locator('.hf')).toContainText('190 → 200 W'); // FTP-Verlauf
   await expect(page.locator('.hr-c .row')).toHaveCount(3);
+  /* Grafiken: Form, Balken, Zonen, Rekorde, Kalender */
+  await expect(page.locator('.hform .hk3')).toContainText('Fitness');
+  expect(await page.locator('.hbars rect.b').count()).toBeGreaterThan(0);
+  await expect(page.locator('.hzd-l')).toContainText('Schwelle'); // 200 W bei FTP 200
+  await expect(page.locator('.hrec-t')).toHaveCount(4);
+  await expect(page.locator('.hrec-t').nth(3)).toContainText('200');
+  expect(await page.locator('.hcal-s rect').count()).toBeGreaterThan(100);
+  await page.locator('.hbars g[data-hb]').last().click({ force: true });
+  await expect(page.locator('#hbCap')).toContainText(/Fahrt|keine Fahrt/);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.click('#nav [data-v="rides"]');
@@ -639,7 +648,7 @@ test('Handy: Werte pflegen, Fahrt umbenennen und löschen, an den Mac schicken @
   await expect(page.locator('#hFtp')).toHaveValue('205');
   await page.fill('#hKg', '72,5');
   await page.locator('#hKg').press('Enter');
-  await expect(page.locator('#hWkg')).toHaveText('2,83 W/kg');
+  await expect(page.locator('#hWkg')).toHaveText('2,83');
   await expect(page.locator('.hd .tag.warn')).toHaveText('Änderungen offen');
 
   await page.click('#nav [data-v="rides"]');
@@ -809,4 +818,19 @@ test('Konto: Fahrten vom Mac kommen von selbst aufs Handy, Änderungen am Handy 
   expect(problems).toEqual([]);
   expect(problems2.filter(x => !/status of 400/.test(x))).toEqual([]); // 400 = absichtlich falsches Passwort
   await ctx.close();
+});
+
+test('Fahrt zeigt Ø Watt und Ø km/h', async ({ page }) => {
+  const problems = await open(page);
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(30000);
+  await expect(page.locator('#fPowAvg')).toHaveText('180');
+  await expect(page.locator('#fSpdAvg')).toHaveText(/^\d+,\d$/);
+  const avg = parseFloat((await page.locator('#fSpdAvg').textContent()).replace(',', '.'));
+  expect(avg).toBeGreaterThan(20);
+  expect(avg).toBeLessThan(45);
+  await page.click('#fClose');
+  await expect(page.locator('#lvSpdAvg')).toHaveText(/^Ø \d+,\d$/);
+  expect(problems).toEqual([]);
 });

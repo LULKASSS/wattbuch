@@ -73,6 +73,7 @@ function renderLive(){
   setT('lvCad',cad==null?'–':String(Math.round(cad)));
   setT('lvDist',n1(R.state==='idle'?0:S.sim.total/1000));
   setT('lvSpd',isLive()?n1(S.sim.v*3.6):'–');
+  setT('lvSpdAvg',R.state!=='idle'&&p.length>=5?`Ø ${n1(S.sim.total/p.length*3.6)}`:'');
   setT('lvGain',n0(R.state==='idle'?0:S.sim.gain));
   const rt=activeRoute();
   if(rt){

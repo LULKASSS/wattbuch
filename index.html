@@ -70,7 +70,7 @@
         <div class="stats6">
           <div class="st"><span class="lbl">Zeit</span><div class="v" id="lvTime">0:00</div></div>
           <div class="st"><span class="lbl">Distanz</span><div class="v"><span id="lvDist">0,0</span><small>km</small></div></div>
-          <div class="st"><span class="lbl">Tempo</span><div class="v"><span id="lvSpd">–</span><small>km/h</small></div></div>
+          <div class="st"><span class="lbl">Tempo</span><div class="v"><span id="lvSpd">–</span><small>km/h</small></div><span class="st-avg" id="lvSpdAvg"></span></div>
           <div class="st"><span class="lbl">Ø Leistung</span><div class="v"><span id="lvAvg">–</span><small>W</small></div></div>
           <div class="st"><span class="lbl">NP</span><div class="v"><span id="lvNP">–</span><small>W</small></div></div>
           <div class="st"><span class="lbl">Arbeit</span><div class="v"><span id="lvKJ">0</span><small>kJ</small></div></div>
@@ -186,6 +186,7 @@
       <div class="f-prog" id="fKmProg" hidden><span class="f-bar"><i id="fKmBar"></i></span><span class="f-of" id="fKmOf"></span></div>
       <div class="f-pills">
         <span class="f-pill"><small>Tempo</small><b id="fSpd">–</b><em>km/h</em></span>
+        <span class="f-pill"><small>Ø</small><b id="fSpdAvg">–</b><em>km/h</em></span>
         <span class="f-pill"><small>Kadenz</small><b id="fCad">–</b><em>rpm</em></span>
       </div>
     </div>
@@ -198,6 +199,7 @@
       <div class="f-big f-grade" id="fGradeBox"><span class="lbl">Steigung</span><b id="fGrade">0,0</b><small>%</small></div>
       <span class="f-gword" id="fGradeW">flach</span>
       <div class="f-pills">
+        <span class="f-pill"><small>Ø</small><b id="fPowAvg">–</b><em>W</em></span>
         <span class="f-pill"><small>Puls</small><b id="fHr">–</b><em>bpm</em></span>
         <span class="f-pill"><small>Höhe</small><b id="fGain">0</b><em>Hm</em></span>
       </div>

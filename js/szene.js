@@ -397,6 +397,9 @@ function renderFull(){
   /* Distanz groß; auf einer Strecke mit Fortschritt „von … km“ */
   const km=(R.state==='idle'?0:(rt?S.sim.d:S.sim.total))/1000;
   setT('fKm',n1(km));setT('fGain',n0(S.sim.gain));
+  /* Durchschnitt über die bisher aufgenommene Fahrt (eine Probe pro Sekunde) */
+  const ps=R.state==='idle'?0:R.p.length;
+  setT('fPowAvg',ps?n0(sum(R.p)/ps):'–');setT('fSpdAvg',ps>=5?n1(S.sim.total/ps*3.6):'–');
   $('#fKmProg').hidden=!rt;$('#fMapBox').hidden=!rt;
   if(rt){setT('fKmOf',`von ${n1(rt.dist/1000)} km · noch ${n1(Math.max(0,rt.dist/1000-km))}`);$('#fKmBar').style.width=clamp(km*1000/rt.dist*100,0,100).toFixed(2)+'%';}
   const bio={wald:'Wald',felder:'Felder',alpen:'Alpen'}[biomeAt(rt,SCV.vp||0,rt?trackAt(rt,SCV.vp||0).e:0)];
