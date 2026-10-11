@@ -7,6 +7,11 @@ description: Touren aus Lukas' Strava-Konto als Wattbuch-Strecken übernehmen od
 
 Strava ist über den Strava-Connector verbunden (Tools `list_activities`, `get_activity_streams`, `get_athlete_zones`).
 
+**Fahrten übernehmen (läuft von selbst)**
+- Die Mac-App holt alle Radfahrten selbst (`js/stravaholen.js`, Einstellungen → Strava → „Alle Fahrten aus Strava übernehmen“), danach alle 30 min Neues; übers Konto landen sie auf dem Handy. Nie über den Connector Streams massenhaft ziehen (zu groß).
+- Braucht die Strava-Erlaubnis `activity:read_all`; alte Verbindungen zeigen „Neu verbinden“ – das klickt Lukas.
+- Draußen-Fahrten haben meist keinen Wattmesser (`noW`): Leistung/TSS nur aus Stravas Schätzung.
+
 **Strecken übernehmen**
 1. `list_activities` (nur `sport_type` Ride, nicht VirtualRide/Hike), mit Lukas die Touren auswählen. Gut geeignet: viel Höhe pro km, Lieblingsrunden, Touren mit Geschichte.
 2. Pro Tour `get_activity_streams` mit `["location","altitude"]` und `resolution: 250` (reicht für ein Rollenprofil, spart Kontingent).
