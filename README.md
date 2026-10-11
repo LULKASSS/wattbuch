@@ -17,7 +17,7 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 - Countdown, Momente während der Fahrt (Bestwerte, Meilensteine, Gipfel), Zusammenfassung mit Highlights
 - Zufallsstrecken (Hügelrunde, Bergwertung, Flachstück) per „Würfeln“, mit Strava zusätzlich deine meistgefahrenen Runden als Strecken
 - **FTP-Test** (Rampentest: +20 W pro Minute über die Zielleistung, FTP = 75 % der besten Minute, wird direkt übernommen)
-- **Strava**: die Mac-App übernimmt alle Radfahrten aus Strava (auch draußen ohne Wattmesser: km, Zeit, Höhe, Puls; Leistung als Schätzung) und neue alle 30 min von selbst; Fahrten aus Wattbuch werden in der Mac-App direkt hochgeladen (einmalig eigene Strava-API-App anlegen, Einstellungen → Strava), auf Wunsch automatisch nach jeder Fahrt; im Browser als TCX exportieren
+- **Strava**: in der Mac-App einmal „Mit Strava verbinden“ (Einstellungen → Strava), dann geht jede Fahrt mit der Rolle von selbst zu Strava; im Browser als TCX exportieren
 
 **Tasten am Mac:** Leertaste Start/Pause/Weiter · F Vollbild · ↑↓ Zielleistung ±5 W · Esc Vollbild verlassen
 
@@ -29,12 +29,22 @@ Fahrten und Strecken liegen außerdem im Browser des jeweiligen Geräts. Die Mac
 
 ## Mac-App
 
+**Laden:** [Wattbuch für Mac](https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip) (Mac mit Apple-Chip, M1 oder neuer)
+
+1. Zip öffnen, `Wattbuch.app` in den Programme-Ordner ziehen und starten.
+2. Die App ist nicht bei Apple beglaubigt. macOS meldet beim ersten Start, dass es sie nicht prüfen konnte: „Fertig“ klicken, dann Systemeinstellungen → Datenschutz & Sicherheit → ganz unten „Trotzdem öffnen“. Danach startet sie normal.
+3. Bluetooth erlauben, Einstellungen → Strava → „Mit Strava verbinden“. Fahrten mit der Rolle gehen dann von selbst zu Strava.
+
+Die Oberfläche aktualisiert sich von selbst; eine neue App-Fassung gibt es über denselben Link.
+
+Selbst bauen:
+
 ```bash
 npm install
 npm run app:install
 ```
 
-Baut `Wattbuch.app` und legt sie in den Programme-Ordner. Gleiche Oberfläche wie die Webseite, dazu Geräteauswahl für Bluetooth, automatische Sicherung und Rückfrage beim Schließen während einer Aufnahme.
+Baut `Wattbuch.app` und legt sie in den Programme-Ordner. `npm run app:release` baut die Zip und stellt sie als GitHub-Release bereit (Link oben). Gleiche Oberfläche wie die Webseite, dazu Geräteauswahl für Bluetooth, automatische Sicherung und Rückfrage beim Schließen während einer Aufnahme.
 
 ## Entwicklung
 

@@ -7,6 +7,7 @@ description: Die Wattbuch Mac-App (Electron) bauen, installieren, starten oder e
 
 - **Aus dem Code starten:** `npm run app` (schnell, für Entwicklung).
 - **Installieren/aktualisieren:** `npm run app:install` → Fehlercheck, `electron-builder --dir`, Ad-hoc-Signatur, Kopie nach `/Applications/Wattbuch.app`.
+- **Für andere veröffentlichen:** `npm run app:release` → baut, signiert ad hoc, packt `dist/Wattbuch-mac-arm64.zip` und legt ein GitHub-Release `mac-<Datum>` an. Webseite (Einstellungen → Strava, Bluetooth-Hinweis) und README verlinken `releases/latest/download/Wattbuch-mac-arm64.zip`. Nötig nach jeder Änderung an `desktop/`.
 - **Testen:** `npx playwright test --project=app` (eigener Datenordner über `WATTBUCH_DATA`).
 - **Icon:** `desktop/icon.svg` bearbeiten, dann `npm run icon` → `desktop/icon.png`.
 

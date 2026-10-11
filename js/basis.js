@@ -104,6 +104,8 @@ const DB=(()=>{
 /* ---------- Handy ---------- */
 /* Auf dem Handy wird nicht gefahren: nur Fahrten ansehen, Werte pflegen, Daten mit dem Mac abgleichen.
    ?handy erzwingt die Handy-Fassung (zum Testen am Mac), ?fahren schaltet sie ab. Die Mac-App ist nie Handy. */
+/* Mac-App zum Herunterladen: jüngstes GitHub-Release, gebaut mit npm run app:release */
+const MAC_APP='https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip';
 const HANDY=(()=>{
   const q=location.search;
   if(window.wattbuchDesktop||/[?&]fahren\b/.test(q))return false;

@@ -13,6 +13,7 @@
     "app": "electron .",
     "app:build": "electron-builder --mac --arm64 --dir",
     "app:install": "node scripts/install-app.mjs",
+    "app:release": "node scripts/release-app.mjs",
     "postinstall": "node node_modules/electron/install.js",
     "icon": "electron scripts/make-icon.js",
     "manifest": "node scripts/manifest.mjs"

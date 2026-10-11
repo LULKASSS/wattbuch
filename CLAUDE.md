@@ -16,7 +16,7 @@ Gehört Lukas, Sprache in App, Code-Kommentaren und Commits: **Deutsch**.
 ## Befehle
 - `npm test` – Fehlercheck + alle Tests (≈30 s). Muss vor jedem Commit grün sein.
 - `npm run dev` – lokal ansehen: http://localhost:5173/?fake
-- `npm run app` – Mac-App aus dem Quellcode starten; `npm run app:install` – bauen, signieren, nach /Applications.
+- `npm run app` – Mac-App aus dem Quellcode starten; `npm run app:install` – bauen, signieren, nach /Applications; `npm run app:release` – Zip bauen und als GitHub-Release veröffentlichen (Download-Link `MAC_APP` zeigt immer aufs jüngste). Änderungen an `desktop/` erreichen andere nur über ein neues Release.
 - Nach `npm install` lädt `postinstall` das Electron-Binary.
 
 ## Regeln

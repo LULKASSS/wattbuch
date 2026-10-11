@@ -94,7 +94,8 @@ document.addEventListener('click',async e=>{
 function renderStravaSet(){
   const el=$('#svBox');if(!el)return;const sv=SV(),st=S.strava;
   let h='<h3>Strava</h3>';
-  if(!sv)h+='<p class="ftp-note">Direkt hochladen geht in der Mac-App. Hier im Browser: nach der Fahrt „Für Strava exportieren“, die Datei landet in Downloads und Strava öffnet die Upload-Seite.</p>';
+  if(!sv)h+=`<p class="ftp-note">Direkt und von selbst hochladen geht in der Mac-App (Mac mit Apple-Chip). Hier im Browser: nach der Fahrt „Für Strava exportieren“, die Datei landet in Downloads und Strava öffnet die Upload-Seite.</p>
+    <div class="dlg-row"><a class="btn sm strava" id="svMacApp" href="${MAC_APP}">Mac-App laden</a></div>`;
   else if(st.connected)h+=`<p class="sv-ok"><i></i>Verbunden${st.athlete&&st.athlete.name?` als ${esc(st.athlete.name)}`:''}</p>
     <label class="chk sm${svAuto()?' on':''}" id="svAutoL"><input type="checkbox" id="svAuto"${svAuto()?' checked':''}><span class="box"></span>Fahrten mit der Rolle automatisch hochladen</label>
     ${typeof svInHTML==='function'?svInHTML():''}

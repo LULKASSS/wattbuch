@@ -297,6 +297,13 @@ test('Zusammenfassung: Export für Strava lädt TCX', async ({ page }) => {
   expect(xml).toContain('<ns3:Watts>180</ns3:Watts>');
 });
 
+test('Browser: Einstellungen bieten die Mac-App zum Laden an', async ({ page }) => {
+  await open(page);
+  await page.click('#btnSet');
+  await expect(page.locator('#svMacApp')).toHaveAttribute('href', 'https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip');
+  await expect(page.locator('#svBox input')).toHaveCount(0);
+});
+
 /* Mac-App-Brücke für Strava nachgestellt: verbunden, Uploads landen in window.__uploads, __svFail lässt sie scheitern */
 const fakeDesktopStrava = () => {
   window.__uploads = []; window.__svFail = false;
