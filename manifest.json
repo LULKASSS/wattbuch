@@ -1,8 +1,8 @@
 {
  "manifest": "wattbuch-web",
- "version": "186e7ae372eb",
+ "version": "dc1eadc32167",
  "files": {
-  "index.html": "098bc1561b3c72f72b2de1e759184ed0bb65953e15fae9ccd2baa0e2fb84aab2",
+  "index.html": "18c795fc054d35f35d9ae84d472409184414fa3326f8442762678852489d0b98",
   "app.css": "415cc3aa1c87cfd5e012a1d17c8b26207c6dadb39a481e9dff853972b31839f0",
   "js/ansichten.js": "8d9456352690ebef891ba54403b3c2b68b5dfc46ad836349c319a635515d1b11",
   "js/aufnahme.js": "145e17aefdd7c3375f15bd3e7ebf3b4091f4288ef5ae9212d0e0bf2b08b4cbe3",
