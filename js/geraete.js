@@ -24,13 +24,15 @@ function onIBD(e){
     if(!(f&1)){r.spd=dv.getUint16(o,true)/100;o+=2;}
     if(f&2)o+=2;
     if(f&4){r.cad=Math.round(dv.getUint16(o,true)/2);o+=2;}
-    if(f&8)o+=2;
+    if(f&8){if(!(f&4))r.cad=Math.round(dv.getUint16(o,true)/2);o+=2;}
     if(f&16)o+=3;
     if(f&32)o+=2;
     if(f&64){r.pow=dv.getInt16(o,true);o+=2;}
     if(f&128)o+=2;
     if(f&256)o+=5;
     if(f&512){r.hr=dv.getUint8(o);o+=1;}
+    if(f&12)S.tr.ibdCad=true;
+    if(S.tr.crank&&!(r.cad>0))delete r.cad; /* Kurbeldaten der Rolle sind genauer als eine leere 0 */
     feed(r,'tr');
   }catch(_){}
 }
@@ -53,17 +55,19 @@ function onHRM(e){
   const dv=e.target.value;
   try{const f=dv.getUint8(0);feed({hr:f&1?dv.getUint16(1,true):dv.getUint8(1)},'hr');}catch(_){}
 }
-let lastCsc=null;
-function onCSC(e){
+/* Letzter Kurbelstand je Quelle (Rolle 'tr', Sensor 'cd') */
+const lastCsc={},lastCrankCd={};
+function onCSC(e,src='cd'){
   const dv=e.target.value;
   try{
     const f=dv.getUint8(0);let o=1;if(f&1)o+=6;
     if(f&2){
       const rev=dv.getUint16(o,true),t=dv.getUint16(o+2,true),now=performance.now();let cad=null;
-      if(lastCsc&&rev!==lastCsc.rev){const dr=(rev-lastCsc.rev+65536)%65536,dt=((t-lastCsc.t+65536)%65536)/1024;if(dt>0&&dr<10)cad=Math.round(dr/dt*60);}
-      else if(lastCsc&&now-lastCsc.at>2500)cad=0;
-      if(!lastCsc||rev!==lastCsc.rev)lastCsc={rev,t,at:now};
-      if(cad!=null)feed({cad},'cd');
+      const L=lastCsc[src];
+      if(L&&rev!==L.rev){const dr=(rev-L.rev+65536)%65536,dt=((t-L.t+65536)%65536)/1024;if(dt>0&&dr<10)cad=Math.round(dr/dt*60);}
+      else if(L&&now-L.at>2500)cad=0;
+      if(!L||rev!==L.rev)lastCsc[src]={rev,t,at:now};
+      if(cad!=null)feed({cad},src);
     }
   }catch(_){}
 }
@@ -85,7 +89,7 @@ async function connectTrainer(){
   if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
   let dev;
   try{
-    dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1826]},{services:[0x1818]}],optionalServices:[0x1826,0x1818]});
+    dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1826]},{services:[0x1818]}],optionalServices:[0x1826,0x1818,0x1816]});
   }catch(e){btFail(e);return;}
   if(S.demo)setDemo(false);
   S.tr.dev=dev;S.tr.manual=false;S.tr.tries=0;
@@ -108,7 +112,13 @@ async function setupTrainer(){
       const s=await srv.getPrimaryService(0x1818);const m=await s.getCharacteristic(0x2a63);
       m.addEventListener('characteristicvaluechanged',onCPM);await m.startNotifications();via='Leistungsmesser';S.tr.cp=null;
     }
-    S.tr.via=via;S.tr.tries=0;
+    /* Manche Rollen schicken die Trittfrequenz nicht in Indoor Bike Data, sondern über einen eigenen Kadenz- oder Leistungsdienst */
+    if(via==='FTMS'){
+      lastCsc.tr=lastCrankCd.tr=null;S.tr.crank=false;
+      try{const s=await srv.getPrimaryService(0x1816);const c=await s.getCharacteristic(0x2a5b);c.addEventListener('characteristicvaluechanged',onCSCtr);await c.startNotifications();S.tr.crank=true;}catch(_){}
+      if(!S.tr.crank)try{const s=await srv.getPrimaryService(0x1818);const c=await s.getCharacteristic(0x2a63);c.addEventListener('characteristicvaluechanged',onCPMtr);await c.startNotifications();S.tr.crank=true;}catch(_){}
+    }
+    S.tr.via=via;S.tr.tries=0;S.tr.since=performance.now();S.tr.cadHint=false;
     setTr('on',dev.name||'Rollentrainer');
     if(S.erg.on)applyErg();
   }catch(e){
@@ -162,13 +172,14 @@ function setHr(state){
   $('#btnHr').textContent=state==='off'?'Verbinden':'Trennen';
 }
 
-async function connectCd(){
+async function connectCd(all){
   if(S.cd.state!=='off'){S.cd.manual=true;try{S.cd.dev.gatt.disconnect();}catch(_){}setCd('off');return;}
   if(!hasBT){toast('Dieser Browser kann kein Bluetooth');return;}
   let dev;
-  try{dev=await navigator.bluetooth.requestDevice({filters:CD_FILTERS,optionalServices:[0x1816,0x1818]});}
-  catch(e){btFail(e);return;}
-  S.cd.dev=dev;S.cd.manual=false;lastCsc=null;lastCrankCd=null;
+  /* all: Sensoren, die ohne Namen und ohne Dienst werben, tauchen nur so auf */
+  try{dev=await navigator.bluetooth.requestDevice(all===true?{acceptAllDevices:true,optionalServices:[0x1816,0x1818]}:{filters:CD_FILTERS,optionalServices:[0x1816,0x1818]});}
+  catch(e){btFail(e);if(e&&(e.name==='NotFoundError'||/cancel/i.test(e.message||''))&&all!==true)$('#btnCdAll').hidden=false;return;}
+  S.cd.dev=dev;S.cd.manual=false;lastCsc.cd=lastCrankCd.cd=null;
   dev.addEventListener('gattserverdisconnected',()=>{if(S.cd.manual){setCd('off');return;}setCd('wait');setTimeout(setupCd,2000);});
   await setupCd();
 }
@@ -184,26 +195,35 @@ async function setupCd(){
     /* kein Kadenzdienst: Trittfrequenz aus den Kurbeldaten des Leistungsdienstes */
     if(!ok){const s=await srv.getPrimaryService(0x1818);const c=await s.getCharacteristic(0x2a63);c.addEventListener('characteristicvaluechanged',onCPMcad);await c.startNotifications();}
     S.cd.name=dev.name||'Trittfrequenzsensor';setCd('on');
-  }catch(e){setCd('off');toast('Trittfrequenzsensor nicht erreichbar. Kurbel ein paar Mal drehen, damit er aufwacht, dann erneut verbinden');}
+  }catch(e){setCd('off');toast('Trittfrequenzsensor nicht erreichbar. Kurbel drehen, damit er aufwacht. Ist er noch mit Garmin, Zwift oder dem Handy verbunden? Dort trennen, dann erneut verbinden');}
 }
-let lastCrankCd=null;
-function onCPMcad(e){
+function onCPMcad(e,src='cd'){
   const dv=e.target.value;
   try{
     const f=dv.getUint16(0,true);let o=4;if(f&1)o+=1;if(f&4)o+=2;if(f&16)o+=6;
     if(!(f&32))return;
     const rev=dv.getUint16(o,true),t=dv.getUint16(o+2,true),now=performance.now();let cad=null;
-    if(lastCrankCd&&rev!==lastCrankCd.rev){const dr=(rev-lastCrankCd.rev+65536)%65536,dt=((t-lastCrankCd.t+65536)%65536)/1024;if(dt>0&&dr<10)cad=Math.round(dr/dt*60);}
-    else if(lastCrankCd&&now-lastCrankCd.at>2500)cad=0;
-    if(!lastCrankCd||rev!==lastCrankCd.rev)lastCrankCd={rev,t,at:now};
-    if(cad!=null)feed({cad},'cd');
+    const L=lastCrankCd[src];
+    if(L&&rev!==L.rev){const dr=(rev-L.rev+65536)%65536,dt=((t-L.t+65536)%65536)/1024;if(dt>0&&dr<10)cad=Math.round(dr/dt*60);}
+    else if(L&&now-L.at>2500)cad=0;
+    if(!L||rev!==L.rev)lastCrankCd[src]={rev,t,at:now};
+    if(cad!=null)feed({cad},src);
   }catch(_){}
 }
+const onCSCtr=e=>onCSC(e,'tr'),onCPMtr=e=>onCPMcad(e,'tr');
 function setCd(state){
   S.cd.state=state;
   $('#cdDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
   $('#cdSub').textContent=state==='on'?S.cd.name:state==='wait'?'Verbinde …':'Nicht verbunden';
   $('#btnCd').textContent=state==='off'?'Verbinden':'Trennen';
+  if(state!=='off')$('#btnCdAll').hidden=true;
+}
+/* Rolle verbunden, es wird getreten, aber keine Trittfrequenz kommt: einmal sagen, woran es liegt */
+function checkTrCad(){
+  const T=S.tr;
+  if(T.state!=='on'||T.cadHint||S.cd.state!=='off'||S.demo||curCad()!=null||!(curPow()>30)||!fresh(T.since,600000)||fresh(T.since,15000))return;
+  T.cadHint=true;
+  toast(T.ibdCad||T.crank?'Die Rolle meldet Trittfrequenz 0. Für echte Werte den Trittfrequenzsensor verbinden':'Deine Rolle sendet keine Trittfrequenz. Dafür den Trittfrequenzsensor verbinden');
 }
 
 /* Steuerung (FTMS Control Point) */

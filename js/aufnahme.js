@@ -55,7 +55,7 @@ function tick(){
   const now=performance.now();
   let dt=Math.min((now-lastSim)/1000,120);lastSim=now;
   while(dt>1e-6){const h=Math.min(.25,dt);simStep(h);dt-=h;}
-  if(S.tr.state==='on'&&!S.demo)applyControl(false);
+  if(S.tr.state==='on'&&!S.demo){applyControl(false);checkTrCad();}
   if(now-lastHist>=1000){lastHist=now;if(isLive()){S.hist.push(Math.round(curPow()));if(S.hist.length>600)S.hist.shift();}else S.hist=[];}
   if(S.rec.state==='rec'){
     const target=Math.floor(recElapsed(now)/1000);

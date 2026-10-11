@@ -13,6 +13,8 @@
  *   requests                      Filter aller requestDevice-Aufrufe
  *   fail = {name, message}        requestDevice schlägt so fehl
  *   cdViaPower = true             Kadenzsensor nur mit Leistungsdienst (vor dem Verbinden setzen)
+ *   trainerCad = 'csc'|'none'     Rolle schickt Trittfrequenz über eigenen Kadenzdienst bzw. gar nicht
+ *   cdHidden = true               Kadenzsensor taucht nur bei „Alle Geräte zeigen“ auf
  *   maxPower                      mehr schafft der Fahrer nicht (z. B. für den FTP-Test)
  */
 (() => {
@@ -89,11 +91,20 @@
     dev.ibd = new Char(CHR.ibd, dev);
     const chars = { [CHR.ibd]: dev.ibd };
     if (!F.noControl) { dev.cp = new Char(CHR.cp, dev); chars[CHR.cp] = dev.cp; } else dev.cp = null;
-    return { [SVC.ftms]: new Service(SVC.ftms, chars) };
+    const svcs = { [SVC.ftms]: new Service(SVC.ftms, chars) };
+    dev.rev = 0; dev.t = 0; dev.frac = 0;
+    if (F.trainerCad === 'csc') { dev.csc = new Char(CHR.csc, dev); svcs[SVC.csc] = new Service(SVC.csc, { [CHR.csc]: dev.csc }); }
+    return svcs;
   });
   trainer._send = function () {
     const v = F.vals, pow = Math.min(F.ergTarget != null ? F.ergTarget : v.power, F.maxPower ?? Infinity);
     const spd = Math.round(v.speed * 100), cad = Math.round(v.cad * 2), p = Math.round(pow) & 0xffff;
+    if (F.trainerCad) { /* ohne Trittfrequenz in Indoor Bike Data */
+      const flags = 0x40 | 0x200;
+      this.ibd.emit([flags & 255, flags >> 8, spd & 255, spd >> 8, p & 255, p >> 8, v.hr & 255]);
+      if (this.csc) { crank(this); this.csc.emit([0x02, this.rev & 255, this.rev >> 8, this.t & 255, this.t >> 8]); }
+      return;
+    }
     const flags = 0x04 | 0x40 | 0x200; /* Tempo (Bit 0 = 0), Trittfrequenz, Leistung, Puls */
     this.ibd.emit([flags & 255, flags >> 8, spd & 255, spd >> 8, cad & 255, cad >> 8, p & 255, p >> 8, v.hr & 255]);
   };
@@ -113,10 +124,14 @@
     dev.c = new Char(CHR.csc, dev);
     return { [SVC.csc]: new Service(SVC.csc, { [CHR.csc]: dev.c }) };
   });
+  /* Kurbelumdrehungen seit dem letzten Senden weiterzählen */
+  function crank(dev) {
+    const dt = F.interval / 1000, revs = F.vals.cad / 60 * dt + dev.frac, whole = Math.floor(revs);
+    dev.frac = revs - whole;
+    if (whole > 0) { dev.rev = (dev.rev + whole) & 0xffff; dev.t = (dev.t + Math.round(whole / (F.vals.cad / 60) * 1024)) & 0xffff; }
+  }
   cd._send = function () {
-    const dt = F.interval / 1000, revs = F.vals.cad / 60 * dt + this.frac, whole = Math.floor(revs);
-    this.frac = revs - whole;
-    if (whole > 0) { this.rev = (this.rev + whole) & 0xffff; this.t = (this.t + Math.round(whole / (F.vals.cad / 60) * 1024)) & 0xffff; }
+    crank(this);
     if (F.cdViaPower) this.c.emit([0x20, 0x00, 0, 0, this.rev & 255, this.rev >> 8, this.t & 255, this.t >> 8]);
     else this.c.emit([0x02, this.rev & 255, this.rev >> 8, this.t & 255, this.t >> 8]);
   };
@@ -128,8 +143,9 @@
     async requestDevice(opts) {
       F.requests.push(opts);
       if (F.fail) throw new DOMException(F.fail.message, F.fail.name); /* z. B. Bluetooth aus oder keine Erlaubnis */
+      if (opts.acceptAllDevices) return cd;
       const svcs = (opts.filters || []).flatMap(f => f.services || []).map(norm);
-      if (svcs.includes(SVC.csc)) return cd;
+      if (svcs.includes(SVC.csc)) { if (F.cdHidden) throw new DOMException('User cancelled the requestDevice() chooser.', 'NotFoundError'); return cd; }
       if (svcs.includes(SVC.ftms) || svcs.includes(SVC.cps)) return trainer;
       if (svcs.includes(SVC.hr)) return hrm;
       throw new DOMException('Kein Gerät gefunden', 'NotFoundError');

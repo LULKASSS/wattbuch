@@ -563,6 +563,45 @@ test('Kadenzsensor ohne eigenen Dienst: Trittfrequenz über den Leistungsdienst'
   expect(problems).toEqual([]);
 });
 
+test('Rolle schickt Trittfrequenz über eigenen Kadenzdienst', async ({ page }) => {
+  const problems = await open(page);
+  await fake(page, () => { window.__fakeBle.trainerCad = 'csc'; window.__fakeBle.set({ cad: 78 }); });
+  await connectTrainer(page);
+  const req = await fake(page, () => window.__fakeBle.requests.at(-1));
+  expect(req.optionalServices).toContain(0x1816);
+  await page.clock.runFor(4000);
+  await expect(page.locator('#lvCad')).toHaveText(/^7[7-9]$/);
+  expect(problems).toEqual([]);
+});
+
+test('Rolle ohne Trittfrequenz: Hinweis auf den Sensor', async ({ page }) => {
+  const problems = await open(page);
+  await fake(page, () => { window.__fakeBle.trainerCad = 'none'; });
+  await connectTrainer(page);
+  await page.clock.runFor(10_000);
+  await expect(page.locator('#toast')).not.toContainText('Trittfrequenz'); // erst nach 15 s treten
+  await page.clock.runFor(7000);
+  await expect(page.locator('#toast')).toContainText('sendet keine Trittfrequenz');
+  expect(problems).toEqual([]);
+});
+
+test('Kadenzsensor nicht in der Liste: alle Geräte zeigen', async ({ page }) => {
+  const problems = await open(page);
+  await fake(page, () => { window.__fakeBle.cdHidden = true; });
+  await expect(page.locator('#btnCdAll')).toBeHidden();
+  await page.click('#btnCd');
+  await expect(page.locator('#btnCdAll')).toBeVisible();
+  await page.click('#btnCdAll');
+  await expect(page.locator('#cdSub')).toHaveText('Fake Kadenz');
+  await expect(page.locator('#btnCdAll')).toBeHidden();
+  const req = await fake(page, () => window.__fakeBle.requests.at(-1));
+  expect(req.acceptAllDevices).toBe(true);
+  expect(req.optionalServices).toEqual(expect.arrayContaining([0x1816, 0x1818]));
+  await page.clock.runFor(4000);
+  await expect(page.locator('#lvCad')).toHaveText(/^8[7-9]$/);
+  expect(problems).toEqual([]);
+});
+
 test('FTP-Test: Rampe bis zur Erschöpfung, Ergebnis übernehmen', async ({ page }) => {
   test.setTimeout(90_000);
   const problems = await open(page);

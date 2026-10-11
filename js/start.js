@@ -20,7 +20,8 @@ document.addEventListener('click',e=>{
 });
 $('#btnTr').onclick=connectTrainer;
 $('#btnHr').onclick=connectHR;
-$('#btnCd').onclick=connectCd;
+$('#btnCd').onclick=()=>connectCd();
+$('#btnCdAll').onclick=()=>connectCd(true);
 $('#rev').addEventListener('change',e=>{if(S.rec.state!=='idle'){e.target.checked=!!S.set.rev;return;}S.set.rev=e.target.checked;saveSet();resetSim();renderRoutes();applyControl(true);});
 $('#fClose').onclick=closeFull;
 $('#rtLoad').onclick=()=>$('#anyFile').click();
