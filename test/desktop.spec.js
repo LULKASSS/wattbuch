@@ -284,3 +284,43 @@ test('Strava: alle Fahrten übernehmen, mit und ohne Wattmesser', async () => {
   sv.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('Apple TV: koppeln, nach Neustart Tasten aus der Fahrt-Ansicht senden', async () => {
+  test.setTimeout(60_000);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-atv-'));
+  const log = path.join(dir, 'tasten.txt');
+  const env = { WATTBUCH_UPDATE: '0', WATTBUCH_ATV_FAKE: log };
+  let app = await launch(dir, env);
+  let page = await app.firstWindow();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await page.click('#btnSet');
+  await page.click('#tvScan');
+  await page.click('[data-tvdev="ATV1"]');
+  await page.fill('#tvPin', '1234');
+  await page.press('#tvPin', 'Enter');
+  await expect(page.locator('#tvBox')).toContainText('zweiter Code');
+  await page.fill('#tvPin', '5678');
+  await page.press('#tvPin', 'Enter');
+  await expect(page.locator('#tvBox')).toContainText('Wohnzimmer');
+  const store = path.join(dir, 'profil', 'appletv', 'pyatv.json');
+  expect(fs.statSync(store).mode & 0o777).toBe(0o600);
+  await app.close();
+  // Neustart: Kopplung bleibt, T öffnet die Fernbedienung und verbindet
+  app = await launch(dir, env);
+  page = await app.firstWindow();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await page.keyboard.press('t');
+  await expect(page.locator('#fTvPad')).toBeVisible();
+  await expect(page.locator('#fTvNow')).toHaveText('Testkino · Testfolge');
+  for (const k of ['ArrowLeft', 'Enter', 'Escape']) await page.keyboard.press(k);
+  await expect.poll(() => fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '').toBe('left\nselect\nmenu\n');
+  // Trennen vergisst die Zugangsdaten
+  await page.keyboard.press('t');
+  await page.click('#fClose');
+  await page.click('#btnSet');
+  await page.click('#tvOff');
+  await expect(page.locator('#tvScan')).toBeVisible();
+  expect(fs.existsSync(store)).toBe(false);
+  await app.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});

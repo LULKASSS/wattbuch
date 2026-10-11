@@ -37,7 +37,9 @@
       "icon": "desktop/icon.png",
       "identity": null,
       "extendInfo": {
-        "NSBluetoothAlwaysUsageDescription": "Wattbuch verbindet sich per Bluetooth mit Rollentrainer, Pulsgurt und Trittfrequenzsensor."
+        "NSBluetoothAlwaysUsageDescription": "Wattbuch verbindet sich per Bluetooth mit Rollentrainer, Pulsgurt und Trittfrequenzsensor.",
+        "NSLocalNetworkUsageDescription": "Wattbuch sucht dein Apple TV im WLAN, um es während der Fahrt zu steuern.",
+        "NSBonjourServices": ["_airplay._tcp", "_companion-link._tcp", "_mediaremotetv._tcp", "_raop._tcp", "_appletv-v2._tcp", "_touch-able._tcp", "_device-info._tcp", "_sleep-proxy._udp"]
       }
     }
   },

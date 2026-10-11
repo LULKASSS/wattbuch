@@ -1,4 +1,4 @@
-/* Brücke zwischen Seite und Mac-App: Sicherung und Bluetooth-Geräteauswahl.
+/* Brücke zwischen Seite und Mac-App: Sicherung, Bluetooth-Geräteauswahl, Strava, Apple TV.
  * Die Seite merkt an window.wattbuchDesktop, dass sie in der App läuft. */
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -9,6 +9,18 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
   pendingImports: () => ipcRenderer.invoke('import:pending'),
   importsDone: names => ipcRenderer.invoke('import:done', names),
   onUpdate: cb => ipcRenderer.on('update:ready', (_e, v) => cb(v)),
+  appletv: {
+    status: () => ipcRenderer.invoke('atv:status'),
+    prepare: () => ipcRenderer.invoke('atv:prepare'),
+    scan: () => ipcRenderer.invoke('atv:scan'),
+    pair: dev => ipcRenderer.invoke('atv:pair', dev),
+    pin: code => ipcRenderer.invoke('atv:pin', code),
+    cancel: () => ipcRenderer.invoke('atv:cancel'),
+    connect: () => ipcRenderer.invoke('atv:connect'),
+    key: k => ipcRenderer.invoke('atv:key', k),
+    forget: () => ipcRenderer.invoke('atv:forget'),
+    onEvent: cb => ipcRenderer.on('atv:event', (_e, m) => cb(m))
+  },
   strava: {
     status: () => ipcRenderer.invoke('strava:status'),
     connect: () => ipcRenderer.invoke('strava:connect'),

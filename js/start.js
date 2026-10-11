@@ -97,6 +97,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   if(!HANDY&&!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
   go(S.view,true);
   if(typeof stravaRefresh==='function')stravaRefresh();
+  if(typeof tvRefresh==='function')tvRefresh();
   renderKonto(true);sync();
   /* Mac-App: neue Version der Oberfläche liegt bereit → neu laden, sobald keine Aufnahme läuft */
   if(window.wattbuchDesktop&&window.wattbuchDesktop.onUpdate)window.wattbuchDesktop.onUpdate(()=>{

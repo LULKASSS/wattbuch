@@ -156,6 +156,7 @@
     <div><button type="button" class="qb" id="ftpEst"></button></div>
     <div class="sep no-handy"></div>
     <div class="sv no-handy" id="svBox"></div>
+    <div class="no-handy" id="tvWrap" hidden><div class="sep"></div><div class="sv" id="tvBox"></div></div>
     <div class="sep"></div>
     <div class="dlg-row"><button type="button" class="btn sm ghost warn" id="delAll">Alle Fahrten löschen</button></div>
     <div class="dlg-foot"><button class="btn primary" value="ok">Fertig</button></div>
@@ -171,8 +172,27 @@
       <div class="f-map" id="fMapBox" hidden><canvas id="cvFullMap" aria-label="Strecke von oben"></canvas></div>
     </div>
     <div class="f-tr">
-      <div class="f-r"><span class="f-time" id="fTime">0:00</span><button type="button" class="f-x" id="fClose" aria-label="Zur Übersicht (Esc)" title="Übersicht (Esc)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="f-r"><span class="f-time" id="fTime">0:00</span><button type="button" class="f-x f-tvb" id="fTv" hidden aria-label="Apple TV steuern (T)" title="Apple TV (T)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></button><button type="button" class="f-x" id="fClose" aria-label="Zur Übersicht (Esc)" title="Übersicht (Esc)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
       <div class="f-ghost" id="fGhost" hidden><i></i><span id="fGhostT"></span></div>
+      <div class="f-tv" id="fTvPad" hidden>
+        <div class="f-tv-head"><i></i><b id="fTvName">Apple TV</b><button type="button" class="f-tv-x" id="fTvClose" aria-label="Fernbedienung schließen (T)">T</button></div>
+        <span class="f-tv-now" id="fTvNow"></span>
+        <div class="f-tv-pad" role="group" aria-label="Steuerkreuz">
+          <button type="button" class="u" data-tv="up" aria-label="Hoch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+          <button type="button" class="l" data-tv="left" aria-label="Links"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <button type="button" class="ok" data-tv="select" aria-label="OK">OK</button>
+          <button type="button" class="r" data-tv="right" aria-label="Rechts"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="d" data-tv="down" aria-label="Runter"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        </div>
+        <div class="f-tv-row">
+          <button type="button" data-tv="menu" aria-label="Zurück"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L5 12l5 4M5 12h10a4 4 0 0 1 0 8h-2"/></svg></button>
+          <button type="button" data-tv="home" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></button>
+          <button type="button" class="pp" data-tv="play_pause" aria-label="Abspielen oder Pause"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5.5v13l8-6.5z"/><rect x="14" y="5.5" width="2.6" height="13" rx=".8"/><rect x="18.4" y="5.5" width="2.6" height="13" rx=".8"/></svg></button>
+          <button type="button" data-tv="volume_down" aria-label="Leiser">−</button>
+          <button type="button" data-tv="volume_up" aria-label="Lauter">+</button>
+        </div>
+        <p class="f-tv-keys">Pfeile · Enter OK · Esc Zurück<br>Leertaste ⏯ · +/− Ton · H Home</p>
+      </div>
       <div class="f-ramp" id="fRamp" hidden><span id="fRampT"></span><span class="f-ramp-bar"><i id="fRampBar"></i></span></div>
     </div>
   </div>
@@ -225,6 +245,7 @@
 <script src="js/ftptest.js"></script>
 <script src="js/strava.js"></script>
 <script src="js/stravaholen.js"></script>
+<script src="js/appletv.js"></script>
 <script src="js/daten.js"></script>
 <script src="js/konto.js"></script>
 <script src="js/handy.js"></script>

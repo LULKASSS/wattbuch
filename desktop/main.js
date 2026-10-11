@@ -10,6 +10,7 @@ const { pathToFileURL } = require('node:url');
 
 const { createUpdater } = require('./update');
 const { createStrava } = require('./strava');
+const { createAppleTv } = require('./appletv');
 const ROOT = path.join(__dirname, '..');
 /* Woher Updates kommen; in Tests per WATTBUCH_UPDATE_URL umgelenkt, WATTBUCH_UPDATE=0 schaltet ab */
 const UPDATE_URL = process.env.WATTBUCH_UPDATE_URL || 'https://lulkasss.github.io/wattbuch';
@@ -179,6 +180,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('strava:activities', wrap(a => strava.activities(a)));
   ipcMain.handle('strava:streams', wrap(a => typeof a === 'object' ? strava.streams(a.id, a.kind) : strava.streams(a)));
   ipcMain.handle('import:done', (_e, names) => importsDone(names));
+  /* Apple TV als Fernbedienung: Meldungen (verbunden, was läuft) gehen an die Seite */
+  const atv = createAppleTv({ dataDir: app.getPath('userData'), log: m => console.log(m), send: m => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('atv:event', m); } });
+  const wrapAtv = fn => async (_e, arg) => { try { return { ok: true, ...(await fn(arg)) }; } catch (e) { return { ok: false, error: e.message, code: e.code || '' }; } };
+  for (const k of ['status', 'prepare', 'scan', 'pair', 'pin', 'cancel', 'connect', 'key', 'forget']) ipcMain.handle('atv:' + k, wrapAtv(a => atv[k](a)));
+  app.on('will-quit', () => atv.stop());
 
   /* Beim Start kurz (max. 3 s) auf ein Update warten, damit gleich die neueste Fassung erscheint */
   if (UPDATES) await Promise.race([updater.check().catch(e => console.log('Update:', e.message)), new Promise(r => setTimeout(r, 3000))]);

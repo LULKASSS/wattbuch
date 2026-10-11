@@ -61,6 +61,7 @@ function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();changed();wer
 function setWeight(v){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();changed();werteMark();}
 function openSet(){
   if(typeof stravaRefresh==='function'){renderStravaSet();stravaRefresh();}
+  if(typeof tvRefresh==='function'){renderTvSet();tvRefresh();}
   $('#setFtp').value=S.set.ftp;$('#setKg').value=String(S.set.weight).replace('.',',');$('#setBike').value=String(S.set.bike).replace('.',',');
   const g=ftpSuggest(),e=$('#ftpEst');
   e.hidden=!!g&&g.w===S.set.ftp;

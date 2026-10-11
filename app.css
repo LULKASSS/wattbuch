@@ -731,3 +731,35 @@ html:not(.handy) .handy-only{display:none}
   .hv-big b{font-size:36px}
 }
 .st-avg{display:block;font:500 12px var(--mono);color:var(--fg-3);margin-top:2px;min-height:16px}
+
+/* ---------- Apple TV als Fernbedienung (Mac-App) ---------- */
+.f-tvb.on{background:#F1EEFF;color:#0B0B0F;border-color:#F1EEFF}
+.f-tv{width:212px;padding:12px 14px 12px;border-radius:20px;background:rgba(10,8,20,.62);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(14px);display:flex;flex-direction:column;gap:10px;animation:tvIn .25s var(--ease)}
+@keyframes tvIn{from{opacity:0;transform:translateY(-6px)}}
+.f-tv-head{display:flex;align-items:center;gap:8px;min-width:0}
+.f-tv-head i{width:7px;height:7px;border-radius:50%;background:rgba(241,238,255,.3);flex:none;transition:background .3s}
+.f-tv.live .f-tv-head i{background:#6EE7B7}
+.f-tv-head b{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f-tv-x{width:24px;height:24px;border-radius:7px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(241,238,255,.7);font:600 11px var(--mono)}
+.f-tv-x:hover{background:rgba(255,255,255,.1)}
+.f-tv-now{font-size:12.5px;color:rgba(241,238,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px;margin-top:-4px}
+.f-tv-pad{position:relative;width:150px;height:150px;margin:0 auto;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr)}
+.f-tv-pad button{border:0;background:transparent;color:rgba(241,238,255,.8);display:grid;place-items:center;border-radius:50%;transition:background .12s,color .12s,transform .12s}
+.f-tv-pad .u{grid-area:1/2}.f-tv-pad .l{grid-area:2/1}.f-tv-pad .r{grid-area:2/3}.f-tv-pad .d{grid-area:3/2}
+.f-tv-pad .ok{grid-area:2/2;margin:2px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font:600 13px var(--mono);letter-spacing:.04em;color:#F1EEFF}
+.f-tv button:hover{background:rgba(255,255,255,.12);color:#F1EEFF}
+.f-tv button.hit{background:#A78BFA;color:#0B0B0F;transform:scale(.94)}
+.f-tv-row{display:flex;justify-content:space-between;gap:4px}
+.f-tv-row button{flex:1;height:36px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(241,238,255,.85);display:grid;place-items:center;font-size:18px;font-weight:500}
+.f-tv.playing .pp{color:#A78BFA}
+.f-tv-keys{margin:0;font:500 10.5px/1.45 var(--mono);color:rgba(241,238,255,.45);letter-spacing:.02em;text-align:center}
+@media (max-width:900px){.f-tv{width:188px}.f-tv-pad{width:128px;height:128px}.f-tv-keys{display:none}}
+.sv-ok.tv i{background:var(--fg-3)}
+.sv-ok.tv.on i{background:#6EE7B7}
+.tv-list{display:grid;gap:6px;margin-bottom:10px}
+.tv-list .btn{justify-content:space-between;width:100%}
+.tv-list small{color:var(--fg-3);font-weight:400;margin-left:8px}
+.tv-pinrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tv-pin{width:96px;height:38px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--fg);font:600 18px var(--mono);letter-spacing:.3em;text-align:center}
+.tv-pin:focus{outline:2px solid var(--accent);outline-offset:1px}
+.ftp-note.warn{color:var(--gap-ink)}
