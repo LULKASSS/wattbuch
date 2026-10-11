@@ -98,7 +98,7 @@ function showSummary(r){
     <ul class="sum-l">${hl.map(([ic,t,sub,k],i)=>`<li class="${k||''}" style="--i:${i}"><span class="mi">${ico(ic)}</span><span><b>${esc(t)}</b><span>${esc(sub)}</span></span></li>`).join('')}</ul>
     <div class="sum-f">${ft&&ft.ftp!==ft.before&&S.set.ftp===ft.ftp?`<button type="button" class="btn ghost" id="sumFtp">Zurück auf ${ft.before} W</button>`:''}${stravaBtn(r,'sumStrava')}<span class="spacer"></span><button type="button" class="btn primary" id="sumOk">Details ansehen</button></div>
   </div>`;
-  dlg.showModal();
+  dlg.showModal();dlg.focus();
   $$('[data-to]',dlg).forEach(el=>{const to=+el.dataset.to,dec=+el.dataset.dec;anim(1100,k=>{el.textContent=dec?F1.format(to*k):F0.format(Math.round(to*k));});});
   if(pbs.length)confetti(dlg);
   $('#sumOk').onclick=()=>dlg.close();

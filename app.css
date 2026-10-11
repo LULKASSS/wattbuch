@@ -60,7 +60,7 @@ h3{font-size:15px}
 .top-r{flex:1;display:flex;justify-content:flex-end;align-items:center;gap:10px}
 .icon-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--fg-2);transition:border-color .2s}
 .icon-btn:hover{border-color:var(--line-2)}
-.recpill{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:500 12.5px var(--mono)}
+.recpill{color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:500 12.5px var(--mono)}
 .recpill i{width:7px;height:7px;border-radius:50%;background:var(--gap);animation:breathe 2.4s var(--ease) infinite}
 .recpill.paused i{animation:none;background:var(--fg-3)}
 @keyframes breathe{0%,100%{opacity:1}50%{opacity:.35}}
@@ -355,7 +355,7 @@ dialog[open]{animation:dlgIn .3s var(--ease)}
 .sv{padding:20px 0;display:grid;gap:12px}
 .set-body .sv{border-top:1px solid var(--line)}
 .set-body>.sv:first-child{border-top:0}
-#dlgSet:focus{outline:none}
+dialog:focus{outline:none}
 .sv h3{margin:0;font-size:13px;font-weight:600;color:var(--fg-2);letter-spacing:0}
 .sv .ftp-note,.sv .sv-ok{margin:0}
 .sv .chk.sm{margin:0}

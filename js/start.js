@@ -24,6 +24,7 @@ $('#btnCd').onclick=()=>connectCd();
 $('#btnCdAll').onclick=()=>connectCd(true);
 $('#rev').addEventListener('change',e=>{if(S.rec.state!=='idle'){e.target.checked=!!S.set.rev;return;}S.set.rev=e.target.checked;saveSet();resetSim();renderRoutes();applyControl(true);});
 $('#fClose').onclick=closeFull;
+$('#recpill').onclick=()=>{if(S.view!=='live')go('live');if($('#full').hidden)openFull();};
 $('#rtLoad').onclick=()=>$('#anyFile').click();
 $('#rtRoll').onclick=()=>{if(S.rec.state!=='idle'){toast('Strecke erst nach der Fahrt wechseln');return;}rollRoute();};
 $('#ergOn').addEventListener('change',e=>{S.erg.on=e.target.checked;ergChanged();});

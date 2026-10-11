@@ -28,7 +28,7 @@
     <button type="button" data-v="best">Bestwerte</button>
   </nav>
   <div class="top-r">
-    <span class="recpill" id="recpill" hidden><i></i><span id="recpillT">0:00</span></span>
+    <button type="button" class="recpill" id="recpill" hidden title="Zur Fahrt-Ansicht"><i></i><span id="recpillT">0:00</span></button>
     <button type="button" class="icon-btn" id="btnSet" aria-label="Einstellungen">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
     </button>
@@ -246,7 +246,7 @@
   </div>
 </div>
 
-<dialog id="dlgSum" aria-label="Zusammenfassung der Fahrt"></dialog>
+<dialog id="dlgSum" aria-label="Zusammenfassung der Fahrt" tabindex="-1"></dialog>
 
 <input type="file" id="anyFile" multiple accept=".json,.gpx,application/json,application/gpx+xml" hidden>
 <div id="toast" role="status" aria-live="polite"></div>

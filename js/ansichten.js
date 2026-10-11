@@ -161,7 +161,7 @@ function renderRides(){
   const mName=d=>d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
   v.innerHTML=`
   <div class="page-h"><div><h1>Fahrten</h1>${list.length?`<p class="sub-h">${list.length} ${list.length===1?'Fahrt':'Fahrten'} · ${fmtHM(tot.sec)} h${tot.km?` · ${n0(tot.km)} km`:''}</p>`:''}</div></div>
-  <div class="card week">
+  ${agg.length?`<div class="card week">
     <div class="week-l">
       <span class="lbl">Diese Woche · KW ${isoWeek(now)}</span>
       <div class="week-nums big3">
@@ -174,12 +174,12 @@ function renderRides(){
     <div class="wbars" aria-label="Trainingszeit der letzten acht Wochen">
       ${weeks.map((x,i)=>`<div class="wb${i===7?' cur':''}"><span class="val">${x.sec?fmtHM(x.sec):''}</span><span class="bar" style="--h:${Math.max(x.sec?4:2,x.sec/mxs*92)}px"></span><span class="kw">KW${isoWeek(x.s)}</span></div>`).join('')}
     </div>
-  </div>
+  </div>`:''}
   ${list.length?groups.map(g=>`<div class="card list-g">
     <div class="list-gh"><h3>${mName(g.d)}</h3><span>${g.rides.length} ${g.rides.length===1?'Fahrt':'Fahrten'} · ${fmtHM(g.sec)} h${g.km?` · ${n0(g.km)} km`:''}</span></div>
     <div class="row-h" aria-hidden="true"><span>Datum</span><span>Name</span><span>Dauer</span><span>Ø Watt</span><span class="np">NP</span><span class="kj">kJ</span><span>Verlauf</span></div>
     <div class="list">${g.rides.map(rideRow).join('')}</div>
-  </div>`).join(''):`<div class="list">${HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Fahrt starten.</div>`}</div>`}`;
+  </div>`).join(''):`<div class="list">${HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Rolle verbinden, Strecke wählen, losfahren.<div class="empty-a"><button type="button" class="btn primary" data-go="live">Zu „Fahren“</button></div></div>`}</div>`}`;
 }
 
 /* ---------- Detail ---------- */

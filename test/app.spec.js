@@ -114,6 +114,13 @@ test('Startkarte: Strecke, Geräte mit Live-Werten und Start, die Live-Karte ers
   await expect(page.locator('.card.live')).toBeVisible();
   await expect(page.locator('.card.live #routeLive')).toBeVisible(); // Strecke wandert in die Live-Karte
   await expect(page.locator('#startCtrls')).toBeEmpty();
+  await page.click('#nav [data-v="rides"]');
+  await page.clock.runFor(500);
+  await page.click('#recpill'); // Laufzeit oben führt zurück in die Fahrt
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await expect(page.locator('#full')).toBeVisible();
+  await page.click('#fClose');
   await page.click('#ctrls [data-a="end"]');
   await page.click('#ctrls [data-a="discard"]');
   await page.click('#ctrls [data-a="discard"]');
