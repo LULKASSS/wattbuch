@@ -91,7 +91,6 @@ async function connectTrainer(){
   try{
     dev=await navigator.bluetooth.requestDevice({filters:[{services:[0x1826]},{services:[0x1818]}],optionalServices:[0x1826,0x1818,0x1816]});
   }catch(e){btFail(e);return;}
-  if(S.demo)setDemo(false);
   S.tr.dev=dev;S.tr.manual=false;S.tr.tries=0;
   dev.addEventListener('gattserverdisconnected',onTrDisc);
   await setupTrainer();
@@ -221,7 +220,7 @@ function setCd(state){
 /* Rolle verbunden, es wird getreten, aber keine Trittfrequenz kommt: einmal sagen, woran es liegt */
 function checkTrCad(){
   const T=S.tr;
-  if(T.state!=='on'||T.cadHint||S.cd.state!=='off'||S.demo||curCad()!=null||!(curPow()>30)||!fresh(T.since,600000)||fresh(T.since,15000))return;
+  if(T.state!=='on'||T.cadHint||S.cd.state!=='off'||curCad()!=null||!(curPow()>30)||!fresh(T.since,600000)||fresh(T.since,15000))return;
   T.cadHint=true;
   toast(T.ibdCad||T.crank?'Die Rolle meldet Trittfrequenz 0. Für echte Werte den Trittfrequenzsensor verbinden':'Deine Rolle sendet keine Trittfrequenz. Dafür den Trittfrequenzsensor verbinden');
 }
@@ -236,7 +235,7 @@ function cpWrite(bytes){
 }
 /* Zielleistung (ERG) oder Steigung der Strecke an die Rolle */
 async function applyControl(force){
-  if(S.demo||S.tr.state!=='on')return;
+  if(S.tr.state!=='on')return;
   if(!S.tr.cp){if(S.erg.on||activeRoute())ergMsg('Die Rolle nimmt keine Steuerbefehle an.');return;}
   if(S.sim.busy)return;
   /* Verweigert: nicht im Takt erneut fragen, erst wieder bei einer Änderung durch den Nutzer */
@@ -263,22 +262,3 @@ const applyErg=()=>applyControl(true);
 let ergT=null;
 function ergChanged(){clearTimeout(ergT);ergT=setTimeout(applyErg,350);renderErg();}
 function ergMsg(m){const el=$('#ergMsg');el.textContent=m;el.hidden=!m;}
-
-/* ---------- Demo ---------- */
-let demoT=null,demoClock=0,demoHr=72;
-function setDemo(on){
-  S.demo=on;$('#demo').checked=on;$('#chkDemo').classList.toggle('on',on);
-  clearInterval(demoT);demoT=null;S.live.raw=[];
-  if(on){if(S.tr.state!=='off')disconnectTrainer();demoClock=0;S.live.cadSeen=false;demoT=setInterval(demoStep,250);}
-  renderControls();
-}
-function demoStep(){
-  demoClock+=.25;const t=demoClock;
-  let base;
-  if(S.erg.on)base=S.erg.target;
-  else if(activeRoute())base=S.set.ftp*.72+clamp(routeGradeNow(),-6,10)*14;
-  else{const c=t%420;base=c<300?S.set.ftp*.72+10*Math.sin(t/23):S.set.ftp*1.02+8*Math.sin(t/9);}
-  const pow=Math.max(0,base+(Math.random()-.5)*24);
-  demoHr+=((60+pow*.42)-demoHr)*.008;
-  feed({pow,hr:Math.round(demoHr),cad:Math.round(84+(Math.random()-.5)*6)},'demo');
-}

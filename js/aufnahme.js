@@ -3,7 +3,7 @@
 const recElapsed=(now=performance.now())=>S.rec.acc+(S.rec.state==='rec'?now-S.rec.run:0);
 function pushSample(){
   const R=S.rec;
-  if(S.tr.state==='on'&&!S.demo)R.trainer=true;
+  if(S.tr.state==='on')R.trainer=true;
   R.p.push(samplePow());
   const h=curHR();R.hr.push(h==null?0:h);
   const c=curCad();R.cad.push(c==null?0:c);
@@ -55,7 +55,7 @@ function tick(){
   const now=performance.now();
   let dt=Math.min((now-lastSim)/1000,120);lastSim=now;
   while(dt>1e-6){const h=Math.min(.25,dt);simStep(h);dt-=h;}
-  if(S.tr.state==='on'&&!S.demo){applyControl(false);checkTrCad();}
+  if(S.tr.state==='on'){applyControl(false);checkTrCad();}
   if(now-lastHist>=1000){lastHist=now;if(isLive()){S.hist.push(Math.round(curPow()));if(S.hist.length>600)S.hist.shift();}else S.hist=[];}
   if(S.rec.state==='rec'){
     const target=Math.floor(recElapsed(now)/1000);

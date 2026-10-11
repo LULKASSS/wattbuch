@@ -8,7 +8,7 @@ const RAMP={step:20,secs:60};
 
 function ftpTestStart(){
   if(S.rec.state!=='idle'){toast('Erst die laufende Fahrt beenden');return;}
-  if(!isLive()){toast('Erst die Rolle verbinden oder „Ohne Rolle testen“ einschalten');return;}
+  if(!isLive()){toast('Erst die Rolle verbinden');return;}
   const base=Math.max(100,Math.round(S.set.ftp*.5/10)*10);
   S.ramp={base,step:RAMP.step,stage:-1,low:0,done:false,ftp:null,best:null};
   /* flach fahren, damit nur die Stufe zählt */
@@ -40,13 +40,15 @@ function rampFinish(){
   moment('trophy',T.ftp?`FTP-Test geschafft: ${T.ftp} W`:'FTP-Test beendet',T.ftp?`Beste Minute ${T.best} W · jetzt locker ausfahren`:'Zu kurz für ein Ergebnis','gold');
 }
 
-/* Für die Zusammenfassung: Ergebnis an die Fahrt hängen (auch wenn du vor dem Einbruch selbst beendet hast) */
+/* Für die Zusammenfassung: Ergebnis an die Fahrt hängen (auch wenn du vor dem Einbruch selbst beendet hast)
+   und gleich als FTP übernehmen. In der Zusammenfassung lässt es sich zurücknehmen. */
 function rampSummary(r){
   const T=S.ramp;if(!T)return null;
   S.ramp=null;
   const res=T.ftp?{ftp:T.ftp,best:T.best}:rampResult(r.p);
   if(!res||r.p.length<120)return null;
   r.ftpTest={...res,peak:T.peak||rampTarget(T),before:S.set.ftp};r.name='FTP-Test';DB.put(r);autoBackup();
+  if(res.ftp!==S.set.ftp){setFtp(res.ftp);renderFtpCard();}
   return r.ftpTest;
 }
 
@@ -61,5 +63,13 @@ function renderRamp(){
   $('#fRampBar').style.width=((el2%RAMP.secs)/RAMP.secs*100).toFixed(1)+'%';
 }
 
+/* FTP-Vorschlag: der jüngste FTP-Test, außer eine spätere Fahrt hat einen besseren 20-min-Wert (95 % davon).
+   Ohne Test nur die Schätzung aus dem besten 20-min-Wert. */
+function ftpSuggest(rides=aggRides()){
+  const t=rides.filter(r=>r.ftpTest).sort((a,b)=>b.start.localeCompare(a.start))[0];
+  const b=bestsOf(t?rides.filter(r=>r.start>t.start):rides)[1200],est=b?Math.round(b.w*.95):null;
+  if(t&&!(est>t.ftpTest.ftp))return{w:t.ftpTest.ftp,lbl:`Aus FTP-Test vom ${fmtDate(t.start)}`,id:t.id};
+  return est?{w:est,lbl:'Aus bestem 20-min-Wert',id:b.id}:null;
+}
 function renderFtpCard(){setT('ftpNow',`FTP ${S.set.ftp} W`);}
 $('#btnFtpTest').onclick=ftpTestStart;

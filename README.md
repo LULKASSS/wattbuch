@@ -15,8 +15,8 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 - Fahrten, Bestwerte, FTP-Schätzung, TCX-Export
 - **Fahrt-Ansicht**: Straße der Strecke zum Durchfahren, Geist der besten Fahrt oder Schrittmacher als Radfahrer, große Anzeige. Tageszeit wechselt mit der Fahrtdauer (Abendrot, Nacht, Morgengrauen, Tag, Sonnenuntergang), Landschaft mit der Strecke (Wald, Felder, Alpen). Taste F für echtes Vollbild
 - Countdown, Momente während der Fahrt (Bestwerte, Meilensteine, Gipfel), Zusammenfassung mit Highlights
-- Zufallsstrecken (Hügelrunde, Bergwertung, Flachstück) per „Würfeln“
-- **FTP-Test** (Rampentest: +20 W pro Minute über die Zielleistung, FTP = 75 % der besten Minute)
+- Zufallsstrecken (Hügelrunde, Bergwertung, Flachstück) per „Würfeln“, mit Strava zusätzlich deine meistgefahrenen Runden als Strecken
+- **FTP-Test** (Rampentest: +20 W pro Minute über die Zielleistung, FTP = 75 % der besten Minute, wird direkt übernommen)
 - **Strava**: die Mac-App übernimmt alle Radfahrten aus Strava (auch draußen ohne Wattmesser: km, Zeit, Höhe, Puls; Leistung als Schätzung) und neue alle 30 min von selbst; Fahrten aus Wattbuch werden in der Mac-App direkt hochgeladen (einmalig eigene Strava-API-App anlegen, Einstellungen → Strava), auf Wunsch automatisch nach jeder Fahrt; im Browser als TCX exportieren
 
 **Tasten am Mac:** Leertaste Start/Pause/Weiter · F Vollbild · ↑↓ Zielleistung ±5 W · Esc Vollbild verlassen
@@ -25,7 +25,7 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 
 **Konto:** In den Einstellungen (Mac) bzw. in der Übersicht (iPhone) mit E-Mail und Passwort anmelden. Danach gleichen sich Fahrten, Namen, Löschungen, FTP, Gewicht und Rad von selbst ab (Supabase, jeder sieht nur seine eigenen Daten). Strecken bleiben auf dem Gerät.
 
-Fahrten und Strecken liegen außerdem im Browser des jeweiligen Geräts. Ohne Konto holt sich die Sicherung der Mac-App aus iCloud Drive (`Wattbuch/wattbuch-sicherung.json`) und schickt Änderungen per Teilen → „In Dateien sichern“ nach `Wattbuch/Import/`, die Mac-App übernimmt sie beim nächsten Start (gelöschte Fahrten bleiben gelöscht). Die Mac-App sichert nach jeder Fahrt automatisch nach iCloud Drive (`Wattbuch/`) und holt die Sicherung bei leerem Speicher von selbst zurück. Strecken und Sicherungen werden über „Laden“ eingelesen (Streckendatei, GPX oder Sicherung). Persönliche Daten gehören nicht in dieses Repo, es ist öffentlich.
+Fahrten und Strecken liegen außerdem im Browser des jeweiligen Geräts. Die Mac-App sichert nach jeder Fahrt automatisch nach iCloud Drive (`Wattbuch/`) und holt die Sicherung bei leerem Speicher von selbst zurück. Eigene Strecken kommen über „Laden“ bei der Strecke dazu (GPX oder Streckendatei). Persönliche Daten gehören nicht in dieses Repo, es ist öffentlich.
 
 ## Mac-App
 

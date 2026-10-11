@@ -17,7 +17,7 @@ Strava ist über den Strava-Connector verbunden (Tools `list_activities`, `get_a
 2. Pro Tour `get_activity_streams` mit `["location","altitude"]` und `resolution: 250` (reicht für ein Rollenprofil, spart Kontingent).
 3. Streams als `[{name, location, altitude}]` in eine Datei im Scratchpad/`/private/tmp` schreiben – **nie ins Repo** (verrät Wohnort und Wege).
 4. `node scripts/strecke-aus-punkten.mjs <eingabe.json> "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Wattbuch/Import/strava-<datum>.json"`
-5. Die Mac-App übernimmt alles aus `Import/` beim nächsten Start und verschiebt die Datei nach `Import/Erledigt/`. Im Browser: Einstellungen → „Datei laden“.
+5. Die Mac-App übernimmt alles aus `Import/` beim nächsten Start und verschiebt die Datei nach `Import/Erledigt/`. Im Browser: bei der Strecke „Laden“.
 
 **Zahlen abgleichen**
 - `get_athlete_zones` liefert FTP und Leistungszonen. Weicht die FTP von Wattbuch ab, Lukas fragen, ob sie übernommen werden soll (Einstellungen → FTP).

@@ -82,7 +82,7 @@ function showSummary(r){
   const zMax=s.zt.indexOf(Math.max(...s.zt));
   const head=ft?'FTP-Test geschafft':pbs.length?(pbs.length>1?`${pbs.length} neue Bestwerte`:'Neuer Bestwert'):s.IF>=.85?'Stark gefahren':s.IF>=.7?'Gute Einheit':'Locker gerollt';
   const hl=[];
-  if(ft)hl.push(['trophy',`Deine FTP: ${ft.ftp} W`,`75 % deiner besten Minute (${ft.best} W) · höchste Stufe ${ft.peak} W · bisher ${ft.before} W`,'gold']);
+  if(ft)hl.push(['trophy',`Deine FTP: ${ft.ftp} W`,`75 % deiner besten Minute (${ft.best} W) · höchste Stufe ${ft.peak} W · ${ft.ftp!==ft.before?`übernommen, bisher ${ft.before} W`:'wie bisher'}`,'gold']);
   for(const x of pbs)hl.push(['trophy',`Bestwert ${durLbl(x.d)}: ${n0(x.w)} W`,x.b?`+${n0(x.w-x.b)} W gegenüber vorher`:'Erster Wert','gold']);
   hl.push(['bolt',`Meiste Zeit in ${ZONES[zMax].n} ${ZONES[zMax].name}`,`${fmtDur(s.zt[zMax])} · ${n0(s.zt[zMax]/s.dur*100)} %`]);
   const snack=SNACK.filter(([k])=>k<=s.kj).pop();if(snack)hl.push(['bolt',`${n0(s.kj)} kJ Arbeit`,`Verbrannt hast du ${snack[1]}`]);
@@ -96,13 +96,13 @@ function showSummary(r){
     <div class="sum-t">${tiles.map(([l,v,u,k])=>`<div><span class="lbl">${l}</span><b ${k?`data-to="${v}" data-dec="${k===2?1:0}"`:''}>${k?0:v}</b>${u?`<small>${u}</small>`:''}</div>`).join('')}</div>
     <div class="sum-z">${s.zt.map((t,i)=>t?`<i style="flex:${t};--zc:var(--z${i+1})" title="${ZONES[i].n}"></i>`:'').join('')}</div>
     <ul class="sum-l">${hl.map(([ic,t,sub,k],i)=>`<li class="${k||''}" style="--i:${i}"><span class="mi">${ico(ic)}</span><span><b>${esc(t)}</b><span>${esc(sub)}</span></span></li>`).join('')}</ul>
-    <div class="sum-f">${ft&&ft.ftp!==S.set.ftp?`<button type="button" class="btn primary" id="sumFtp">FTP auf ${ft.ftp} W setzen</button>`:''}${stravaBtn(r,'sumStrava')}<span class="spacer"></span><button type="button" class="btn primary" id="sumOk">Details ansehen</button></div>
+    <div class="sum-f">${ft&&ft.ftp!==ft.before&&S.set.ftp===ft.ftp?`<button type="button" class="btn ghost" id="sumFtp">Zurück auf ${ft.before} W</button>`:''}${stravaBtn(r,'sumStrava')}<span class="spacer"></span><button type="button" class="btn primary" id="sumOk">Details ansehen</button></div>
   </div>`;
   dlg.showModal();
   $$('[data-to]',dlg).forEach(el=>{const to=+el.dataset.to,dec=+el.dataset.dec;anim(1100,k=>{el.textContent=dec?F1.format(to*k):F0.format(Math.round(to*k));});});
   if(pbs.length)confetti(dlg);
   $('#sumOk').onclick=()=>dlg.close();
-  if(ft&&$('#sumFtp'))$('#sumFtp').onclick=e=>{setFtp(ft.ftp);renderFtpCard();toast(`FTP auf ${ft.ftp} W gesetzt`);e.target.remove();};
+  if(ft&&$('#sumFtp'))$('#sumFtp').onclick=e=>{setFtp(ft.before);renderFtpCard();toast(`FTP bleibt bei ${ft.before} W`);e.target.remove();};
   $('#sumStrava').dataset.ride=r.id;
   stravaSync();
 }

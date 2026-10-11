@@ -26,7 +26,6 @@ $('#rev').addEventListener('change',e=>{if(S.rec.state!=='idle'){e.target.checke
 $('#fClose').onclick=closeFull;
 $('#rtLoad').onclick=()=>$('#anyFile').click();
 $('#rtRoll').onclick=()=>{if(S.rec.state!=='idle'){toast('Strecke erst nach der Fahrt wechseln');return;}rollRoute();};
-$('#demo').addEventListener('change',e=>setDemo(e.target.checked));
 $('#ergOn').addEventListener('change',e=>{S.erg.on=e.target.checked;ergChanged();});
 const ergIn=$('#ergW');
 ergIn.addEventListener('focus',()=>ergIn.select());
@@ -42,9 +41,6 @@ $('#setBike').addEventListener('change',e=>{const v=parseFloat(e.target.value.re
 $('#setFtp').addEventListener('change',e=>{const v=parseInt(e.target.value,10);if(fin(v))setFtp(v);else e.target.value=S.set.ftp;rerender();});
 $('#setKg').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v))setWeight(v);e.target.value=String(S.set.weight).replace('.',',');rerender();});
 $('#dlgSet').addEventListener('close',rerender);
-$('#bkExp').onclick=()=>download(backupJSON(),`wattbuch-sicherung-${new Date().toISOString().slice(0,10)}.json`,'application/json');
-$('#bkImp').onclick=()=>$('#anyFile').click();
-/* Eine Datei für alles: Sicherung, Streckendatei oder GPX */
 /* Eine Datei für alles: Sicherung, Streckendatei oder GPX. files: [{name,text}] */
 async function importFiles(files){
   let rides=0,routes=0,err='';
@@ -54,7 +50,6 @@ async function importFiles(files){
       if(/\.gpx$/i.test(f.name)||/^\s*<\?xml|<gpx/i.test(text.slice(0,300))){routes+=await addRoutes([parseGPX(text,f.name)]);continue;}
       const d=JSON.parse(text);
       const n=await importData(d);rides+=n.rides;routes+=n.routes;
-      if(d&&d.app==='wattbuch'&&d.from!=='handy'){S.bk={saved:d.saved||new Date().toISOString(),at:new Date().toISOString()};await DB.set('bk',S.bk);}
       if(!(d&&(Array.isArray(d.routes)||Array.isArray(d.rides))))throw new Error('unbekanntes Format');
     }catch(x){err=`${f.name}: ${x&&x.message?x.message:'nicht lesbar'}`;}
   }
@@ -88,7 +83,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   const fresh=!(await DB.get('seeded'))&&!(await DB.all()).length;
   if(fresh&&window.wattbuchDesktop){try{const b=await window.wattbuchDesktop.latestBackup();if(b&&Array.isArray(b.rides)&&b.rides.length){const n=await importData(b);await DB.set('seeded',true);toast(`${n.rides} Fahrten aus der Sicherung wiederhergestellt`);}}catch(_){}}
   const set=await DB.get('settings');if(set)S.set={...S.set,...set};
-  S.gone=new Set((await DB.get('gone'))||[]);await kLoad();S.dirty=!!(await DB.get('dirty'));S.bk=(await DB.get('bk'))||null;
+  S.gone=new Set((await DB.get('gone'))||[]);await kLoad();
   S.erg.target=Math.round(S.set.ftp*.65/5)*5;
   S.rides=await DB.all();
   S.routes=(await DB.get('routes'))||[];

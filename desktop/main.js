@@ -177,7 +177,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('strava:disconnect', wrap(() => strava.disconnect()));
   ipcMain.handle('strava:upload', wrap(a => strava.upload(a)));
   ipcMain.handle('strava:activities', wrap(a => strava.activities(a)));
-  ipcMain.handle('strava:streams', wrap(id => strava.streams(id)));
+  ipcMain.handle('strava:streams', wrap(a => typeof a === 'object' ? strava.streams(a.id, a.kind) : strava.streams(a)));
   ipcMain.handle('import:done', (_e, names) => importsDone(names));
 
   /* Beim Start kurz (max. 3 s) auf ein Update warten, damit gleich die neueste Fassung erscheint */

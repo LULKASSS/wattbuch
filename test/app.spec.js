@@ -187,16 +187,14 @@ test('Rolle verweigert Steuerung: verständlicher Hinweis', async ({ page }) => 
   await expect(page.locator('#ergMsg')).toContainText('gibt die Steuerung nicht frei');
 });
 
-test('Sicherung speichern, alles löschen, Sicherung wieder laden', async ({ page }) => {
+test('Sicherung (wie in der Mac-App), alles löschen, Sicherung wieder laden', async ({ page }) => {
   const problems = await open(page);
   await connectTrainer(page);
   await ride(page, 15);
   await expect(toast(page)).toHaveText('Fahrt gespeichert');
 
   await page.click('#btnSet');
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#bkExp')]);
-  expect(dl.suggestedFilename()).toMatch(/^wattbuch-sicherung-\d{4}-\d\d-\d\d\.json$/);
-  const backup = JSON.parse(require('node:fs').readFileSync(await dl.path(), 'utf8'));
+  const backup = JSON.parse(await page.evaluate(() => backupJSON()));
   expect(backup.app).toBe('wattbuch');
   expect(backup.rides).toHaveLength(1);
 
@@ -219,13 +217,25 @@ test('kaputte Datei laden gibt eine Meldung statt abzustürzen', async ({ page }
   expect(problems).toEqual([]);
 });
 
-test('Ohne Rolle testen (Demo) liefert Werte', async ({ page }) => {
+test('Einstellungen: Konto oben, keine Test- und Übertragungsreste, FTP-Vorschlag aus dem FTP-Test', async ({ page }) => {
   const problems = await open(page);
-  await page.click('#chkDemo');
-  await page.clock.runFor(3000);
-  await expect(page.locator('#lvPow')).not.toHaveText('–');
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
+  await expect(page.locator('#chkDemo')).toHaveCount(0); // „Ohne Rolle testen“ gibt es nicht mehr
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', backupOf(4)));
+  await page.click('#btnSet');
+  const dlg = page.locator('#dlgSet');
+  await expect(dlg.locator('h3').first()).toHaveText('Konto');
+  await expect(dlg.locator('#bkExp, #bkImp')).toHaveCount(0);
+  await expect(dlg.locator('#ftpEst')).toBeHidden(); // FTP 200 = Ergebnis des FTP-Tests, nichts vorzuschlagen
+  await dlg.locator('#setFtp').fill('180');
+  await dlg.locator('#setFtp').press('Tab');
+  await page.click('#dlgSet .dlg-foot button');
+  await page.click('#btnSet');
+  /* Test (200 W) schlägt die Schätzung aus dem besten 20-min-Wert (95 % von 200 = 190 W) */
+  await expect(dlg.locator('#ftpEst')).toContainText('Aus FTP-Test vom');
+  await expect(dlg.locator('#ftpEst')).toContainText('200 W');
+  await dlg.locator('#ftpEst').click();
+  expect(await page.evaluate(() => S.set.ftp)).toBe(200);
+  await expect(dlg.locator('#ftpEst')).toBeHidden();
   expect(problems).toEqual([]);
 });
 
@@ -327,14 +337,6 @@ test('Strava: Fahrt mit Rolle geht von selbst hoch, abbrechen und nachholen', as
   await page.clock.runFor(125000);
   await expect(page.locator('#sumStrava')).toHaveText('Auf Strava ansehen');
   expect(await page.evaluate(() => window.__uploads.length)).toBe(2);
-  await page.click('#sumOk');
-  await page.click('[data-v="live"]');
-  // 4. Ohne echte Rolle („Ohne Rolle testen“) geht nichts automatisch hoch
-  await page.click('#chkDemo');
-  await ride(page, 15, { close: false });
-  await page.clock.runFor(30000);
-  await expect(page.locator('#sumStrava')).toHaveText('Zu Strava hochladen');
-  expect(await page.evaluate(() => window.__uploads.length)).toBe(2);
   expect(problems).toEqual([]);
 });
 
@@ -351,6 +353,60 @@ test('Vorschlagsstrecken beim ersten Start und Würfeln', async ({ page }) => {
   await expect(page.locator('#routeLive')).toBeVisible(); // gewürfelte Strecke ist gleich gewählt
   await page.reload();
   await expect(rows).toHaveCount(4); // keine doppelten Vorschläge nach Neuladen
+  expect(problems).toEqual([]);
+});
+
+/* Mac-App-Brücke mit Strava-Fahrten draußen: Runde A 4-mal, Runde B 3-mal (gleicher Start, andere Richtung des Landes),
+   Runde C nur 2-mal, dazu Zwift-Fahrten. Polylines wie bei Strava (map.summary_polyline), je Fahrt leicht verrauscht. */
+const fakeStravaLoops = () => {
+  const enc = pts => {
+    let out = '', pa = 0, po = 0;
+    const e = v => { v = v < 0 ? ~(v << 1) : v << 1; let s = ''; while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; } return s + String.fromCharCode(v + 63); };
+    for (const [a, b] of pts) { const la = Math.round(a * 1e5), lo = Math.round(b * 1e5); out += e(la - pa) + e(lo - po); pa = la; po = lo; }
+    return out;
+  };
+  const circle = (lat, lon, r, w0, n, jit = 0) => Array.from({ length: n + 1 }, (_, i) => { const w = w0 + i / n * 2 * Math.PI; return [lat + r * Math.sin(w) + jit, lon + r * Math.cos(w) / Math.cos(lat * Math.PI / 180) - jit]; });
+  const L = {
+    a: { c: [50.05, 10, .05, -Math.PI / 2] }, b: { c: [49.95, 10, .05, Math.PI / 2] }, c: { c: [50, 10.4, .04, 0] }, v: { c: [-11.6, 166.9, .05, 0] }
+  };
+  for (const k in L) { const [la, lo, r, w] = L[k].c; L[k].km = 2 * Math.PI * r * 111.32; L[k].line = circle(la, lo, r, w, 400); L[k].poly = [0, 1, 2].map(j => enc(circle(la, lo, r, w, 40, (j - 1) * .0008))); }
+  const acts = [], add = (k, name) => acts.push({ id: acts.length + 1, name, key: k, sport_type: k === 'v' ? 'VirtualRide' : 'Ride', trainer: k === 'v', start_date: new Date(Date.now() - (acts.length + 1) * 864e5).toISOString(), moving_time: 4000, distance: L[k].km * 1000, map: { summary_polyline: L[k].poly[acts.length % 3] } });
+  ['Kanalrunde', 'Kanalrunde', 'Radfahrt am Abend', 'Kanalrunde'].forEach(n => add('a', n));
+  ['Morning Ride', 'Abendradfahrt', 'Radfahrt am Morgen'].forEach(n => add('b', n));
+  ['Seerunde', 'Seerunde'].forEach(n => add('c', n));
+  for (let i = 0; i < 4; i++) add('v', 'Zwift');
+  window.__routeStreams = [];
+  window.wattbuchDesktop = { backup: async () => {}, strava: {
+    status: async () => ({ ok: true, configured: true, connected: true, canRead: true, athlete: { name: 'Test' } }),
+    activities: async ({ page }) => ({ ok: true, list: page === 1 ? acts : [] }),
+    streams: async (id, kind) => {
+      if (kind !== 'route') return { ok: true, streams: {} };
+      window.__routeStreams.push(String(id));
+      const pts = L[acts.find(a => a.id === +id).key].line;
+      return { ok: true, streams: { latlng: { data: pts }, altitude: { data: pts.map((_, i) => 200 + 60 * Math.sin(i / 20)) } } };
+    }
+  } };
+};
+
+test('Strava: meistgefahrene Runden werden zu Strecken', async ({ page }) => {
+  const problems = await open(page, { before: fakeStravaLoops });
+  await expect(toast(page)).toHaveText('2 deiner meistgefahrenen Runden sind jetzt als Strecken da');
+  const rows = page.locator('#rtList [data-route]:not([data-route=""])');
+  await expect(rows).toHaveCount(5); // 3 Vorschläge + 2 Runden
+  await expect(rows.nth(0)).toContainText('Kanalrunde');
+  await expect(rows.nth(0)).toContainText('4× gefahren');
+  await expect(rows.nth(1)).toContainText('Deine Runde · 35 km');
+  await expect(rows.nth(1)).toContainText('3× gefahren');
+  expect(await page.evaluate(() => window.__routeStreams)).toEqual(['1', '5']); // Linie aus der jüngsten Fahrt je Runde
+  const rt = await page.evaluate(() => { const r = S.routes.find(x => x.id === 'sf1'); return { km: r.dist / 1000, gain: r.gain }; });
+  expect(rt.km).toBeGreaterThan(33); expect(rt.km).toBeLessThan(37);
+  expect(rt.gain).toBeGreaterThan(100);
+  /* Gelöschte Runde kommt beim nächsten Durchlauf nicht wieder, die andere wird nicht doppelt angelegt */
+  await page.click('[data-rdel="sf1"]');
+  await page.click('[data-rdel="sf1"]');
+  await page.evaluate(() => favRoutes(true));
+  await expect(rows).toHaveCount(4);
+  expect(await page.evaluate(() => S.routes.filter(r => r.fav).map(r => r.id))).toEqual(['sf5']);
   expect(problems).toEqual([]);
 });
 
@@ -625,13 +681,17 @@ test('FTP-Test: Rampe bis zur Erschöpfung, Ergebnis übernehmen', async ({ page
   const sum = page.locator('#dlgSum');
   await expect(sum.locator('h2')).toHaveText('FTP-Test geschafft');
   await expect(sum).toContainText('Deine FTP: 150 W');
+  await expect(sum).toContainText('übernommen, bisher 200 W');
+  expect(await page.evaluate(() => S.set.ftp)).toBe(150); // ohne Klick übernommen
+  await expect(page.locator('#ftpNow')).toHaveText('FTP 150 W');
+  await expect(page.locator('#sumFtp')).toHaveText('Zurück auf 200 W');
   await page.click('#sumFtp');
-  expect(await page.evaluate(() => S.set.ftp)).toBe(150);
+  expect(await page.evaluate(() => S.set.ftp)).toBe(200);
   expect(await page.evaluate(() => S.rides.find(r => r.ftpTest).name)).toBe('FTP-Test');
   expect(problems).toEqual([]);
 });
 
-test('Handy: Übersicht statt Aufnahme, Sicherung vom Mac laden @mobil', async ({ page }) => {
+test('Handy: Übersicht statt Aufnahme, Fahrten vom Mac @mobil', async ({ page }) => {
   const problems = await open(page, { url: '/?handy', view: 'home' });
   await expect(page.locator('#nav [data-v="live"]')).toBeHidden();
   await expect(page.locator('#nav [data-v="home"]')).toBeVisible();
@@ -646,7 +706,7 @@ test('Handy: Übersicht statt Aufnahme, Sicherung vom Mac laden @mobil', async (
   await expect(page.locator('.hp-n')).toHaveText('6 Fahrten');
   await expect(page.locator('.hp-g')).toContainText('86,4'); // 6 × 14,4 km
   await expect(page.locator('.hp-g')).toContainText('2.160'); // kJ
-  await expect(page.locator('.hd')).toContainText('Stand: Sicherung vom');
+  await expect(page.locator('.hd')).not.toContainText('iCloud'); // kein Datei-Abgleich mehr, nur das Konto
   await expect(page.locator('.hf')).toContainText('190 → 200 W'); // FTP-Verlauf
   await expect(page.locator('.hr-c .row')).toHaveCount(3);
   /* Grafiken: Form, Balken, Zonen, Rekorde, Kalender */
@@ -675,20 +735,15 @@ test('Handy: Übersicht statt Aufnahme, Sicherung vom Mac laden @mobil', async (
   expect(problems).toEqual([]);
 });
 
-test('Handy: Werte pflegen, Fahrt umbenennen und löschen, an den Mac schicken @mobil', async ({ page }) => {
-  const problems = await open(page, { url: '/?handy', view: 'home', before: () => {
-    navigator.canShare = () => true;
-    navigator.share = async d => { window.__shared = { name: d.files[0].name, text: await d.files[0].text() }; };
-  } });
+test('Handy: Werte pflegen, Fahrt umbenennen und löschen @mobil', async ({ page }) => {
+  const problems = await open(page, { url: '/?handy', view: 'home' });
   await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', backupOf(3)));
   await expect(toast(page)).toHaveText('3 Fahrten geladen');
-  await expect(page.locator('.hd .tag.warn')).toHaveCount(0);
   await page.click('[data-hv="ftp"][data-d="5"]');
   await expect(page.locator('#hFtp')).toHaveValue('205');
   await page.fill('#hKg', '72,5');
   await page.locator('#hKg').press('Enter');
   await expect(page.locator('#hWkg')).toHaveText('2,83');
-  await expect(page.locator('.hd .tag.warn')).toHaveText('Änderungen offen');
 
   await page.click('#nav [data-v="rides"]');
   await page.clock.runFor(500);
@@ -706,19 +761,13 @@ test('Handy: Werte pflegen, Fahrt umbenennen und löschen, an den Mac schicken @
   await page.clock.runFor(500);
   await expect(page.locator('#v-rides .row')).toHaveCount(2);
 
-  await page.click('#nav [data-v="home"]');
-  await page.clock.runFor(500);
-  await page.click('#hSend');
-  const shared = await (await page.waitForFunction(() => window.__shared)).jsonValue();
-  expect(shared.name).toMatch(/^wattbuch-handy-\d{4}-\d\d-\d\d\.json$/);
-  const d = JSON.parse(shared.text);
+  const d = JSON.parse(await page.evaluate(() => backupJSON()));
   expect(d.from).toBe('handy');
   expect(d.settings.ftp).toBe(205);
   expect(d.settings.weight).toBe(72.5);
   expect(d.rides).toHaveLength(2);
   expect(d.gone).toEqual(['syn1']);
   expect(d.rides.find(r => r.id === 'syn0')).toMatchObject({ name: 'Lockere Runde' });
-  await expect(page.locator('.hd .tag.warn')).toHaveCount(0);
   expect(problems).toEqual([]);
 });
 

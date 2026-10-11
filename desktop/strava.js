@@ -125,9 +125,10 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', openBrowser
     if (after) q.set('after', String(Math.floor(after)));
     return { list: await api('GET', `/api/v3/athlete/activities?${q}`, { token: await token() }) };
   }
-  async function streams(id) {
+  /* keys: ohne Angabe die Werte einer Fahrt, 'route' für Linie und Höhe (Strecken aus den meistgefahrenen Runden) */
+  async function streams(id, kind) {
     if (!/^\d+$/.test(String(id))) throw new Error('Ungültige Aktivität');
-    const keys = 'time,watts,heartrate,cadence,distance,altitude,moving';
+    const keys = kind === 'route' ? 'latlng,altitude,distance' : 'time,watts,heartrate,cadence,distance,altitude,moving';
     return { streams: await api('GET', `/api/v3/activities/${id}/streams?keys=${keys}&key_by_type=true`, { token: await token() }) };
   }
 

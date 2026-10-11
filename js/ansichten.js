@@ -269,14 +269,14 @@ function renderBest(){
   const v=$('#v-best'),agg=aggRides();
   if(!agg.length){v.innerHTML=`<div class="page-h"><h1>Bestwerte</h1></div><div class="card empty"><b>Noch keine Fahrt</b>Nach der ersten Aufnahme stehen hier deine besten Werte.</div>`;return;}
   const all=bestsOf(agg),cut=Date.now()-30*864e5,recent=bestsOf(agg.filter(r=>Date.parse(r.start)>=cut));
-  const kg=S.set.weight,ftp=S.set.ftp,est=all[1200]?Math.round(all[1200].w*.95):null;
+  const kg=S.set.weight,ftp=S.set.ftp,g=ftpSuggest(agg),est=g&&g.w;
   const allPts=DURS.filter(d=>all[d]).map(d=>[d,all[d].w]),recPts=DURS.filter(d=>recent[d]).map(d=>[d,recent[d].w]);
   const sample=agg.some(r=>r.sample);
   v.innerHTML=`
   <div class="page-h"><h1>Bestwerte</h1>${sample?'<span class="tag">Aus der Beispielfahrt</span>':''}</div>
   <div class="stack" style="margin-top:0">
     <div class="card ftpc">
-      <div><span class="lbl">FTP geschätzt · 95 % vom besten 20-min-Wert</span><div class="v">${est?`<span data-count="${est}">${est}</span><small>W</small>`:'–'}</div></div>
+      <div><span class="lbl">FTP-Vorschlag · ${g?(g.lbl.startsWith('Aus FTP')?g.lbl.replace('Aus ','aus '):'95 % vom besten 20-min-Wert'):'FTP-Test oder 20 min am Stück'}</span><div class="v">${est?`<span data-count="${est}">${est}</span><small>W</small>`:'–'}</div></div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="note soft" style="margin:0">Eingestellt: ${ftp} W</span>${est&&est!==ftp?`<button type="button" class="btn sm" id="useEst">${est} W übernehmen</button>`:''}</div>
     </div>
     <div class="card">

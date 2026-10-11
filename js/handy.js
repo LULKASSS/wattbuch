@@ -1,9 +1,7 @@
 'use strict';
 /* ---------- Handy: Übersicht ---------- */
 /* Am Handy wird nicht aufgenommen. Die Übersicht zeigt Training je Zeitraum, die eigenen Werte (FTP, Gewicht, Zonen)
-   zum Pflegen, den FTP-Verlauf, die letzten Fahrten und den Abgleich mit dem Mac über iCloud Drive:
-   Laden = Sicherung der Mac-App (iCloud Drive/Wattbuch), Senden = Datei nach iCloud Drive/Wattbuch/Import,
-   die Mac-App übernimmt sie beim nächsten Start (Namen, Löschungen, FTP, Gewicht). */
+   zum Pflegen, den FTP-Verlauf, die letzten Fahrten und das Konto, über das sich Handy und Mac abgleichen. */
 const PER=[['w','Woche','Vorwoche'],['m','Monat','Vormonat'],['y','Jahr','Vorjahr'],['a','Gesamt','']];
 function perRange(k,back=0){
   const n=new Date();
@@ -138,11 +136,10 @@ function renderHome(){
   const v=$('#v-home'),real=S.rides.filter(r=>!r.sample),ftp=S.set.ftp,kg=S.set.weight;
   const [k,,prevName]=PER.find(p=>p[0]===S.per)||PER[0];
   const t=totals(real,perRange(k)),pv=k==='a'?null:totals(real,perRange(k,1));
-  const bests=bestsOf(real),b20=bests[1200],est=b20?Math.round(b20.w*.95):null;
+  const bests=bestsOf(real),g=ftpSuggest(real),est=g&&g.w;
   const steps=ftpSteps(real),recent=[...real].sort((a,b)=>b.start.localeCompare(a.start)).slice(0,3);
   const dm=daily(real),first=real.reduce((a,r)=>!a||r.start<a?r.start:a,null);
   const P=first?pmc(dm,first):[],now=P[P.length-1],wk=P[Math.max(0,P.length-8)];
-  const bk=S.bk?`Stand: Sicherung vom ${fmtDate(S.bk.saved)}, ${fmtTime(S.bk.saved)} Uhr.`:'Noch keine Sicherung vom Mac geladen.';
   const B=buckets(k,real),zt=[0,0,0,0,0,0,0];
   {const {s,e}=perRange(k);for(const r of real){const d=new Date(r.start);if(d>=s&&d<e)stats(r).zt.forEach((x,i)=>zt[i]+=x);}}
   const ztot=sum(zt),dPct=pv&&pv.sec?Math.round((t.sec-pv.sec)/pv.sec*100):null,wkg=ftp/kg,strk=streak(real);
@@ -200,7 +197,7 @@ function renderHome(){
         <div><span class="lbl">FTP</span><div class="field"><button type="button" class="pm" data-hv="ftp" data-d="-5" aria-label="5 Watt weniger">−</button><input id="hFtp" inputmode="numeric" autocomplete="off" value="${ftp}" aria-label="FTP in Watt"><span class="u">W</span><button type="button" class="pm" data-hv="ftp" data-d="5" aria-label="5 Watt mehr">+</button></div></div>
         <div><span class="lbl">Gewicht</span><div class="field"><button type="button" class="pm" data-hv="kg" data-d="-0.5" aria-label="Ein halbes Kilo weniger">−</button><input id="hKg" inputmode="decimal" autocomplete="off" value="${String(kg).replace('.',',')}" aria-label="Gewicht in Kilogramm"><span class="u">kg</span><button type="button" class="pm" data-hv="kg" data-d="0.5" aria-label="Ein halbes Kilo mehr">+</button></div></div>
       </div>
-      ${est&&est!==ftp?`<button type="button" class="qb hv-est" data-hest="${est}">Aus bestem 20-min-Wert<b>${est} W übernehmen</b></button>`:''}
+      ${est&&est!==ftp?`<button type="button" class="qb hv-est" data-hest="${est}">${g.lbl}<b>${est} W übernehmen</b></button>`:''}
     </div>
     ${steps.length>1?`<div class="card hf">
       <div class="card-h"><h3>FTP-Verlauf</h3><span class="lbl">${steps[0].w} → ${ftp} W</span></div>
@@ -210,12 +207,10 @@ function renderHome(){
       <div class="card-h"><h3>Letzte Fahrten</h3><button type="button" class="lnk" data-go="rides">Alle</button></div>
       <div class="list">${recent.map(rideRow).join('')}</div>
     </div>`:''}
-    <div class="card hd">
-      <div class="card-h"><h3>Konto</h3>${!K.s&&S.dirty?'<span class="tag warn">Änderungen offen</span>':''}</div>
-      ${!K.s&&!real.length?'':`<div class="konto">${kontoHTML()}</div>`}
-      ${K.s?'':`${real.length?'<div class="sep"></div>':''}<p class="ftp-note">Ohne Konto über iCloud Drive → Wattbuch: ${bk}</p>
-      <div class="dlg-row"><button type="button" class="btn sm" data-load>Sicherung laden</button><button type="button" class="btn sm${S.dirty?' primary':''}" id="hSend"${real.length||S.dirty?'':' disabled'}>Änderungen an den Mac</button></div>`}
-    </div>
+    ${K.s||real.length?`<div class="card hd">
+      <div class="card-h"><h3>Konto</h3></div>
+      <div class="konto">${kontoHTML()}</div>
+    </div>`:''}
     ${standalone()?'':`<p class="note soft hd-tip">Tipp: Teilen → „Zum Home-Bildschirm“, dann startet Wattbuch wie eine App.</p>`}
   </div>`;
   requestAnimationFrame(()=>placeSegThumb($('#perSeg')));
@@ -234,11 +229,9 @@ function hvSet(which,val){
   renderHome();return true;
 }
 document.addEventListener('click',e=>{
-  if(e.target.closest('[data-load]')){$('#anyFile').click();return;}
   const p=e.target.closest('[data-per]');if(p){S.per=p.dataset.per;renderHome();return;}
   const pm=e.target.closest('[data-hv]');if(pm){hvSet(pm.dataset.hv,(pm.dataset.hv==='ftp'?S.set.ftp:S.set.weight)+(+pm.dataset.d));return;}
   const he=e.target.closest('[data-hest]');if(he){hvSet('ftp',+he.dataset.hest);toast(`FTP auf ${S.set.ftp} W gesetzt`);return;}
-  if(e.target.closest('#hSend'))sendBackup();
 });
 document.addEventListener('change',e=>{
   if(e.target.id==='hFtp')hvSet('ftp',parseInt(e.target.value,10))||renderHome();
@@ -246,16 +239,3 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('focusin',e=>{if(e.target.id==='hFtp'||e.target.id==='hKg')e.target.select();});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='hFtp'||e.target.id==='hKg'))e.target.blur();});
-
-/* Änderungen an den Mac: über das Teilen-Menü in iCloud Drive/Wattbuch/Import sichern, sonst herunterladen */
-async function sendBackup(){
-  const name=`wattbuch-handy-${new Date().toISOString().slice(0,10)}.json`,text=backupJSON();
-  let f=null;try{f=new File([text],name,{type:'application/json'});}catch(_){}
-  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){
-    try{await navigator.share({files:[f]});}
-    catch(x){if(x&&x.name==='AbortError')return;download(text,name,'application/json');}
-  }else download(text,name,'application/json');
-  S.dirty=false;await DB.set('dirty',false);
-  toast('Im Ordner Wattbuch → Import sichern, der Mac übernimmt es');
-  if(S.view==='home')renderHome();
-}

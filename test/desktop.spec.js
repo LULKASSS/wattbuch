@@ -38,7 +38,9 @@ test('Fahrt wird automatisch gesichert und in neuer Installation wiederhergestel
   const app = await launch();
   const page = await app.firstWindow();
   await expect(page.locator('#v-live')).toHaveClass(/active/);
-  await page.click('#chkDemo');
+  await page.addScriptTag({ path: path.join(__dirname, 'fake-ble.js') }); // simulierte Rolle statt Bluetooth
+  await page.click('#btnTr');
+  await expect(page.locator('#trSub')).toHaveText('Fake D100 · FTMS');
   await page.click('[data-a="start"]');
   await page.waitForTimeout(16_000); // 3 s Countdown + 13 s Fahrt
   await page.click('#fCtrl [data-a="end"]');

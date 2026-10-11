@@ -101,7 +101,6 @@
             <button type="button" class="btn sm" id="btnCd">Verbinden</button>
           </div>
           <button type="button" class="lnk" id="btnCdAll" hidden>Sensor nicht in der Liste? Alle Geräte zeigen</button>
-          <label class="chk" id="chkDemo"><input type="checkbox" id="demo"><span class="box"></span>Ohne Rolle testen</label>
           <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac die Wattbuch-App oder Chrome nehmen.</p>
         </div>
 
@@ -149,6 +148,8 @@
 <dialog id="dlgSet">
   <form method="dialog" class="dlg">
     <h2>Einstellungen</h2>
+    <div class="sv"><h3>Konto</h3><div class="konto"></div></div>
+    <div class="sep"></div>
     <div class="frow"><label for="setFtp">FTP</label><div class="field left"><input id="setFtp" inputmode="numeric" autocomplete="off"><span class="u">W</span></div></div>
     <div class="frow"><label for="setKg">Gewicht</label><div class="field left"><input id="setKg" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
     <div class="frow no-handy"><label for="setBike">Rad</label><div class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
@@ -156,12 +157,6 @@
     <div class="sep no-handy"></div>
     <div class="sv no-handy" id="svBox"></div>
     <div class="sep"></div>
-    <div class="sv"><h3>Konto</h3><div class="konto"></div></div>
-    <div class="sep"></div>
-    <div class="dlg-row">
-      <button type="button" class="btn sm" id="bkExp">Sicherung speichern</button>
-      <button type="button" class="btn sm" id="bkImp">Datei laden</button>
-    </div>
     <div class="dlg-row"><button type="button" class="btn sm ghost warn" id="delAll">Alle Fahrten löschen</button></div>
     <div class="dlg-foot"><button class="btn primary" value="ok">Fertig</button></div>
   </form>

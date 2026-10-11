@@ -147,7 +147,7 @@ function kontoHTML(){
   const st=K.busy?'Gleicht ab …':K.err?`Abgleich klappt gerade nicht (${esc(K.err)}), wird wiederholt`:K.last?`Abgeglichen ${fmtDate(K.last)}, ${fmtTime(K.last)} Uhr`:'Noch nicht abgeglichen';
   return`<p class="k-ok"><i></i>Angemeldet als <b>${esc(K.s.email||'')}</b></p>
     <p class="ftp-note k-st">${st}${K.out.size&&!K.busy?` · ${K.out.size} ${K.out.size===1?'Änderung wartet':'Änderungen warten'}`:''}</p>
-    <div class="dlg-row"><button type="button" class="btn sm" data-k="sync"${K.busy?' disabled':''}>Jetzt abgleichen</button><button type="button" class="btn sm ghost" data-k="aus">Abmelden</button></div>`;
+    <div class="dlg-row"><button type="button" class="btn sm ghost" data-k="aus">Abmelden</button></div>`;
 }
 function renderKonto(force){$$('.konto').forEach(el=>{if(force||!el.contains(document.activeElement)||!K.s===!el.querySelector('.k-form'))el.innerHTML=kontoHTML();});}
 async function kSubmit(box,neu){
@@ -166,7 +166,6 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-k]');if(!b)return;
   const box=b.closest('.konto');
   if(b.dataset.k==='in'||b.dataset.k==='neu')kSubmit(box,b.dataset.k==='neu');
-  if(b.dataset.k==='sync')sync();
   if(b.dataset.k==='aus'){kLogout();toast('Abgemeldet, die Fahrten bleiben auf diesem Gerät');if(S.view==='home')renderHome();}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('k-in')){e.preventDefault();kSubmit(e.target.closest('.konto'),false);}});

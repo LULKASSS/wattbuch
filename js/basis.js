@@ -113,16 +113,15 @@ const HANDY=(()=>{
 
 /* ---------- Zustand ---------- */
 const S={
-  view:HANDY?'home':'live',per:'w',gone:new Set(),dirty:false,bk:null,detail:null,set:{ftp:200,weight:75,bike:8,diff:.5,routeId:null,rev:false},rides:[],routes:[],
+  view:HANDY?'home':'live',per:'w',gone:new Set(),detail:null,set:{ftp:200,weight:75,bike:8,diff:.5,routeId:null,rev:false},rides:[],routes:[],
   sim:{v:0,d:0,total:0,gain:0,lastAlt:null,lap:1,done:false,sent:null,tSent:0,busy:false,last:0},
   cd:{state:'off',name:'',dev:null,manual:false},
   tr:{state:'off',name:'',dev:null,cp:null,ctrl:false,denied:false,via:'',manual:false,tries:0},
   hrm:{state:'off',name:'',dev:null,manual:false},
-  demo:false,
   live:{raw:[],cad:null,tC:0,cadSeen:false,spd:null,tS:0,hr:null,tH:0},
   hist:[],
   rec:{state:'idle',startISO:null,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0},
   erg:{on:false,target:150},
   smooth:5,wake:null,liveHover:null
 };
-const isLive=()=>S.tr.state==='on'||S.demo;
+const isLive=()=>S.tr.state==='on';

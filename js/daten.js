@@ -25,12 +25,12 @@ ${pts}</Track></Lap><Notes>${esc(r.name)}</Notes></Activity></Activities></Train
 
 /* Sicherung: Einstellungen, echte Fahrten und Strecken. Aus Strava übernommene Fahrten nicht (groß, liegen in Strava und im Konto,
    die Mac-App holt sie nach einer Neuinstallation von selbst wieder). In der Mac-App (window.wattbuchDesktop)
-   wird sie nach jeder Änderung automatisch geschrieben, im Browser nur über „Sicherung speichern“. */
+   wird sie nach jeder Änderung automatisch nach iCloud Drive geschrieben. Sonst hält das Konto alles zusammen. */
 function backupJSON(){return JSON.stringify({app:'wattbuch',version:1,saved:new Date().toISOString(),from:HANDY?'handy':'mac',settings:S.set,rides:S.rides.filter(r=>!r.sample&&r.src!=='strava'),routes:S.routes,gone:[...S.gone]});}
 let bkT=null;
 function autoBackup(){const d=window.wattbuchDesktop;if(!d)return;clearTimeout(bkT);bkT=setTimeout(()=>d.backup(backupJSON()).catch(()=>toast('Automatische Sicherung fehlgeschlagen')),400);}
-/* Etwas an den Daten wurde von Hand geändert (Name, Löschen, FTP, Gewicht). Am Handy merken, dass der Mac es noch nicht hat. */
-function changed(){autoBackup();if(HANDY&&!S.dirty){S.dirty=true;DB.set('dirty',true);}}
+/* Etwas an den Daten wurde von Hand geändert (Name, Löschen, FTP, Gewicht) */
+function changed(){autoBackup();}
 /* Gelöschte Fahrten merken, damit sie beim nächsten Abgleich nicht aus der anderen Sicherung zurückkommen */
 async function forget(r){await DB.del(r.id);S.rides=S.rides.filter(x=>x!==r);if(!r.sample){S.gone.add(r.id);await DB.set('gone',[...S.gone]);}changed();}
 async function importData(d){
@@ -62,9 +62,10 @@ function setWeight(v){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();c
 function openSet(){
   if(typeof stravaRefresh==='function'){renderStravaSet();stravaRefresh();}
   $('#setFtp').value=S.set.ftp;$('#setKg').value=String(S.set.weight).replace('.',',');$('#setBike').value=String(S.set.bike).replace('.',',');
-  const b=bestsOf(aggRides())[1200],e=$('#ftpEst');
-  if(b){const est=Math.round(b.w*.95);e.innerHTML=`Aus bestem 20-min-Wert<b>${est} W</b>`;e.disabled=false;e.onclick=()=>{setFtp(est);toast(`FTP auf ${est} W gesetzt`);};}
-  else{e.innerHTML='FTP-Schätzung braucht eine Fahrt ab 20 min';e.disabled=true;e.onclick=null;}
+  const g=ftpSuggest(),e=$('#ftpEst');
+  e.hidden=!!g&&g.w===S.set.ftp;
+  if(g){e.innerHTML=`${g.lbl}<b>${g.w} W</b>`;e.disabled=false;e.onclick=()=>{setFtp(g.w);e.hidden=true;toast(`FTP auf ${g.w} W gesetzt`);};}
+  else{e.innerHTML='Für einen FTP-Vorschlag: FTP-Test machen oder 20 min am Stück fahren';e.disabled=true;e.onclick=null;}
   $('#dlgSet').showModal();
 }
 function rerender(){renderView(S.view);if(S.view!=='live')$$(`#v-${S.view} canvas`).forEach(c=>c._draw&&c._draw(null));}
