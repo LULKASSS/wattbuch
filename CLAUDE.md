@@ -24,4 +24,5 @@ Gehört Lukas, Sprache in App, Code-Kommentaren und Commits: **Deutsch**.
 - Neue Funktion → Test in `test/app.spec.js` mit `__fakeBle` dazu. Bluetooth-Protokoll: FTMS 0x1826 (Indoor Bike Data 0x2AD2, Control Point 0x2AD9), HR 0x180D, CSC 0x1816.
 - Desktop-Tests immer mit `WATTBUCH_DATA=<tmp>`, nie gegen den echten Sicherungsordner.
 - Mac-App lädt dieselben Dateien; App-spezifisches nur über `window.wattbuchDesktop` abfragen, die Webseite muss ohne laufen.
+- Kein Titelbalken oben links: kein Logo, kein App-Name, kein Zeichen als Menü-Knopf. Der Platz gehört dem Inhalt (Lukas, 11.10.2026). Oben nur Ansicht-Wahl und Einstellungen.
 - Stil beibehalten: kompaktes JS, deutsche Bezeichner in UI-Texten, `$`/`$$`-Helfer, `S` als Zustand.
