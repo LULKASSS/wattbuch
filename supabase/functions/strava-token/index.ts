@@ -23,7 +23,9 @@ Deno.serve(async req => {
   try { r = await fetch('https://www.strava.com/oauth/token', { method: 'POST', body: f }); }
   catch { return out({ error: 'Strava nicht erreichbar' }, 502); }
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) return out({ error: d.message || `Strava antwortet ${r.status}` }, r.status >= 400 && r.status < 500 ? r.status : 502);
+  /* Stravas Fehlergrund mitgeben (z. B. AuthorizationCode/code/invalid), ohne Werte */
+  const why = Array.isArray(d.errors) ? d.errors.map((e: Record<string, string>) => [e.resource, e.field, e.code].filter(Boolean).join(' ')).join(', ') : '';
+  if (!r.ok) return out({ error: (d.message || `Strava antwortet ${r.status}`) + (why ? ` (${why})` : '') }, r.status >= 400 && r.status < 500 ? r.status : 502);
   const a = d.athlete;
   return out({ access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at, athlete: a ? { id: a.id, firstname: a.firstname, lastname: a.lastname } : undefined });
 });
