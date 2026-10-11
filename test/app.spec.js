@@ -709,3 +709,104 @@ test('Handy wird von selbst erkannt, ?fahren schaltet die Aufnahme wieder frei @
   }
   expect(problems).toEqual([]);
 });
+
+/* Nachgebautes Supabase (Anmeldung + die zwei Wattbuch-Tabellen) im Speicher, für mehrere Geräte gleichzeitig */
+function fakeSupabase() {
+  const users = new Map(), rides = new Map(), werte = new Map();
+  let tick = 0;
+  const ts = () => new Date(Date.UTC(2026, 0, 1) + ++tick * 1000).toISOString();
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
+  const session = u => ({ access_token: 'tok-' + u.id, refresh_token: 'ref-' + u.id, expires_in: 3600, user: { id: u.id, email: u.email } });
+  async function handle(route) {
+    const req = route.request(), url = new URL(req.url()), p = url.pathname, m = req.method();
+    const send = (status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body == null ? '' : JSON.stringify(body) });
+    if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const body = req.postData() ? JSON.parse(req.postData()) : null;
+    if (p === '/auth/v1/signup') {
+      if (users.has(body.email)) return send(422, { error_code: 'user_already_exists', msg: 'User already registered' });
+      const u = { id: 'u' + (users.size + 1), email: body.email, pw: body.password }; users.set(u.email, u); return send(200, session(u));
+    }
+    if (p === '/auth/v1/token') {
+      const u = url.searchParams.get('grant_type') === 'password' ? users.get(body.email) : [...users.values()].find(x => 'ref-' + x.id === body.refresh_token);
+      if (!u || (body.password != null && u.pw !== body.password)) return send(400, { error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
+      return send(200, session(u));
+    }
+    if (p === '/auth/v1/logout') return send(204);
+    const uid = (req.headers()['authorization'] || '').replace('Bearer tok-', '');
+    if (![...users.values()].some(u => u.id === uid)) return send(401, { message: 'JWT expired' });
+    if (p === '/rest/v1/wattbuch_fahrten' && m === 'GET') {
+      const gt = (url.searchParams.get('geaendert') || '').replace(/^gt\./, ''), lim = +url.searchParams.get('limit') || 1000;
+      const rows = [...rides.values()].filter(r => r.user_id === uid && (!gt || r.geaendert > gt)).sort((a, b) => a.geaendert.localeCompare(b.geaendert)).slice(0, lim);
+      return send(200, rows.map(({ id, data, geloescht, geaendert }) => ({ id, data, geloescht, geaendert })));
+    }
+    if (p === '/rest/v1/wattbuch_fahrten' && m === 'POST') {
+      const out = body.map(r => { const row = { ...r, user_id: uid, geaendert: ts() }; rides.set(uid + '|' + r.id, row); return { id: r.id, geaendert: row.geaendert }; });
+      return send(201, out);
+    }
+    if (p === '/rest/v1/wattbuch_werte' && m === 'GET') return send(200, werte.has(uid) ? [werte.get(uid)] : []);
+    if (p === '/rest/v1/wattbuch_werte' && m === 'POST') { const row = { werte: body[0].werte, geaendert: ts() }; werte.set(uid, row); return send(201, [{ geaendert: row.geaendert }]); }
+    return send(404, { message: 'unbekannt ' + p });
+  }
+  return {
+    route: ctx => ctx.route('https://nysoyxbsdsxdvyknnkbc.supabase.co/**', handle),
+    rides: () => [...rides.values()], werte: uid => werte.get(uid)
+  };
+}
+/* Uhr weiterdrehen, bis der Abgleich durch ist (Netz läuft echt, Wartezeiten mit der gefälschten Uhr) */
+const settle = async (page, fn, want) => expect.poll(async () => { await page.clock.runFor(2000); return fn(); }, { timeout: 10000 }).toEqual(want);
+
+test('Konto: Fahrten vom Mac kommen von selbst aufs Handy, Änderungen am Handy zurück', async ({ page, browser }) => {
+  const sb = fakeSupabase();
+  await sb.route(page.context());
+  const problems = await open(page);
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', backupOf(3)));
+  await expect(toast(page)).toHaveText('3 Fahrten geladen');
+  /* Mac: Konto anlegen, alles geht hoch */
+  await page.click('#btnSet');
+  const box = page.locator('#dlgSet .konto');
+  await box.locator('[name=email]').fill('fahrer@example.org');
+  await box.locator('[name=pw]').fill('geheim123');
+  await box.locator('[data-k="neu"]').click();
+  await expect(box).toContainText('Angemeldet als fahrer@example.org');
+  await settle(page, () => sb.rides().map(r => r.id).sort(), ['syn0', 'syn1', 'syn2']);
+  expect(sb.werte('u1').werte.ftp).toBe(200);
+  await page.click('#dlgSet .dlg-foot button');
+
+  /* Handy: anmelden, Fahrten erscheinen ohne Datei */
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await sb.route(ctx);
+  const phone = await ctx.newPage();
+  const problems2 = await open(phone, { url: '/?handy', view: 'home' });
+  const hb = phone.locator('#v-home .konto').first();
+  await hb.locator('[name=email]').fill('fahrer@example.org');
+  await hb.locator('[name=pw]').fill('falsch');
+  await hb.locator('[data-k="in"]').click();
+  await expect(hb.locator('.k-msg')).toHaveText('E-Mail oder Passwort stimmt nicht');
+  await hb.locator('[name=pw]').fill('geheim123');
+  await hb.locator('[name=pw]').press('Enter');
+  await settle(phone, () => phone.evaluate(() => S.rides.length), 3);
+  await expect(phone.locator('#v-home .sub-h')).toContainText('3 Fahrten');
+  await expect(phone.locator('.hd')).toContainText('Angemeldet als fahrer@example.org');
+
+  /* Handy: umbenennen, löschen, FTP ändern → landet im Konto */
+  await phone.click('[data-hv="ftp"][data-d="5"]');
+  await phone.evaluate(async () => { const r = S.rides.find(x => x.id === 'syn0'); r.name = 'Vom Handy'; r.edited = Date.now(); await DB.put(r); await forget(S.rides.find(x => x.id === 'syn1')); });
+  await settle(phone, () => sb.rides().filter(r => r.geloescht).map(r => r.id), ['syn1']);
+  await settle(phone, () => sb.werte('u1').werte.ftp, 205);
+  expect(sb.rides().find(r => r.id === 'syn0').data.name).toBe('Vom Handy');
+
+  /* Mac gleicht ab (beim nächsten Anlass von selbst, hier direkt) */
+  await page.evaluate(() => sync());
+  expect(await page.evaluate(() => S.rides.filter(r => !r.sample).map(r => r.id + ':' + r.name).sort())).toEqual(['syn0:Vom Handy', 'syn2:Rollentraining']);
+  expect(await page.evaluate(() => S.set.ftp)).toBe(205);
+
+  /* Neue Fahrt am Mac → Handy */
+  await connectTrainer(page);
+  await ride(page, 15);
+  await settle(page, () => sb.rides().filter(r => !r.geloescht).length, 3);
+  await phone.evaluate(() => sync());
+  expect(await phone.evaluate(() => S.rides.length)).toBe(3);
+  expect(problems).toEqual([]);
+  expect(problems2.filter(x => !/status of 400/.test(x))).toEqual([]); // 400 = absichtlich falsches Passwort
+  await ctx.close();
+});

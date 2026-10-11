@@ -59,7 +59,8 @@ function renderHome(){
   v.innerHTML=`
   <div class="page-h"><div><h1>Übersicht</h1><p class="sub-h">${real.length?`${real.length} ${real.length===1?'Fahrt':'Fahrten'} · zuletzt ${fmtDate(last.start)}`:'Gefahren wird am Mac, hier siehst und pflegst du alles'}</p></div></div>
   <div class="home">
-    ${real.length?'':`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Die Mac-App sichert jede Fahrt in iCloud Drive → Wattbuch. Lade die Datei <code>wattbuch-sicherung.json</code> einmal hier.<div class="empty-a"><button type="button" class="btn primary" data-load>Sicherung laden</button></div></div>`}
+    ${real.length?'':K.s?`<div class="card empty"><b>${K.busy||!K.last?'Fahrten werden geholt …':'Im Konto liegen noch keine Fahrten'}</b>${K.busy||!K.last?'Einen Moment.':'Am Mac in den Einstellungen mit demselben Konto anmelden, dann kommen sie von selbst hierher.'}</div>`
+      :`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Mit deinem Konto anmelden, dann kommen die Fahrten vom Mac von selbst.<div class="konto empty-k">${kontoHTML()}</div></div>`}
     <div class="card hp">
       <div class="card-h"><h3>Training</h3><div class="seg sm" id="perSeg"><span class="thumb"></span>${PER.map(([key,l])=>`<button type="button" data-per="${key}"${key===k?' class="on"':''}>${l}</button>`).join('')}</div></div>
       <span class="lbl">${perLabel(k,real)}</span>
@@ -90,10 +91,10 @@ function renderHome(){
       <div class="hf-l">${steps.slice(1).reverse().slice(0,4).map((p,i,a)=>{const prev=steps[steps.length-1-i-1],dw=p.w-prev.w;return`<div><span>${p.now?'Eingestellt':fmtDateY(new Date(p.t).toISOString())}${p.test?' <span class="tag acc">Test</span>':''}</span><b>${p.w} W</b><span class="${dw>0?'up':'dn'}">${dw>0?'+':'−'}${Math.abs(dw)} W</span></div>`;}).join('')}</div>
     </div>`:''}
     <div class="card hd">
-      <div class="card-h"><h3>Abgleich mit dem Mac</h3>${S.dirty?'<span class="tag warn">Änderungen offen</span>':''}</div>
-      <p class="ftp-note">${bk}</p>
-      <div class="dlg-row"><button type="button" class="btn sm${real.length?'':' primary'}" data-load>Sicherung laden</button><button type="button" class="btn sm${S.dirty?' primary':''}" id="hSend"${real.length||S.dirty?'':' disabled'}>Änderungen an den Mac</button></div>
-      <p class="ftp-note hd-how"><b>Laden:</b> iCloud Drive → Wattbuch → <code>wattbuch-sicherung.json</code>.<br><b>An den Mac:</b> „In Dateien sichern“ → iCloud Drive → Wattbuch → Import. Die Mac-App übernimmt Namen, Löschungen, FTP und Gewicht beim nächsten Start.</p>
+      <div class="card-h"><h3>Konto</h3>${!K.s&&S.dirty?'<span class="tag warn">Änderungen offen</span>':''}</div>
+      ${!K.s&&!real.length?'':`<div class="konto">${kontoHTML()}</div>`}
+      ${K.s?'':`${real.length?'<div class="sep"></div>':''}<p class="ftp-note">Ohne Konto über iCloud Drive → Wattbuch: ${bk}</p>
+      <div class="dlg-row"><button type="button" class="btn sm" data-load>Sicherung laden</button><button type="button" class="btn sm${S.dirty?' primary':''}" id="hSend"${real.length||S.dirty?'':' disabled'}>Änderungen an den Mac</button></div>`}
     </div>
     ${standalone()?'':`<p class="note soft hd-tip">Tipp: In Safari auf Teilen → „Zum Home-Bildschirm“. Dann startet Wattbuch wie eine App, und die Daten bleiben sicher liegen.</p>`}
   </div>`;

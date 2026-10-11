@@ -156,7 +156,7 @@ function renderRides(){
     </div>
   </div>
   <div class="list">
-    ${list.length?list.map(rideRow).join(''):HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. Lade dessen Sicherung aus iCloud Drive → Wattbuch.<div class="empty-a"><button type="button" class="btn primary" data-load>Sicherung laden</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Aufnahme starten.</div>`}
+    ${list.length?list.map(rideRow).join(''):HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Aufnahme starten.</div>`}
   </div>`;
 }
 

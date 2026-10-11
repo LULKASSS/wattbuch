@@ -58,7 +58,7 @@ async function stravaUpload(r,auto=false){
   try{res=await sv.upload({tcx:tcx(r),name:r.name,description:stravaDesc(r),externalId:'wattbuch-'+r.id});}
   catch(e){res={ok:false,error:e.message};}
   finally{svBusy.delete(r.id);}
-  if(!S.rides.includes(r))return null;   // inzwischen gelöscht
+  r=S.rides.find(x=>x.id===r.id);if(!r)return null;   // inzwischen gelöscht (oder vom Konto-Abgleich ersetzt)
   if(!res.ok){
     r.strava={state:'fehler',error:res.error,auto,tries,retry:Date.now()+2**tries*60000};
     if(!auto||tries===1)toast('Strava: '+res.error+(auto?' – wird später nochmal versucht':''));

@@ -663,3 +663,15 @@ html:not(.handy) .handy-only{display:none}
   .hp-big b{font-size:46px}
   .home .row{grid-template-columns:62px minmax(0,1fr) 56px 40px;padding:11px 12px}
 }
+
+/* Konto */
+.k-form{display:grid;gap:10px}
+.k-form .ftp-note{margin:0}
+.k-in{height:42px;border:1px solid var(--line-2);border-radius:var(--r-s);background:var(--surface);padding:0 12px;font-size:16px;outline:none;width:100%;transition:border-color .2s,box-shadow .2s}
+.k-in:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.k-msg{margin:0}
+.k-msg.soft{color:var(--fg-2)}
+.k-ok{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.k-ok i{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.k-st{margin:0 0 12px}
+.empty-k{max-width:340px;margin:18px auto 0;text-align:left}

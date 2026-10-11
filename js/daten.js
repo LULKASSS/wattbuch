@@ -49,15 +49,15 @@ async function importData(d){
       else if(ok(o)&&!ok(x))y={...x,strava:o.strava};
       if(i>=0)S.rides[i]=y;else S.rides.push(y);await DB.put(y);rides++;
     }
-    if(d.settings&&fin(d.settings.ftp)){S.set.ftp=d.settings.ftp;if(fin(d.settings.weight))S.set.weight=d.settings.weight;saveSet();renderErg();}
+    if(d.settings&&fin(d.settings.ftp)){S.set.ftp=d.settings.ftp;if(fin(d.settings.weight))S.set.weight=d.settings.weight;saveSet();werteMark();renderErg();}
   }
   return{rides,routes};
 }
 
 /* ---------- Einstellungen ---------- */
 async function saveSet(){await DB.set('settings',S.set);}
-function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();changed();$('#setFtp').value=S.set.ftp;renderErg();}
-function setWeight(v){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();changed();}
+function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();changed();werteMark();$('#setFtp').value=S.set.ftp;renderErg();}
+function setWeight(v){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();changed();werteMark();}
 function openSet(){
   if(typeof stravaRefresh==='function'){renderStravaSet();stravaRefresh();}
   $('#setFtp').value=S.set.ftp;$('#setKg').value=String(S.set.weight).replace('.',',');$('#setBike').value=String(S.set.bike).replace('.',',');

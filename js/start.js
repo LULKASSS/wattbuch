@@ -37,7 +37,7 @@ $('#btnSet').onclick=openSet;
 $('#setFtp').addEventListener('focus',e=>e.target.select());
 $('#setKg').addEventListener('focus',e=>e.target.select());
 $('#setBike').addEventListener('focus',e=>e.target.select());
-$('#setBike').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.bike=clamp(Math.round(v*10)/10,3,30);saveSet();}e.target.value=String(S.set.bike).replace('.',',');});
+$('#setBike').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.bike=clamp(Math.round(v*10)/10,3,30);saveSet();werteMark();}e.target.value=String(S.set.bike).replace('.',',');});
 $('#setFtp').addEventListener('change',e=>{const v=parseInt(e.target.value,10);if(fin(v))setFtp(v);else e.target.value=S.set.ftp;rerender();});
 $('#setKg').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v))setWeight(v);e.target.value=String(S.set.weight).replace('.',',');rerender();});
 $('#dlgSet').addEventListener('close',rerender);
@@ -66,7 +66,9 @@ $('#anyFile').addEventListener('change',async e=>{
   toast((await importFiles(files)).msg);
   if($('#dlgSet').open)$('#dlgSet').close();else rerender();
 });
-armDelete($('#delAll'),'Wirklich alle löschen?',async()=>{for(const r of S.rides)await DB.del(r.id);S.rides=[];await DB.set('seeded',true);toast('Alle Fahrten gelöscht');autoBackup();$('#dlgSet').close();});
+/* Nur auf diesem Gerät. Mit Konto kommen die Fahrten beim nächsten Abgleich wieder (dort wird nichts gelöscht). */
+armDelete($('#delAll'),'Wirklich alle löschen?',async()=>{for(const r of S.rides)await DB.del(r.id,true);S.rides=[];await DB.set('seeded',true);autoBackup();$('#dlgSet').close();
+  if(K.s){K.pulled=null;K.out=new Map();await kSave();toast('Auf diesem Gerät gelöscht, werden neu aus dem Konto geholt');syncSoon(500);}else toast('Alle Fahrten gelöscht');});
 let rzT=null;
 window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{placeThumb();placeSegThumb($('#smSeg'));placeSegThumb($('#diffSeg'));$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null));},120);});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null)));
@@ -85,7 +87,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   const fresh=!(await DB.get('seeded'))&&!(await DB.all()).length;
   if(fresh&&window.wattbuchDesktop){try{const b=await window.wattbuchDesktop.latestBackup();if(b&&Array.isArray(b.rides)&&b.rides.length){const n=await importData(b);await DB.set('seeded',true);toast(`${n.rides} Fahrten aus der Sicherung wiederhergestellt`);}}catch(_){}}
   const set=await DB.get('settings');if(set)S.set={...S.set,...set};
-  S.gone=new Set((await DB.get('gone'))||[]);S.dirty=!!(await DB.get('dirty'));S.bk=(await DB.get('bk'))||null;
+  S.gone=new Set((await DB.get('gone'))||[]);await kLoad();S.dirty=!!(await DB.get('dirty'));S.bk=(await DB.get('bk'))||null;
   S.erg.target=Math.round(S.set.ftp*.65/5)*5;
   S.rides=await DB.all();
   S.routes=(await DB.get('routes'))||[];
@@ -99,6 +101,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   if(!HANDY&&!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
   go(S.view,true);
   if(typeof stravaRefresh==='function')stravaRefresh();
+  renderKonto(true);sync();
   /* Mac-App: neue Version der Oberfläche liegt bereit → neu laden, sobald keine Aufnahme läuft */
   if(window.wattbuchDesktop&&window.wattbuchDesktop.onUpdate)window.wattbuchDesktop.onUpdate(()=>{
     /* nicht während einer Fahrt, eines Dialogs, einer Gerätesuche oder eines Verbindungsaufbaus */

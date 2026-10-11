@@ -81,8 +81,9 @@ const DB=(()=>{
   return{
     open,
     async all(){if(!db)return[...mem.values()];try{return await run('rides','readonly',s=>s.getAll())||[];}catch(e){return[...mem.values()];}},
-    async put(r){mem.set(r.id,r);if(db)try{await run('rides','readwrite',s=>s.put(r));}catch(e){toast('Speichern im Browser fehlgeschlagen');}},
-    async del(id){mem.delete(id);if(db)try{await run('rides','readwrite',s=>s.delete(id));}catch(e){}},
+    /* still=true: kommt aus dem Konto-Abgleich, nicht wieder ins Konto schicken */
+    async put(r,still){mem.set(r.id,r);if(db)try{await run('rides','readwrite',s=>s.put(r));}catch(e){toast('Speichern im Browser fehlgeschlagen');}if(!still&&typeof syncMark==='function')syncMark(r.id);},
+    async del(id,still){mem.delete(id);if(db)try{await run('rides','readwrite',s=>s.delete(id));}catch(e){}if(!still&&typeof syncMark==='function')syncMark(id);},
     async get(k){if(!db)return kv.get(k);try{return await run('kv','readonly',s=>s.get(k));}catch(e){return kv.get(k);}},
     async set(k,v){kv.set(k,v);if(db)try{await run('kv','readwrite',s=>s.put(v,k));}catch(e){}},
     async rm(k){kv.delete(k);if(db)try{await run('kv','readwrite',s=>s.delete(k));}catch(e){}},
