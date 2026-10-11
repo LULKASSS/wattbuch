@@ -434,7 +434,7 @@ document.addEventListener('mousemove',()=>{const f=$('#full');if(f.hidden)return
 
 /* Tastatur: F Vollbild, Leertaste Start/Pause/Weiter, Pfeile Zielleistung, Esc/Ü Übersicht */
 document.addEventListener('keydown',e=>{
-  const tg=e.target;if(e.metaKey||e.ctrlKey||e.altKey||(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))||document.querySelector('dialog[open]'))return;
+  const tg=e.target;if(HANDY||e.metaKey||e.ctrlKey||e.altKey||(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))||document.querySelector('dialog[open]'))return;
   const st=S.rec.state;
   if(e.key==='f'||e.key==='F'){e.preventDefault();toggleOsFull();}
   else if(e.key===' '){e.preventDefault();if(st==='idle')beginRide();else if(st==='rec')pauseRec();else if(st==='pause')resumeRec();}

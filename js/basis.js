@@ -90,9 +90,19 @@ const DB=(()=>{
   };
 })();
 
+/* ---------- Handy ---------- */
+/* Auf dem Handy wird nicht gefahren: nur Fahrten ansehen, Werte pflegen, Daten mit dem Mac abgleichen.
+   ?handy erzwingt die Handy-Fassung (zum Testen am Mac), ?fahren schaltet sie ab. Die Mac-App ist nie Handy. */
+const HANDY=(()=>{
+  const q=location.search;
+  if(window.wattbuchDesktop||/[?&]fahren\b/.test(q))return false;
+  if(/[?&]handy\b/.test(q))return true;
+  try{return matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<600;}catch(_){return false;}
+})();
+
 /* ---------- Zustand ---------- */
 const S={
-  view:'live',detail:null,set:{ftp:200,weight:75,bike:8,diff:.5,routeId:null,rev:false},rides:[],routes:[],
+  view:HANDY?'home':'live',per:'w',gone:new Set(),dirty:false,bk:null,detail:null,set:{ftp:200,weight:75,bike:8,diff:.5,routeId:null,rev:false},rides:[],routes:[],
   sim:{v:0,d:0,total:0,gain:0,lastAlt:null,lap:1,done:false,sent:null,tSent:0,busy:false,last:0},
   cd:{state:'off',name:'',dev:null,manual:false},
   tr:{state:'off',name:'',dev:null,cp:null,ctrl:false,denied:false,via:'',manual:false,tries:0},

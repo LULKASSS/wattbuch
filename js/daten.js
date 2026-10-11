@@ -25,14 +25,30 @@ ${pts}</Track></Lap><Notes>${esc(r.name)}</Notes></Activity></Activities></Train
 
 /* Sicherung: Einstellungen, echte Fahrten und Strecken. In der Mac-App (window.wattbuchDesktop)
    wird sie nach jeder Änderung automatisch geschrieben, im Browser nur über „Sicherung speichern“. */
-function backupJSON(){return JSON.stringify({app:'wattbuch',version:1,saved:new Date().toISOString(),settings:S.set,rides:S.rides.filter(r=>!r.sample),routes:S.routes});}
+function backupJSON(){return JSON.stringify({app:'wattbuch',version:1,saved:new Date().toISOString(),from:HANDY?'handy':'mac',settings:S.set,rides:S.rides.filter(r=>!r.sample),routes:S.routes,gone:[...S.gone]});}
 let bkT=null;
 function autoBackup(){const d=window.wattbuchDesktop;if(!d)return;clearTimeout(bkT);bkT=setTimeout(()=>d.backup(backupJSON()).catch(()=>toast('Automatische Sicherung fehlgeschlagen')),400);}
+/* Etwas an den Daten wurde von Hand geändert (Name, Löschen, FTP, Gewicht). Am Handy merken, dass der Mac es noch nicht hat. */
+function changed(){autoBackup();if(HANDY&&!S.dirty){S.dirty=true;DB.set('dirty',true);}}
+/* Gelöschte Fahrten merken, damit sie beim nächsten Abgleich nicht aus der anderen Sicherung zurückkommen */
+async function forget(r){await DB.del(r.id);S.rides=S.rides.filter(x=>x!==r);if(!r.sample){S.gone.add(r.id);await DB.set('gone',[...S.gone]);}changed();}
 async function importData(d){
   let rides=0,routes=0;
   if(d&&Array.isArray(d.routes))routes+=await addRoutes(d.routes);
+  if(d&&Array.isArray(d.gone)&&d.gone.length){
+    for(const id of d.gone){if(typeof id!=='string')continue;S.gone.add(id);if(S.rides.some(r=>r.id===id)){S.rides=S.rides.filter(r=>r.id!==id);await DB.del(id);}}
+    await DB.set('gone',[...S.gone]);
+  }
   if(d&&Array.isArray(d.rides)){
-    for(const x of d.rides){if(x&&x.id&&x.start&&Array.isArray(x.p)&&x.p.length){const i=S.rides.findIndex(y=>y.id===x.id);if(i>=0)S.rides[i]=x;else S.rides.push(x);await DB.put(x);rides++;}}
+    for(const x of d.rides){
+      if(!(x&&x.id&&x.start&&Array.isArray(x.p)&&x.p.length)||S.gone.has(x.id))continue;
+      /* Gleiche Fahrt: die zuletzt von Hand bearbeitete gewinnt, ein erfolgter Strava-Upload geht nie verloren */
+      const i=S.rides.findIndex(y=>y.id===x.id),o=i>=0?S.rides[i]:null,ok=r=>r&&r.strava&&r.strava.state==='ok';
+      let y=x;
+      if(o&&(o.edited||0)>(x.edited||0))y={...o,strava:ok(x)?x.strava:o.strava};
+      else if(ok(o)&&!ok(x))y={...x,strava:o.strava};
+      if(i>=0)S.rides[i]=y;else S.rides.push(y);await DB.put(y);rides++;
+    }
     if(d.settings&&fin(d.settings.ftp)){S.set.ftp=d.settings.ftp;if(fin(d.settings.weight))S.set.weight=d.settings.weight;saveSet();renderErg();}
   }
   return{rides,routes};
@@ -40,7 +56,8 @@ async function importData(d){
 
 /* ---------- Einstellungen ---------- */
 async function saveSet(){await DB.set('settings',S.set);}
-function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();$('#setFtp').value=S.set.ftp;renderErg();}
+function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();changed();$('#setFtp').value=S.set.ftp;renderErg();}
+function setWeight(v){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();changed();}
 function openSet(){
   if(typeof stravaRefresh==='function'){renderStravaSet();stravaRefresh();}
   $('#setFtp').value=S.set.ftp;$('#setKg').value=String(S.set.weight).replace('.',',');$('#setBike').value=String(S.set.bike).replace('.',',');

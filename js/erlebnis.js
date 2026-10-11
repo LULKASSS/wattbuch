@@ -14,7 +14,7 @@ const ico=n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 
 /* Countdown 3-2-1, Klick überspringt */
 function beginRide(){
-  if(S.rec.state!=='idle')return;
+  if(HANDY||S.rec.state!=='idle')return;
   if(!isLive()){toast('Erst die Rolle verbinden oder „Ohne Rolle testen“ einschalten');return;}
   const el=document.createElement('div');el.className='countdown';el.setAttribute('role','status');
   document.body.appendChild(el);
@@ -104,8 +104,7 @@ function showSummary(r){
   $('#sumOk').onclick=()=>dlg.close();
   if(ft&&$('#sumFtp'))$('#sumFtp').onclick=e=>{setFtp(ft.ftp);renderFtpCard();toast(`FTP auf ${ft.ftp} W gesetzt`);e.target.remove();};
   $('#sumStrava').dataset.ride=r.id;
-  /* automatisch hochladen, wenn eingeschaltet */
-  if(S.set.stravaAuto&&SV()&&S.strava.connected)stravaUpload(r);
+  stravaSync();
 }
 
 /* Kleines Konfetti in Akzentfarben, nur bei neuen Bestwerten, respektiert „weniger Bewegung“ */

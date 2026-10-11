@@ -5,7 +5,7 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 **Öffnen:** https://lulkasss.github.io/wattbuch/
 
 - Mac: als **App** (siehe unten) oder in **Chrome** öffnen (Safari kann kein Web-Bluetooth)
-- iPhone: in der App **Bluefy** öffnen
+- iPhone: in **Safari** öffnen und über Teilen → „Zum Home-Bildschirm“ als App ablegen. Am Handy wird nicht aufgenommen, es ist die Verwaltung: Fahrten und Bestwerte ansehen, FTP und Gewicht pflegen, Fahrten umbenennen oder löschen (Aufnehmen am Handy trotzdem: Adresse mit `?fahren` in Bluefy)
 
 ## Was drin ist
 
@@ -23,7 +23,7 @@ Watt aufnehmen und auswerten mit dem Van Rysel D100 (oder einer anderen Rolle mi
 
 ## Daten
 
-Fahrten und Strecken liegen im Browser des jeweiligen Geräts. Die Mac-App sichert nach jeder Fahrt automatisch nach iCloud Drive (`Wattbuch/`) und holt die Sicherung bei leerem Speicher von selbst zurück. Strecken und Sicherungen werden über „Laden“ eingelesen (Streckendatei, GPX oder Sicherung). Persönliche Daten gehören nicht in dieses Repo, es ist öffentlich.
+Fahrten und Strecken liegen im Browser des jeweiligen Geräts. Das Handy holt sich die Sicherung der Mac-App aus iCloud Drive (`Wattbuch/wattbuch-sicherung.json`) und schickt Änderungen per Teilen → „In Dateien sichern“ nach `Wattbuch/Import/`, die Mac-App übernimmt sie beim nächsten Start (gelöschte Fahrten bleiben gelöscht). Die Mac-App sichert nach jeder Fahrt automatisch nach iCloud Drive (`Wattbuch/`) und holt die Sicherung bei leerem Speicher von selbst zurück. Strecken und Sicherungen werden über „Laden“ eingelesen (Streckendatei, GPX oder Sicherung). Persönliche Daten gehören nicht in dieses Repo, es ist öffentlich.
 
 ## Mac-App
 

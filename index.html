@@ -6,6 +6,11 @@
 <title>Wattbuch</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect width='22' height='22' rx='6' fill='%237F5FE8'/%3E%3Cpath d='M5 15l3.2-5 3 3.2L17 6' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#0c0a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Wattbuch">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="desktop/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
@@ -17,6 +22,7 @@
 <header class="top"><div class="wrap top-in">
   <nav class="seg" id="nav" aria-label="Ansicht">
     <span class="thumb" aria-hidden="true"></span>
+    <button type="button" class="handy-only" data-v="home">Übersicht</button>
     <button type="button" data-v="live">Fahren</button>
     <button type="button" data-v="rides">Fahrten</button>
     <button type="button" data-v="best">Bestwerte</button>
@@ -95,7 +101,7 @@
             <button type="button" class="btn sm" id="btnCd">Verbinden</button>
           </div>
           <label class="chk" id="chkDemo"><input type="checkbox" id="demo"><span class="box"></span>Ohne Rolle testen</label>
-          <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac Chrome nehmen, am iPhone die App Bluefy.</p>
+          <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac die Wattbuch-App oder Chrome nehmen.</p>
         </div>
 
         <div class="card" id="routeCard">
@@ -133,6 +139,7 @@
     </div>
   </section>
 
+  <section class="view" id="v-home"></section>
   <section class="view" id="v-rides"></section>
   <section class="view" id="v-detail"></section>
   <section class="view" id="v-best"></section>
@@ -143,10 +150,10 @@
     <h2>Einstellungen</h2>
     <div class="frow"><label for="setFtp">FTP</label><div class="field left"><input id="setFtp" inputmode="numeric" autocomplete="off"><span class="u">W</span></div></div>
     <div class="frow"><label for="setKg">Gewicht</label><div class="field left"><input id="setKg" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
-    <div class="frow"><label for="setBike">Rad</label><div class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
+    <div class="frow no-handy"><label for="setBike">Rad</label><div class="field left"><input id="setBike" inputmode="decimal" autocomplete="off"><span class="u">kg</span></div></div>
     <div><button type="button" class="qb" id="ftpEst"></button></div>
-    <div class="sep"></div>
-    <div class="sv" id="svBox"></div>
+    <div class="sep no-handy"></div>
+    <div class="sv no-handy" id="svBox"></div>
     <div class="sep"></div>
     <div class="dlg-row">
       <button type="button" class="btn sm" id="bkExp">Sicherung speichern</button>
@@ -218,6 +225,7 @@
 <script src="js/ftptest.js"></script>
 <script src="js/strava.js"></script>
 <script src="js/daten.js"></script>
+<script src="js/handy.js"></script>
 <script src="js/start.js"></script>
 </body>
 </html>

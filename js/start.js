@@ -39,7 +39,7 @@ $('#setKg').addEventListener('focus',e=>e.target.select());
 $('#setBike').addEventListener('focus',e=>e.target.select());
 $('#setBike').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.bike=clamp(Math.round(v*10)/10,3,30);saveSet();}e.target.value=String(S.set.bike).replace('.',',');});
 $('#setFtp').addEventListener('change',e=>{const v=parseInt(e.target.value,10);if(fin(v))setFtp(v);else e.target.value=S.set.ftp;rerender();});
-$('#setKg').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v)){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();}e.target.value=String(S.set.weight).replace('.',',');rerender();});
+$('#setKg').addEventListener('change',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(fin(v))setWeight(v);e.target.value=String(S.set.weight).replace('.',',');rerender();});
 $('#dlgSet').addEventListener('close',rerender);
 $('#bkExp').onclick=()=>download(backupJSON(),`wattbuch-sicherung-${new Date().toISOString().slice(0,10)}.json`,'application/json');
 $('#bkImp').onclick=()=>$('#anyFile').click();
@@ -53,6 +53,7 @@ async function importFiles(files){
       if(/\.gpx$/i.test(f.name)||/^\s*<\?xml|<gpx/i.test(text.slice(0,300))){routes+=await addRoutes([parseGPX(text,f.name)]);continue;}
       const d=JSON.parse(text);
       const n=await importData(d);rides+=n.rides;routes+=n.routes;
+      if(d&&d.app==='wattbuch'&&d.from!=='handy'){S.bk={saved:d.saved||new Date().toISOString(),at:new Date().toISOString()};await DB.set('bk',S.bk);}
       if(!(d&&(Array.isArray(d.routes)||Array.isArray(d.rides))))throw new Error('unbekanntes Format');
     }catch(x){err=`${f.name}: ${x&&x.message?x.message:'nicht lesbar'}`;}
   }
@@ -73,6 +74,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
 /* ---------- Start ---------- */
 (async()=>{
   $('#noBt').hidden=hasBT;document.documentElement.lang='de';
+  /* Handy: Leiste unten statt oben (außerhalb der Kopfzeile, deren Unschärfe sonst „fixed“ verschluckt) */
+  if(HANDY){document.documentElement.classList.add('handy');document.body.appendChild($('#nav'));}
   renderZoneBar();
   $('#zonePill span').id='zpTxt';
   await DB.open();
@@ -82,18 +85,19 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   const fresh=!(await DB.get('seeded'))&&!(await DB.all()).length;
   if(fresh&&window.wattbuchDesktop){try{const b=await window.wattbuchDesktop.latestBackup();if(b&&Array.isArray(b.rides)&&b.rides.length){const n=await importData(b);await DB.set('seeded',true);toast(`${n.rides} Fahrten aus der Sicherung wiederhergestellt`);}}catch(_){}}
   const set=await DB.get('settings');if(set)S.set={...S.set,...set};
+  S.gone=new Set((await DB.get('gone'))||[]);S.dirty=!!(await DB.get('dirty'));S.bk=(await DB.get('bk'))||null;
   S.erg.target=Math.round(S.set.ftp*.65/5)*5;
   S.rides=await DB.all();
   S.routes=(await DB.get('routes'))||[];
   /* Beim allerersten Start drei Vorschlagsstrecken anlegen */
-  if(!(await DB.get('routesSeeded'))){await addRoutes(GEN_START.map(([t,sd])=>genRoute(t,sd)));await DB.set('routesSeeded',true);}
+  if(!HANDY&&!(await DB.get('routesSeeded'))){await addRoutes(GEN_START.map(([t,sd])=>genRoute(t,sd)));await DB.set('routesSeeded',true);}
   if(S.set.routeId&&!S.routes.some(r=>r.id===S.set.routeId))S.set.routeId=null;
   renderRoutes();resetSim();
   const draft=await DB.get('draft');
   if(draft&&draft.p&&draft.p.length>=10){const r=makeRide(draft);r.name='Wiederhergestellte Fahrt';await DB.put(r);S.rides.push(r);toast('Unterbrochene Aufnahme wurde gespeichert');}
   if(draft)await DB.rm('draft');
-  if(!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
-  go('live',true);
+  if(!HANDY&&!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
+  go(S.view,true);
   if(typeof stravaRefresh==='function')stravaRefresh();
   /* Mac-App: neue Version der Oberfläche liegt bereit → neu laden, sobald keine Aufnahme läuft */
   if(window.wattbuchDesktop&&window.wattbuchDesktop.onUpdate)window.wattbuchDesktop.onUpdate(()=>{

@@ -1,20 +1,21 @@
 {
  "manifest": "wattbuch-web",
- "version": "04fa89bf36fe",
+ "version": "792b8892c8c8",
  "files": {
-  "index.html": "6b91f8e149edff5a9fd1376f41a2567025bac8d32ad0ab8f0120a911601f9439",
-  "app.css": "5c57db4c0daabd8e8bdd69fc739e76127b763df9a408ca8f8e052691c967f0e7",
-  "js/ansichten.js": "d3819f2a2b321e0d2b1b5743bab9a1698e6f937aeeb4b6df3de90654fc7fa1c8",
-  "js/aufnahme.js": "3ea9c1b7660da579740735119e2d8e7cea0ef8736c239d016214020b6fbfdab6",
-  "js/basis.js": "ab330d37657c78361c2e75c781e5f511ce05cf16c586d2c69ade46b3f27a0709",
-  "js/daten.js": "9ddf70572f082abb8a7c192207f9c7feed8d1c84c6c2522e06c6bf3d6b540417",
+  "index.html": "da71144274eaee74d8c26679f7e8ac62ad8288f5a5d6563e0d3a50ccf5f99acc",
+  "app.css": "73433495a7191c14bbb3b35452e4e443191ca2c9508e3df0b50e9b303d4389bd",
+  "js/ansichten.js": "a10800ee233260be717a972b6c14ab4ca462fe134b3c3611867e62ab8b93bd12",
+  "js/aufnahme.js": "ad078b10cd5dc101f11dd025e2397d96389e9c592cbf74a0a87ca37f97bf1a37",
+  "js/basis.js": "23be7efc9a931b9d53ca353a2ec828a1d450871ebf0ef8b1225a75ba1069fa2b",
+  "js/daten.js": "30753be86187a39ba90846e280192709fe1c7ad37a9e9ce048d55e94ee561e01",
   "js/diagramme.js": "f962602f5d16802e6324816bc6454f924e637edf3c988fcd0123b69b46739880",
-  "js/erlebnis.js": "2f1b17567d5cd2ffa83e0dabf28cfeb52873277f63a05b77339be3e5a99f850e",
+  "js/erlebnis.js": "728e30d68d5d7be935fdf500765e17a09f42e598e3154cb40e053c70ef27563f",
   "js/ftptest.js": "c20aae82e4360537adaa283890d9b5a626a5247e374642230bd7fca1d1a73a80",
   "js/geraete.js": "449b2636c41253fbd742875329dd608e37a88f99892b772eba37abb923329af2",
-  "js/start.js": "5ef9bd6daf17a62d42be66c8404894f17bbfb6e69155b60229fb1b38d5606ad5",
-  "js/strava.js": "fb30694ee28db8bcb3c4f847a87d95d2735fed7fb9244b1902ebf5c9f071afb8",
+  "js/handy.js": "552ead0679d6fe1c35d48176a41d18e55b4db528339cc396f346a448cf91ea58",
+  "js/start.js": "8d401e0c8965da3eb4ad6d74ac85e663fe17f9e00a599a8b7963a1f9e49a5105",
+  "js/strava.js": "a8f1669e3c04a5445bb31989d887c953eae0b7008fa71aeb2330765b8cf00f26",
   "js/strecken.js": "0a59ca515d4b70e3d0fb57ac3cfd7b5e9693da833f01f23bd8acdb211bbcdc62",
-  "js/szene.js": "c92d56a3f73317d93fd02385a3d8f96fff722da64dbe354839c567f6abeb798c"
+  "js/szene.js": "bd130af49f5abd3dceda83d943d407e9557e9c316342b9a4b0da492ce4adb55e"
  }
 }

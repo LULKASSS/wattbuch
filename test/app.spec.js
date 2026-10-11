@@ -15,10 +15,22 @@ function gpx() {
   return Buffer.from(`<?xml version="1.0"?><gpx version="1.1"><trk><name>Testhügel</name><trkseg>${pts}</trkseg></trk></gpx>`);
 }
 
+/* Synthetische Mac-Sicherung: n Fahrten à 30 min mit 200 W im Abstand von 3 Tagen, die zweitneueste ist ein FTP-Test (190 → 200 W) */
+function backupOf(n) {
+  const rides = [];
+  for (let i = 0; i < n; i++) {
+    const p = Array(1800).fill(200), dist = p.map((_, k) => (k + 1) * 8);
+    rides.push({ id: 'syn' + i, start: new Date(Date.now() - (1 + 3 * i) * 864e5).toISOString(), name: 'Rollentraining', p, hr: null, cad: null, spd: null, dist, gain: 50,
+      ftp: i >= 2 ? 190 : 200, weight: 75, trainer: true, ...(i === 1 ? { ftpTest: { ftp: 200, best: 267 } } : {}) });
+  }
+  return { app: 'wattbuch', version: 1, saved: new Date().toISOString(), settings: { ftp: 200, weight: 75 }, rides, routes: [] };
+}
+const json = (name, d) => ({ name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(d)) });
+
 const fake = (page, fn) => page.evaluate(fn);
 const toast = page => page.locator('#toast');
 
-async function open(page, { before, motion = false, realtime = false } = {}) {
+async function open(page, { before, motion = false, realtime = false, url = '/', view = 'live' } = {}) {
   const problems = [];
   // Ohne motion: „Bewegung reduzieren“, die Szene zeichnet dann nur 2-mal pro Sekunde (vorgespulte Fahrten bleiben schnell)
   if (!motion) await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -27,8 +39,8 @@ async function open(page, { before, motion = false, realtime = false } = {}) {
   if (!realtime) await page.clock.install();
   await page.addInitScript({ path: FAKE });
   if (before) await page.addInitScript(before);
-  await page.goto('/');
-  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await page.goto(url);
+  await expect(page.locator('#v-' + view)).toHaveClass(/active/);
   return problems;
 }
 
@@ -207,7 +219,7 @@ test('kaputte Datei laden gibt eine Meldung statt abzustürzen', async ({ page }
   expect(problems).toEqual([]);
 });
 
-test('Ohne Rolle testen (Demo) liefert Werte @mobil', async ({ page }) => {
+test('Ohne Rolle testen (Demo) liefert Werte', async ({ page }) => {
   const problems = await open(page);
   await page.click('#chkDemo');
   await page.clock.runFor(3000);
@@ -273,6 +285,57 @@ test('Zusammenfassung: Export für Strava lädt TCX', async ({ page }) => {
   expect(dl.suggestedFilename()).toMatch(/^wattbuch-\d{4}-\d\d-\d\d\.tcx$/);
   const xml = require('node:fs').readFileSync(await dl.path(), 'utf8');
   expect(xml).toContain('<ns3:Watts>180</ns3:Watts>');
+});
+
+/* Mac-App-Brücke für Strava nachgestellt: verbunden, Uploads landen in window.__uploads, __svFail lässt sie scheitern */
+const fakeDesktopStrava = () => {
+  window.__uploads = []; window.__svFail = false;
+  window.wattbuchDesktop = { backup: async () => {}, strava: {
+    status: async () => ({ ok: true, configured: true, connected: true, athlete: { name: 'Test' } }),
+    upload: async x => { if (window.__svFail) return { ok: false, error: 'Keine Verbindung' }; window.__uploads.push(x); return { ok: true, activityId: '42', url: 'https://www.strava.com/activities/42' }; }
+  } };
+};
+
+test('Strava: Fahrt mit Rolle geht von selbst hoch, abbrechen und nachholen', async ({ page }) => {
+  const problems = await open(page, { before: fakeDesktopStrava });
+  await connectTrainer(page);
+  // 1. Nach kurzer Wartezeit ohne Zutun hochgeladen
+  await ride(page, 15, { close: false });
+  await expect(page.locator('#sumStrava')).toContainText('Geht gleich zu Strava');
+  await page.clock.runFor(16000);
+  await expect(page.locator('#sumStrava')).toHaveText('Auf Strava ansehen');
+  let ups = await page.evaluate(() => window.__uploads);
+  expect(ups).toHaveLength(1);
+  expect(ups[0].externalId).toMatch(/^wattbuch-r/);
+  expect(ups[0].tcx).toContain('<ns3:Watts>180</ns3:Watts>');
+  await page.click('#sumOk');
+  await page.click('[data-v="live"]');
+  // 2. In der Zusammenfassung abgebrochen: bleibt draußen, Knopf zum Hochladen von Hand
+  await ride(page, 15, { close: false });
+  await page.click('#sumStrava [data-strava-cancel]');
+  await page.clock.runFor(30000);
+  await expect(page.locator('#sumStrava')).toHaveText('Zu Strava hochladen');
+  expect(await page.evaluate(() => window.__uploads.length)).toBe(1);
+  await page.click('#sumOk');
+  await page.click('[data-v="live"]');
+  // 3. Offline: schlägt fehl, wird später von selbst nachgeholt
+  await page.evaluate(() => { window.__svFail = true; });
+  await ride(page, 15, { close: false });
+  await page.clock.runFor(16000);
+  await expect(page.locator('#toast')).toContainText('wird später nochmal versucht');
+  await page.evaluate(() => { window.__svFail = false; });
+  await page.clock.runFor(125000);
+  await expect(page.locator('#sumStrava')).toHaveText('Auf Strava ansehen');
+  expect(await page.evaluate(() => window.__uploads.length)).toBe(2);
+  await page.click('#sumOk');
+  await page.click('[data-v="live"]');
+  // 4. Ohne echte Rolle („Ohne Rolle testen“) geht nichts automatisch hoch
+  await page.click('#chkDemo');
+  await ride(page, 15, { close: false });
+  await page.clock.runFor(30000);
+  await expect(page.locator('#sumStrava')).toHaveText('Zu Strava hochladen');
+  expect(await page.evaluate(() => window.__uploads.length)).toBe(2);
+  expect(problems).toEqual([]);
 });
 
 test('Vorschlagsstrecken beim ersten Start und Würfeln', async ({ page }) => {
@@ -352,7 +415,7 @@ test('Geist der besten Fahrt auf derselben Strecke fährt mit', async ({ page })
   expect(problems).toEqual([]);
 });
 
-test('Ziel-Leistung per Pfeiltaste @mobil', async ({ page }) => {
+test('Ziel-Leistung per Pfeiltaste', async ({ page }) => {
   await open(page);
   await connectTrainer(page);
   await page.locator('#ergQuick [data-w]').first().click();
@@ -526,5 +589,123 @@ test('FTP-Test: Rampe bis zur Erschöpfung, Ergebnis übernehmen', async ({ page
   await page.click('#sumFtp');
   expect(await page.evaluate(() => S.set.ftp)).toBe(150);
   expect(await page.evaluate(() => S.rides.find(r => r.ftpTest).name)).toBe('FTP-Test');
+  expect(problems).toEqual([]);
+});
+
+test('Handy: Übersicht statt Aufnahme, Sicherung vom Mac laden @mobil', async ({ page }) => {
+  const problems = await open(page, { url: '/?handy', view: 'home' });
+  await expect(page.locator('#nav [data-v="live"]')).toBeHidden();
+  await expect(page.locator('#nav [data-v="home"]')).toBeVisible();
+  expect(await page.evaluate(() => S.rides.length)).toBe(0); // keine Beispielfahrt, keine Strecken
+  expect(await page.evaluate(() => S.routes.length)).toBe(0);
+  await expect(page.locator('#v-home')).toContainText('Noch keine Fahrten auf dem Handy');
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', backupOf(6)));
+  await expect(toast(page)).toHaveText('6 Fahrten geladen');
+  await expect(page.locator('#v-home .sub-h')).toContainText('6 Fahrten');
+  await page.click('[data-per="a"]');
+  await expect(page.locator('.hp-big b')).toHaveText('3:00');
+  await expect(page.locator('.hp-n')).toHaveText('6 Fahrten');
+  await expect(page.locator('.hp-g')).toContainText('86,4'); // 6 × 14,4 km
+  await expect(page.locator('.hp-g')).toContainText('2.160'); // kJ
+  await expect(page.locator('.hd')).toContainText('Stand: Sicherung vom');
+  await expect(page.locator('.hf')).toContainText('190 → 200 W'); // FTP-Verlauf
+  await expect(page.locator('.hr-c .row')).toHaveCount(3);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.click('#nav [data-v="rides"]');
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-rides .row')).toHaveCount(6);
+  await page.locator('#v-rides .row').first().click();
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-detail')).toHaveClass(/active/);
+  await expect(page.locator('#btnStrava')).toHaveCount(0); // hochgeladen wird vom Mac
+  await page.click('#nav [data-v="best"]');
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-best')).toHaveClass(/active/);
+  await page.keyboard.press(' '); // Leertaste startet am Handy keine Fahrt
+  await expect(page.locator('.countdown')).toHaveCount(0);
+  expect(problems).toEqual([]);
+});
+
+test('Handy: Werte pflegen, Fahrt umbenennen und löschen, an den Mac schicken @mobil', async ({ page }) => {
+  const problems = await open(page, { url: '/?handy', view: 'home', before: () => {
+    navigator.canShare = () => true;
+    navigator.share = async d => { window.__shared = { name: d.files[0].name, text: await d.files[0].text() }; };
+  } });
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', backupOf(3)));
+  await expect(toast(page)).toHaveText('3 Fahrten geladen');
+  await expect(page.locator('.hd .tag.warn')).toHaveCount(0);
+  await page.click('[data-hv="ftp"][data-d="5"]');
+  await expect(page.locator('#hFtp')).toHaveValue('205');
+  await page.fill('#hKg', '72,5');
+  await page.locator('#hKg').press('Enter');
+  await expect(page.locator('#hWkg')).toHaveText('2,83 W/kg');
+  await expect(page.locator('.hd .tag.warn')).toHaveText('Änderungen offen');
+
+  await page.click('#nav [data-v="rides"]');
+  await page.clock.runFor(500);
+  await page.locator('#v-rides .row').first().click();
+  await page.clock.runFor(500);
+  await page.fill('#rideName', 'Lockere Runde');
+  await page.locator('#rideName').press('Enter');
+  await page.click('#v-detail [data-go="rides"]');
+  await page.clock.runFor(500);
+  await page.locator('#v-rides .row').nth(1).click();
+  await page.clock.runFor(500);
+  await page.click('#btnDel');
+  await page.click('#btnDel');
+  await expect(toast(page)).toHaveText('Fahrt gelöscht');
+  await page.clock.runFor(500);
+  await expect(page.locator('#v-rides .row')).toHaveCount(2);
+
+  await page.click('#nav [data-v="home"]');
+  await page.clock.runFor(500);
+  await page.click('#hSend');
+  const shared = await (await page.waitForFunction(() => window.__shared)).jsonValue();
+  expect(shared.name).toMatch(/^wattbuch-handy-\d{4}-\d\d-\d\d\.json$/);
+  const d = JSON.parse(shared.text);
+  expect(d.from).toBe('handy');
+  expect(d.settings.ftp).toBe(205);
+  expect(d.settings.weight).toBe(72.5);
+  expect(d.rides).toHaveLength(2);
+  expect(d.gone).toEqual(['syn1']);
+  expect(d.rides.find(r => r.id === 'syn0')).toMatchObject({ name: 'Lockere Runde' });
+  await expect(page.locator('.hd .tag.warn')).toHaveCount(0);
+  expect(problems).toEqual([]);
+});
+
+test('Abgleich: Änderungen vom Handy kommen am Mac an, Gelöschtes kommt nicht zurück', async ({ page }) => {
+  const problems = await open(page);
+  const mac = backupOf(3);
+  mac.rides[0].strava = { state: 'ok', id: 1, url: 'https://www.strava.com/activities/1' };
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', mac));
+  await expect(toast(page)).toHaveText('3 Fahrten geladen');
+  /* Handy hatte die Fahrt noch vor dem Strava-Upload, hat sie umbenannt, eine andere gelöscht und die FTP erhöht */
+  const handy = JSON.parse(JSON.stringify(mac));
+  Object.assign(handy, { from: 'handy', gone: ['syn2'], settings: { ftp: 210, weight: 74 } });
+  handy.rides = handy.rides.slice(0, 2);
+  delete handy.rides[0].strava;
+  Object.assign(handy.rides[0], { name: 'Vom Handy', edited: Date.now() });
+  await page.setInputFiles('#anyFile', json('wattbuch-handy-2026-10-11.json', handy));
+  await expect(toast(page)).toHaveText('2 Fahrten geladen');
+  const real = () => page.evaluate(() => S.rides.filter(r => !r.sample).map(r => ({ id: r.id, name: r.name, strava: r.strava && r.strava.state })).sort((a, b) => a.id.localeCompare(b.id)));
+  expect(await real()).toEqual([{ id: 'syn0', name: 'Vom Handy', strava: 'ok' }, { id: 'syn1', name: 'Rollentraining', strava: undefined }]);
+  expect(await page.evaluate(() => [S.set.ftp, S.set.weight])).toEqual([210, 74]);
+  /* Alte Mac-Sicherung nochmal laden: Gelöschtes bleibt weg, der neuere Name bleibt */
+  await page.setInputFiles('#anyFile', json('wattbuch-sicherung.json', mac));
+  expect(await real()).toEqual([{ id: 'syn0', name: 'Vom Handy', strava: 'ok' }, { id: 'syn1', name: 'Rollentraining', strava: undefined }]);
+  expect(JSON.parse(await page.evaluate(() => backupJSON())).gone).toEqual(['syn2']);
+  expect(problems).toEqual([]);
+});
+
+test('Handy wird von selbst erkannt, ?fahren schaltet die Aufnahme wieder frei @mobil', async ({ page }) => {
+  const phone = test.info().project.name === 'iphone';
+  const problems = await open(page, { view: phone ? 'home' : 'live' });
+  expect(await page.evaluate(() => HANDY)).toBe(phone);
+  if (phone) {
+    await page.goto('/?fahren');
+    await expect(page.locator('#v-live')).toHaveClass(/active/);
+    expect(await page.evaluate(() => HANDY)).toBe(false);
+  }
   expect(problems).toEqual([]);
 });

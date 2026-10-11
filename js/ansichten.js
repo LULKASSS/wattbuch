@@ -1,6 +1,6 @@
 'use strict';
 /* ---------- Navigation ---------- */
-const ORDER={live:0,rides:1,detail:2,best:3};
+const ORDER={home:0,live:0,rides:1,detail:2,best:3};
 const navOf=v=>v==='detail'?'rides':v;
 function placeThumb(){
   const nav=$('#nav'),b=$(`#nav button[data-v="${navOf(S.view)}"]`),th=$('.thumb',nav);
@@ -22,6 +22,7 @@ function go(v,instant){
 }
 function renderView(v){
   if(v==='live'){renderControls();renderErg();renderZoneBar();renderRoutes();if(typeof renderFtpCard==='function')renderFtpCard();}
+  if(v==='home')renderHome();
   if(v==='rides')renderRides();
   if(v==='detail')renderDetail();
   if(v==='best')renderBest();
@@ -123,6 +124,16 @@ function spark(p){
   const d=pts.map((v,i)=>`${(i/(N-1)*120).toFixed(1)},${(31-v/mx*28).toFixed(1)}`).join(' ');
   return`<svg viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="${d}" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
 }
+function rideRow(r){const s=stats(r);return`
+    <button type="button" class="row" data-ride="${r.id}">
+      <span class="d"><b>${fmtDate(r.start).split(' ').slice(1).join(' ')}</b><span>${WD[new Date(r.start).getDay()]} · ${fmtTime(r.start)}</span></span>
+      <span class="nm">${esc(r.name)}${r.sample?'<span class="tag">Beispiel</span>':''}${r.strava&&r.strava.state==='ok'?'<span class="tag strava">Strava</span>':''}${r.ftpTest?'<span class="tag acc">FTP '+r.ftpTest.ftp+' W</span>':''}</span>
+      <span class="m"><span class="lbl">Dauer</span><b>${fmtDur(s.dur)}</b></span>
+      <span class="m"><span class="lbl">Ø Watt</span><b>${n0(s.avg)}</b></span>
+      <span class="m np"><span class="lbl">NP</span><b>${n0(s.np)}</b></span>
+      <span class="m kj"><span class="lbl">kJ</span><b>${n0(s.kj)}</b></span>
+      ${spark(r.p)}
+    </button>`;}
 function renderRides(){
   const v=$('#v-rides'),agg=aggRides(),now=new Date(),w0=weekStart(now);
   const weeks=[];for(let k=7;k>=0;k--){const s=new Date(w0);s.setDate(s.getDate()-7*k);const e=new Date(s);e.setDate(e.getDate()+7);weeks.push({s,e,sec:0,kj:0,n:0});}
@@ -145,16 +156,7 @@ function renderRides(){
     </div>
   </div>
   <div class="list">
-    ${list.length?list.map(r=>{const s=stats(r);return`
-    <button type="button" class="row" data-ride="${r.id}">
-      <span class="d"><b>${fmtDate(r.start).split(' ').slice(1).join(' ')}</b><span>${WD[new Date(r.start).getDay()]} · ${fmtTime(r.start)}</span></span>
-      <span class="nm">${esc(r.name)}${r.sample?'<span class="tag">Beispiel</span>':''}${r.strava&&r.strava.state==='ok'?'<span class="tag strava">Strava</span>':''}${r.ftpTest?'<span class="tag acc">FTP '+r.ftpTest.ftp+' W</span>':''}</span>
-      <span class="m"><span class="lbl">Dauer</span><b>${fmtDur(s.dur)}</b></span>
-      <span class="m"><span class="lbl">Ø Watt</span><b>${n0(s.avg)}</b></span>
-      <span class="m np"><span class="lbl">NP</span><b>${n0(s.np)}</b></span>
-      <span class="m kj"><span class="lbl">kJ</span><b>${n0(s.kj)}</b></span>
-      ${spark(r.p)}
-    </button>`;}).join(''):`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Aufnahme starten.</div>`}
+    ${list.length?list.map(rideRow).join(''):HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. Lade dessen Sicherung aus iCloud Drive → Wattbuch.<div class="empty-a"><button type="button" class="btn primary" data-load>Sicherung laden</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Unter „Fahren“ die Rolle verbinden und die Aufnahme starten.</div>`}
   </div>`;
 }
 
@@ -218,10 +220,10 @@ function renderDetail(){
   bindHover(cr,cr._draw);bindHover(cc,cc._draw);
   cr._draw(null);cc._draw(null);
   requestAnimationFrame(()=>placeSegThumb($('#smSeg')));
-  $('#rideName').addEventListener('change',async e=>{r.name=e.target.value.trim()||'Rollentraining';e.target.value=r.name;await DB.put(r);});
+  $('#rideName').addEventListener('change',async e=>{r.name=e.target.value.trim()||'Rollentraining';r.edited=Date.now();e.target.value=r.name;await DB.put(r);changed();});
   $('#rideName').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});
   $('#btnTcx').onclick=()=>download(tcx(r),`wattbuch-${r.start.slice(0,10)}-${fmtTime(r.start).replace(':','')}.tcx`,'application/vnd.garmin.tcx+xml');
-  armDelete($('#btnDel'),'Wirklich löschen?',async()=>{await DB.del(r.id);S.rides=S.rides.filter(x=>x!==r);toast('Fahrt gelöscht');go('rides');});
+  armDelete($('#btnDel'),'Wirklich löschen?',async()=>{await forget(r);toast('Fahrt gelöscht');go('rides');});
 }
 function placeSegThumb(seg){if(!seg)return;const b=$('button.on',seg),th=$('.thumb',seg);if(b&&th){th.style.width=b.offsetWidth+'px';th.style.transform=`translateX(${b.offsetLeft-3}px)`;th.style.left='3px';}}
 function armDelete(btn,armed,fn){
