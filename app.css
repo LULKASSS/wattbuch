@@ -838,7 +838,11 @@ html:not(.handy) .handy-only{display:none}
 .st-avg{display:block;font:500 12px var(--mono);color:var(--fg-3);margin-top:2px;min-height:16px}
 
 /* ---------- Apple TV als Fernbedienung (Mac-App) ---------- */
-.f-tvb.on{background:#F1EEFF;color:#0B0B0F;border-color:#F1EEFF}
+.f-tvb.pw{color:rgba(241,238,255,.7)}
+.f-tvb.pw:hover{color:#F1EEFF}
+.f-tvb.wait{animation:breathe 1.4s var(--ease) infinite;pointer-events:none}
+.f-tv-x{display:grid;place-items:center}
+#fTvOff:hover{color:#F2555A;border-color:rgba(242,85,90,.5)}
 .f-tv{width:212px;padding:12px 14px 12px;border-radius:20px;background:rgba(10,8,20,.62);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(14px);display:flex;flex-direction:column;gap:10px;animation:tvIn .25s var(--ease)}
 @keyframes tvIn{from{opacity:0;transform:translateY(-6px)}}
 .f-tv-head{display:flex;align-items:center;gap:8px;min-width:0}

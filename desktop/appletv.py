@@ -1,6 +1,7 @@
 """Apple-TV-Steuerung für die Wattbuch Mac-App, läuft mit pyatv in einem eigenen Python (siehe appletv.js).
 Spricht JSON-Zeilen über stdin/stdout: Anfrage {"id":1,"cmd":"scan"} → Antwort {"id":1,"ok":true,...}.
-Meldungen ohne id: {"ev":"state","connected":true,...} und {"ev":"play","state":"playing","title":...}.
+Meldungen ohne id: {"ev":"state","connected":true,...}, {"ev":"play","state":"playing","title":...}
+und {"ev":"power","on":true} (Apple TV an oder im Ruhezustand).
 Zugangsdaten aus dem Koppeln speichert pyatv in der Datei, die als erstes Argument kommt."""
 import asyncio
 import json
@@ -8,12 +9,13 @@ import sys
 
 import pyatv
 from pyatv import exceptions
-from pyatv.const import DeviceState, OperatingSystem, PairingRequirement, Protocol
-from pyatv.interface import DeviceListener, PushListener
+from pyatv.const import DeviceState, OperatingSystem, PairingRequirement, PowerState, Protocol
+from pyatv.interface import DeviceListener, PowerListener, PushListener
 from pyatv.storage.file_storage import FileStorage
 
 REMOTE = {'up', 'down', 'left', 'right', 'select', 'menu', 'home', 'play_pause', 'play', 'pause', 'skip_forward', 'skip_backward'}
 AUDIO = {'volume_up', 'volume_down'}
+POWER = {'turn_on', 'turn_off'}
 PLAY = {DeviceState.Playing: 'playing', DeviceState.Paused: 'paused', DeviceState.Loading: 'loading', DeviceState.Seeking: 'playing'}
 ORDER = [Protocol.MRP, Protocol.AirPlay, Protocol.Companion]
 
@@ -23,7 +25,7 @@ def emit(msg):
     sys.stdout.flush()
 
 
-class Helper(PushListener, DeviceListener):
+class Helper(PushListener, DeviceListener, PowerListener):
     def __init__(self, loop, store):
         self.loop, self.store = loop, store
         self.confs, self.atv, self.handler, self.todo, self.pair_conf = {}, None, None, [], None
@@ -40,6 +42,10 @@ class Helper(PushListener, DeviceListener):
 
     def playstatus_error(self, _updater, _e):
         pass
+
+    def powerstate_update(self, _old, new):
+        if new != PowerState.Unknown:
+            emit({'ev': 'power', 'on': new == PowerState.On})
 
     def connection_lost(self, _e):
         self.atv = None
@@ -124,16 +130,23 @@ class Helper(PushListener, DeviceListener):
         self.atv.push_updater.listener = self
         self.atv.push_updater.start()
         emit({'ev': 'state', 'connected': True, 'name': conf.name})
+        try:  # An oder Ruhezustand, nicht jedes Apple TV meldet das
+            self.atv.power.listener = self
+            ps = self.atv.power.power_state
+            if ps != PowerState.Unknown:
+                emit({'ev': 'power', 'on': ps == PowerState.On})
+        except Exception:
+            pass
         return {'name': conf.name}
 
     async def key(self, a):
         k = a['key']
         if not self.atv:
             raise RuntimeError('Nicht verbunden')
-        if k not in REMOTE and k not in AUDIO:
+        if k not in REMOTE and k not in AUDIO and k not in POWER:
             raise RuntimeError('Unbekannte Taste')
         async with self.keys:  # Tasten der Reihe nach, auch wenn sie schnell hintereinander kommen
-            await getattr(self.atv.remote_control if k in REMOTE else self.atv.audio, k)()
+            await getattr(self.atv.remote_control if k in REMOTE else self.atv.audio if k in AUDIO else self.atv.power, k)()
         return {}
 
     async def disconnect(self, _a):

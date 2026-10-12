@@ -6,7 +6,8 @@
    Landschaft nach Strecke (Wald, Felder, ab 900 m Alpen). Dazu Geist bzw. Schrittmacher als Radfahrer.
    Die Szene ist die Fahrt-Ansicht (#full) und im Leerlauf der Hintergrund von „Fahren“ (#cvBack). */
 
-const SCN={seg:5,n:200,ex:3,half:3.2};
+/* tz0/tz1: Landschaft am Rand ist unter tz0 m weg und ab tz0+tz1 m voll sichtbar */
+const SCN={seg:5,n:200,ex:3,half:3.2,tz0:15,tz1:35};
 /* Leuchtfarben je Zone, von ruhigem Grau-Lila bis Magenta/Rot */
 const GLOW=['#646a7c','#6E62B5','#7F5FE8','#9A6BFF','#C266F0','#F062B8','#FF5C7A'];
 const hex2=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
@@ -201,28 +202,27 @@ function drawScene(c,opt={}){
     /* Strich auf [12n, 12n+4) Metern (4 m Strich, 8 m Lücke), angeschnittene Stücke an den Segmentgrenzen mitnehmen */
     for(let d0=Math.floor(A.s/12)*12;d0<B.s;d0+=12){
       const u0=Math.max(A.s,d0),u1=Math.min(B.s,d0+4);if(u1<=u0)continue;
-      /* Nah vor dir blendet der Strich aus: dort springen seine Enden bei Tempo zig Pixel pro Bild
-         und das Auge sieht ein Stroboskop statt Bewegung (je schneller, desto schlimmer) */
-      const a=at3(A,B,(u0-A.s)/len),b=at3(A,B,(u1-A.s)/len),fz=Math.min(1,A.z/far),near=clamp((A.z-14)/26,0,1);
+      /* Kommt bis wenige Meter heran und blendet erst dann aus (ganz unten wäre er in zwei, drei Bildern durch) */
+      const a=at3(A,B,(u0-A.s)/len),b=at3(A,B,(u1-A.s)/len),fz=Math.min(1,A.z/far),near=clamp((A.z-3)/12,0,1);
       if(near<=0)continue;
       ctx.fillStyle=`rgba(240,236,255,${.55*(1-fz)*near})`;ctx.beginPath();ctx.moveTo(a.sx-a.k*.06,a.sy);ctx.lineTo(a.sx+a.k*.06,a.sy);ctx.lineTo(b.sx+b.k*.06,b.sy);ctx.lineTo(b.sx-b.k*.06,b.sy);ctx.closePath();ctx.fill();
     }
   }
   /* Landschaft am Rand, von hinten nach vorn; tauchen aus dem Dunst auf statt plötzlich da zu sein.
      Jedes Stück wird an der Kuppe davor abgeschnitten (nicht ein-/ausgeblendet) – so gleitet ein Baum
-     weich hinter einem Hügel hervor, statt zu blinken. Ganz nah (unter 50 m) blenden sie aus: dort würden
-     sie in wenigen Bildern quer übers Bild rasen, und das wirkt wie Flackern. */
+     weich hinter einem Hügel hervor, statt zu blinken. Unter 50 m blenden sie aus, unter 15 m sind sie weg: näher
+     rasen sie in wenigen Bildern quer übers Bild, das misst der Flacker-Test (ausprobiert 12.10.2026: 10–13 m flackert). */
   for(let k=NP;k>=1;k--){
-    if(P[k].z<=15||crest[k]<=0)continue;
+    if(P[k].z<=SCN.tz0||crest[k]<=0)continue;
     ctx.save();ctx.beginPath();ctx.rect(0,0,W,Math.min(H,crest[k]+1));ctx.clip();
-    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6)*clamp((b.z-15)/35,0,1),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
+    const b=P[k],s=b.s,fz=Math.pow(Math.min(1,b.z/far),.7),fade=Math.min(1,(1-fz)*1.6)*clamp((b.z-SCN.tz0)/SCN.tz1,0,1),bio=biomeAt(rt,s,b.e),side=hash(s)>.5?1:-1,at=(dx,dy=0)=>pr({x:b.x+dx,y:b.y+dy,z:b.z});
     ctx.globalAlpha=fade;
     if(bio==='wald'){
-      if(s%35===0){fir(ctx,at(side*(SCN.half+3+hash(s+1)*10)),7+hash(s+2)*6,D,fz,fogC);if(hash(s+3)>.6)fir(ctx,at(-side*(SCN.half+4+hash(s+4)*12)),8+hash(s+5)*5,D,fz,fogC);}
+      if(s%35===0){fir(ctx,at(side*(SCN.half+3+hash(s+1)*10)),7+hash(s+2)*6,D,fz,fogC,hash(s+13));if(hash(s+3)>.6)fir(ctx,at(-side*(SCN.half+4+hash(s+4)*12)),8+hash(s+5)*5,D,fz,fogC,hash(s+14));}
     }else if(bio==='felder'){
-      if(s%100===0)leaf(ctx,at(side*(SCN.half+7+hash(s+6)*16)),6+hash(s+7)*4,D,fz,fogC);
+      if(s%100===0)leaf(ctx,at(side*(SCN.half+7+hash(s+6)*16)),6+hash(s+7)*4,D,fz,fogC,hash(s+15));
     }else{
-      if(s%50===0&&hash(s+8)>.45)fir(ctx,at(side*(SCN.half+3+hash(s+9)*12)),5+hash(s+10)*4,D,fz,fogC);
+      if(s%50===0&&hash(s+8)>.45)fir(ctx,at(side*(SCN.half+3+hash(s+9)*12)),5+hash(s+10)*4,D,fz,fogC,hash(s+16));
       if(s%70===0)rock(ctx,at(-side*(SCN.half+2+hash(s+11)*7)),1+hash(s+12)*2.5,D,fz,fogC);
     }
     /* Leitpfosten alle 50 m links und rechts, in jeder Landschaft – zeigen das Tempo.
@@ -248,20 +248,37 @@ function drawScene(c,opt={}){
   /* Vignette */
   gr=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.3,W/2,H*.55,Math.max(W,H)*.75);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,`rgba(0,0,0,${opt.back?.55:.4})`);ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
 }
-/* Nadelbaum */
-function fir(ctx,q,h,D,fz,fogC){
-  const hh=h*q.k,w=hh*.32;if(hh<1.5)return;
-  ctx.fillStyle=mixc(D.tree,fogC,fz);
-  ctx.beginPath();ctx.moveTo(q.sx,q.sy-hh);ctx.lineTo(q.sx+w,q.sy-hh*.18);ctx.lineTo(q.sx-w,q.sy-hh*.18);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.moveTo(q.sx,q.sy-hh*.62);ctx.lineTo(q.sx+w*1.25,q.sy);ctx.lineTo(q.sx-w*1.25,q.sy);ctx.closePath();ctx.fill();
-}
-/* Laubbaum: Stamm und runde Krone */
-function leaf(ctx,q,h,D,fz,fogC){
+/* Nadelbaum: vier Etagen mit hängenden Zweigen bis zum Boden (kein freier Stamm, der sonst über dem Boden schwebt;
+   gerade Unterkanten, Zacken flackern beim Vorbeiziehen),
+   ohne Lichtkante, deren schmale Streifen beim Vorbeiziehen flimmern; v (0–1) macht jeden Baum anders */
+function fir(ctx,q,h,D,fz,fogC,v=.5){
   const hh=h*q.k;if(hh<1.5)return;
-  const col=lerp3(D.tree,[60,90,60],.25);
-  ctx.fillStyle=mixc(lerp3(col,[40,30,30],.5),fogC,fz);ctx.fillRect(q.sx-hh*.04,q.sy-hh*.5,hh*.08,hh*.5);
-  ctx.fillStyle=mixc(col,fogC,fz);ctx.beginPath();ctx.ellipse(q.sx,q.sy-hh*.68,hh*.34,hh*.32,0,0,7);ctx.fill();
-  ctx.beginPath();ctx.ellipse(q.sx+hh*.18,q.sy-hh*.55,hh*.22,hh*.2,0,0,7);ctx.fill();
+  const X=q.sx,Y=q.sy,wf=.82+v*.36,lean=(v-.5)*.04*hh;
+  const dark=mixc(D.tree,fogC,fz);
+  if(hh<5){ctx.fillStyle=dark;ctx.beginPath();ctx.moveTo(X+lean,Y-hh);ctx.lineTo(X+hh*.27*wf,Y);ctx.lineTo(X-hh*.27*wf,Y);ctx.closePath();ctx.fill();return;}
+  /* Etagen von unten nach oben: Unterkante, Spitze, halbe Breite (Anteile der Höhe), alle in einem Pfad */
+  const T=[[0,.5,.31],[.24,.7,.25],[.46,.88,.18],[.66,1,.1]];
+  ctx.fillStyle=dark;ctx.beginPath();
+  for(const[b,t,w0]of T){
+    const w=w0*hh*wf,yb=Y-hh*b,yt=Y-hh*t,xt=X+lean*t;
+    ctx.moveTo(xt,yt);
+    ctx.quadraticCurveTo(X+w*.45,yb-hh*.12,X+w,yb+hh*.015);
+    ctx.lineTo(X-w,yb+hh*.015);
+    ctx.quadraticCurveTo(X-w*.45,yb-hh*.12,xt,yt);
+  }
+  ctx.fill();
+}
+/* Laubbaum: Stamm mit Astgabel und eine Krone aus mehreren runden Büscheln, oben heller */
+function leaf(ctx,q,h,D,fz,fogC,v=.5){
+  const hh=h*q.k;if(hh<1.5)return;
+  const X=q.sx,Y=q.sy,col=lerp3(D.tree,[60,90,60],.25),wf=.85+v*.3;
+  const bark=mixc(lerp3(col,[40,30,30],.5),fogC,fz);
+  ctx.strokeStyle=bark;ctx.lineCap='round';ctx.lineWidth=Math.max(1,hh*.06);
+  ctx.beginPath();ctx.moveTo(X,Y);ctx.lineTo(X,Y-hh*.45);ctx.lineTo(X-hh*.1*wf,Y-hh*.62);ctx.moveTo(X,Y-hh*.45);ctx.lineTo(X+hh*.12*wf,Y-hh*.66);ctx.stroke();
+  const dark=mixc(col,fogC,fz),lite=mixc(lerp3(col,[170,200,150],.1),fogC,fz);
+  const B=[[-.2,.62,.2],[.2,.6,.2],[0,.72,.26],[-.12,.86,.18],[.14,.84,.17]];
+  ctx.fillStyle=dark;ctx.beginPath();for(const[dx,dy,r]of B){const x=X+dx*hh*wf,y=Y-dy*hh,rr=r*hh*wf;ctx.moveTo(x+rr,y);ctx.arc(x,y,rr,0,7);}ctx.fill();
+  ctx.fillStyle=lite;ctx.beginPath();for(const[dx,dy,r]of B.slice(2)){const x=X+(dx+.05)*hh*wf,y=Y-(dy+.05)*hh,rr=r*.55*hh*wf;ctx.moveTo(x+rr,y);ctx.arc(x,y,rr,0,7);}ctx.fill();
 }
 /* Zaunpfahl mit Reflektor */
 /* Leitpfosten: weiß, schwarzes Band oben, Reflektor */

@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const [store, logFile] = process.argv.slice(2);
 const emit = m => process.stdout.write(JSON.stringify(m) + '\n');
-let step = 0, connected = false, state = 'playing';
+let step = 0, connected = false, state = 'playing', on = true;
 const play = () => emit({ ev: 'play', state, title: 'Testfolge', app: 'Testkino' });
 const cmds = {
   scan: () => ({ devices: [{ id: 'ATV1', name: 'Wohnzimmer', model: 'Apple TV 4K' }] }),
@@ -15,12 +15,13 @@ const cmds = {
     step = 0; fs.writeFileSync(store, '{"gekoppelt":true}'); return { done: true };
   },
   cancel: () => { step = 0; return {}; },
-  connect: () => { connected = true; emit({ ev: 'state', connected: true, name: 'Wohnzimmer' }); setTimeout(play, 10); return { name: 'Wohnzimmer' }; },
+  connect: () => { connected = true; emit({ ev: 'state', connected: true, name: 'Wohnzimmer' }); emit({ ev: 'power', on }); setTimeout(play, 10); return { name: 'Wohnzimmer' }; },
   key: ({ key }) => {
     if (!connected) throw new Error('Nicht verbunden');
     fs.appendFileSync(logFile, key + '\n');
     const s = { play: 'playing', pause: 'paused', play_pause: state === 'playing' ? 'paused' : 'playing' }[key];
     if (s) { state = s; setTimeout(play, 10); }
+    if (key === 'turn_on' || key === 'turn_off') { on = key === 'turn_on'; emit({ ev: 'power', on }); }
     return {};
   },
   disconnect: () => { connected = false; return {}; }

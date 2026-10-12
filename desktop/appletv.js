@@ -14,7 +14,7 @@ const PYTHONS = ['/opt/homebrew/bin/python3', '/usr/local/bin/python3', '/Librar
 function createAppleTv({ dataDir, send = () => {}, log = () => {}, fake = process.env.WATTBUCH_ATV_FAKE }) {
   const dir = path.join(dataDir, 'appletv'), venv = path.join(dir, 'venv'), py = path.join(venv, 'bin', 'python3');
   const cfgFile = path.join(dir, 'appletv.json'), store = path.join(dir, 'pyatv.json');
-  let cfg = null, proc = null, ready = null, seq = 0, conn = { connected: false }, play = null, setup = null;
+  let cfg = null, proc = null, ready = null, seq = 0, conn = { connected: false }, play = null, power = null, setup = null;
   const waiting = new Map();
   const load = async () => { if (!cfg) { try { cfg = JSON.parse(await fs.readFile(cfgFile, 'utf8')); } catch { cfg = {}; } } return cfg; };
   const save = async () => { await fs.mkdir(dir, { recursive: true }); await fs.writeFile(cfgFile, JSON.stringify(cfg)); };
@@ -69,15 +69,16 @@ function createAppleTv({ dataDir, send = () => {}, log = () => {}, fake = proces
             let m; try { m = JSON.parse(line); } catch { continue; }
             if (m.ev === 'ready') resolve();
             else if (m.id && waiting.has(m.id)) { const w = waiting.get(m.id); waiting.delete(m.id); clearTimeout(w.t); w.done(m); }
-            else if (m.ev === 'state') { conn = { connected: !!m.connected, name: m.name || conn.name }; if (!m.connected) play = null; send(m); }
+            else if (m.ev === 'state') { conn = { connected: !!m.connected, name: m.name || conn.name }; if (!m.connected) { play = null; power = null; } send(m); }
             else if (m.ev === 'play') { play = m; send(m); }
+            else if (m.ev === 'power') { power = !!m.on; send(m); }
           }
         });
         p.stderr.on('data', d => log('Apple TV: ' + String(d).trim().split('\n').pop()));
         p.on('error', reject);
         p.on('exit', code => {
           reject(new Error('Hilfsprogramm beendet (' + code + ')'));
-          if (proc === p) { proc = null; ready = null; conn = { connected: false }; play = null; send({ ev: 'state', connected: false }); }
+          if (proc === p) { proc = null; ready = null; conn = { connected: false }; play = null; power = null; send({ ev: 'state', connected: false }); }
           for (const [id, w] of waiting) { clearTimeout(w.t); w.done({ ok: false, error: 'Verbindung zum Apple TV abgebrochen' }); waiting.delete(id); }
         });
       });
@@ -98,7 +99,7 @@ function createAppleTv({ dataDir, send = () => {}, log = () => {}, fake = proces
 
   async function status() {
     const c = await load();
-    return { device: c.id ? { id: c.id, name: c.name } : null, connected: conn.connected, play, prepared: !!fake || await installed() };
+    return { device: c.id ? { id: c.id, name: c.name } : null, connected: conn.connected, play, power, prepared: !!fake || await installed() };
   }
   async function scan() { return { devices: (await call('scan', {}, 30000)).devices }; }
   let pairing = null;

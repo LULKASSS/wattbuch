@@ -992,10 +992,10 @@ test('Fahrt ohne Wattmesser (aus Strava): Liste, Detail, Übersicht, keine Rekor
 
 /* Mac-App-Brücke für das Apple TV nachgestellt: ein Gerät „Wohnzimmer“, zwei Codes (1234, 5678), Tasten landen in window.__tvKeys.
    paired=true: schon gekoppelt. Läuft gerade etwas, meldet es state 'playing'. */
-const fakeDesktopTv = paired => {
-  window.__tvKeys = []; let cb = null, step = 0, dev = paired ? { id: 'ATV1', name: 'Wohnzimmer' } : null, conn = false, state = 'playing';
+const fakeDesktopTv = (paired, on = true) => {
+  window.__tvKeys = []; let cb = null, step = 0, dev = paired ? { id: 'ATV1', name: 'Wohnzimmer' } : null, conn = false, state = on ? 'playing' : 'idle';
   const emit = m => setTimeout(() => cb && cb(m), 0);
-  const status = () => ({ ok: true, device: dev, connected: conn, play: conn ? { state } : null, prepared: true });
+  const status = () => ({ ok: true, device: dev, connected: conn, play: conn ? { state } : null, power: conn ? on : null, prepared: true });
   window.wattbuchDesktop = { backup: async () => {}, appletv: {
     status: async () => status(), prepare: async () => ({ ok: true }),
     scan: async () => ({ ok: true, devices: [{ id: 'ATV1', name: 'Wohnzimmer', model: 'Apple TV 4K' }] }),
@@ -1006,11 +1006,12 @@ const fakeDesktopTv = paired => {
       dev = { id: 'ATV1', name: 'Wohnzimmer' }; return { ok: true, done: true, ...status() };
     },
     cancel: async () => ({ ok: true }),
-    connect: async () => { conn = true; emit({ ev: 'state', connected: true }); emit({ ev: 'play', state, title: 'Testfolge', app: 'Testkino' }); return status(); },
+    connect: async () => { conn = true; emit({ ev: 'state', connected: true }); emit({ ev: 'power', on }); emit({ ev: 'play', state, title: 'Testfolge', app: 'Testkino' }); return status(); },
     key: async k => {
       window.__tvKeys.push(k);
       const s = { play: 'playing', pause: 'paused', play_pause: state === 'playing' ? 'paused' : 'playing' }[k];
       if (s) { state = s; emit({ ev: 'play', state, title: 'Testfolge', app: 'Testkino' }); }
+      if (k === 'turn_on' || k === 'turn_off') { on = k === 'turn_on'; state = on ? 'playing' : 'idle'; emit({ ev: 'power', on }); emit({ ev: 'play', state, title: 'Testfolge', app: 'Testkino' }); }
       return { ok: true };
     },
     forget: async () => { dev = null; conn = false; return { ok: true, ...status() }; },
@@ -1051,40 +1052,57 @@ test('Apple TV: suchen und mit zwei Codes koppeln', async ({ page }) => {
   expect(problems).toEqual([]);
 });
 
-test('Apple TV: Fernbedienung in der Fahrt-Ansicht und automatisch pausieren', async ({ page }) => {
-  const problems = await open(page, { before: `(${fakeDesktopTv})(true)` });
+test('Apple TV: aus nur ein An/Aus-Knopf, an steht die Fernbedienung ganz da, automatisch pausieren', async ({ page }) => {
+  const problems = await open(page, { before: `(${fakeDesktopTv})(true, false)` }); // Apple TV im Ruhezustand
   await connectTrainer(page);
   await page.clock.runFor(2000);
   await start(page);
-  await expect(page.locator('#fTv')).toBeVisible();
-  await expect(page.locator('.f-keys')).toContainText('T Apple TV');
-  await page.clock.runFor(3000);
+  await page.clock.runFor(2000); // Fahrt-Ansicht verbindet und erfährt: aus
   const keys = () => page.evaluate(() => window.__tvKeys.slice());
+  const ride = () => page.evaluate(() => S.rec.state);
+  await expect(page.locator('#fTv')).toBeVisible();
+  await expect(page.locator('#fTv')).toHaveClass(/pw/);
+  await expect(page.locator('#fTvPad')).toBeHidden();
+  await expect(page.locator('.f-keys')).toContainText('T Apple TV');
+  // Aus: Leertaste bleibt bei der Fahrt
+  await page.keyboard.press(' ');
+  expect(await ride()).toBe('pause');
+  await page.keyboard.press(' ');
+  expect(await ride()).toBe('rec');
+  expect(await keys()).toEqual([]);
+  // Einschalten: die Fernbedienung steht ganz da, der Knopf oben verschwindet
+  await page.click('#fTv');
+  await page.clock.runFor(500);
+  await expect(page.locator('#fTvPad')).toBeVisible();
+  await expect(page.locator('#fTv')).toBeHidden();
+  await expect(page.locator('#fTvNow')).toHaveText('Testkino · Testfolge');
+  expect(await keys()).toEqual(['turn_on']);
   // Aufhören zu treten: nach 5 s hält das Apple TV an, wieder treten lässt es weiterlaufen
   await fake(page, () => window.__fakeBle.set({ power: 0, cad: 0 }));
   await page.clock.runFor(8000);
-  expect(await keys()).toEqual(['pause']);
+  expect(await keys()).toEqual(['turn_on', 'pause']);
   await expect(toast(page)).toHaveText('Apple TV pausiert');
   await fake(page, () => window.__fakeBle.set({ power: 200, cad: 88 }));
   await page.clock.runFor(4000);
-  expect(await keys()).toEqual(['pause', 'play']);
-  // Fahrt mit der Leertaste pausieren: Apple TV hält mit an und läuft mit der Fahrt weiter
+  expect(await keys()).toEqual(['turn_on', 'pause', 'play']);
+  // Zuklappen (T): Leertaste pausiert wieder die Fahrt, das Apple TV hält mit an und läuft mit weiter
+  await page.keyboard.press('t');
+  await expect(page.locator('#fTvPad')).toBeHidden();
+  await expect(page.locator('#fTv')).not.toHaveClass(/pw/);
   await page.keyboard.press(' ');
   await page.clock.runFor(2000);
-  expect(await page.evaluate(() => S.rec.state)).toBe('pause');
-  expect(await keys()).toEqual(['pause', 'play', 'pause']);
+  expect(await ride()).toBe('pause');
   await page.keyboard.press(' ');
   await page.clock.runFor(4000);
-  expect(await keys()).toEqual(['pause', 'play', 'pause', 'play']);
-  // T öffnet die Fernbedienung: Tasten gehen ans Apple TV, nicht an die Fahrt
+  expect(await keys()).toEqual(['turn_on', 'pause', 'play', 'pause', 'play']);
+  // Wieder aufklappen: Tasten gehen ans Apple TV, nicht an die Fahrt
   await page.keyboard.press('t');
   await expect(page.locator('#fTvPad')).toBeVisible();
-  await expect(page.locator('#fTvNow')).toHaveText('Testkino · Testfolge');
   for (const k of ['ArrowDown', 'ArrowRight', 'Enter', 'Escape', ' ', '+', '-', 'h']) await page.keyboard.press(k);
   await page.click('#fTvPad [data-tv="up"]');
   await page.clock.runFor(500);
-  expect((await keys()).slice(4)).toEqual(['down', 'right', 'select', 'menu', 'play_pause', 'volume_up', 'volume_down', 'home', 'up']);
-  expect(await page.evaluate(() => S.rec.state)).toBe('rec');
+  expect((await keys()).slice(5)).toEqual(['down', 'right', 'select', 'menu', 'play_pause', 'volume_up', 'volume_down', 'home', 'up']);
+  expect(await ride()).toBe('rec');
   await expect(page.locator('#full')).toBeVisible();
   // Von Hand pausiert: Wattbuch setzt nicht von selbst fort
   await page.click('#fTvClose');
@@ -1093,6 +1111,14 @@ test('Apple TV: Fernbedienung in der Fahrt-Ansicht und automatisch pausieren', a
   await page.clock.runFor(8000);
   await fake(page, () => window.__fakeBle.set({ power: 200, cad: 88 }));
   await page.clock.runFor(4000);
-  expect((await keys()).slice(13)).toEqual([]);
+  expect((await keys()).slice(14)).toEqual([]);
+  // Ausschalten in der Fernbedienung: zurück zum An/Aus-Knopf
+  await page.click('#fTv');
+  await expect(page.locator('#fTvPad')).toBeVisible();
+  await page.click('#fTvOff');
+  await page.clock.runFor(500);
+  await expect(page.locator('#fTvPad')).toBeHidden();
+  await expect(page.locator('#fTv')).toHaveClass(/pw/);
+  expect((await keys()).slice(14)).toEqual(['turn_off']);
   expect(problems).toEqual([]);
 });

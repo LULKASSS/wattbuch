@@ -1,20 +1,25 @@
 'use strict';
 /* ---------- Apple TV als Fernbedienung ---------- */
 /* Nur in der Mac-App (window.wattbuchDesktop.appletv, siehe desktop/appletv.js), im Browser unsichtbar.
-   In der Fahrt-Ansicht öffnet T (oder der TV-Knopf) die Fernbedienung: Pfeile bewegen, Enter OK, Esc/⌫ Zurück,
-   Leertaste Abspielen/Pause, +/− Lautstärke, H Home, T schließt. Solange sie offen ist, gehen diese Tasten ans Apple TV.
+   In der Fahrt-Ansicht steht die Fernbedienung ganz da, sobald das Apple TV an ist; ist es aus (Ruhezustand) oder nicht
+   erreichbar, nur ein An/Aus-Knopf. T oder der Knopf: aus → einschalten, an → Fernbedienung ein- und ausklappen.
+   Pfeile bewegen, Enter OK, Esc/⌫ Zurück, Leertaste Abspielen/Pause, +/− Lautstärke, H Home.
+   Solange die Fernbedienung offen ist, gehen diese Tasten ans Apple TV.
    Automatisch pausieren (S.set.tvAuto, an): Fahrt pausiert oder 5 s kaum Leistung → Apple TV hält an,
    wieder 2 s richtig getreten → läuft weiter. Weiter geht es nur, wenn Wattbuch selbst angehalten hat. */
 const TV=()=>window.wattbuchDesktop&&window.wattbuchDesktop.appletv;
-S.tv={dev:null,connected:false,play:null,mode:false,ours:false,low:0,high:0,ui:'',list:[],err:'',again:false,busy:0,retry:0};
+S.tv={dev:null,connected:false,play:null,on:null,hide:false,ours:false,low:0,high:0,ui:'',list:[],err:'',again:false,busy:0,retry:0};
 const tvAuto=()=>S.set.tvAuto!==false;
 const TVKEYS={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',Enter:'select',Escape:'menu',Backspace:'menu',' ':'play_pause',h:'home',H:'home','+':'volume_up','=':'volume_up','-':'volume_down'};
 
-async function tvRefresh(){const tv=TV();if(!tv)return;const r=await tv.status();if(r.ok){S.tv.dev=r.device;S.tv.connected=r.connected;S.tv.play=r.play;}renderTv();renderTvSet();}
+async function tvRefresh(){const tv=TV();if(!tv)return;const r=await tv.status();if(r.ok){S.tv.dev=r.device;S.tv.connected=r.connected;S.tv.play=r.play;S.tv.on=r.power==null?null:!!r.power;}renderTv();renderTvSet();}
+/* An? Meldet das Apple TV seinen Zustand nicht (ältere Mac-App), gilt: verbunden und etwas läuft oder ist pausiert */
+function tvIsOn(){const T=S.tv;if(!T.connected)return false;if(T.on!=null)return T.on;return!!(T.play&&/^(playing|paused|loading)$/.test(T.play.state));}
+const tvPad=()=>!!(TV()&&S.tv.dev&&tvIsOn()&&!S.tv.hide);
 let tvConnecting=null;
 function tvEnsure(){
   const tv=TV();if(!tv||!S.tv.dev||S.tv.connected||tvConnecting||Date.now()<S.tv.retry)return tvConnecting;
-  tvConnecting=tv.connect().then(r=>{if(!r.ok){S.tv.retry=Date.now()+30000;S.tv.err=r.error;}else{S.tv.connected=r.connected;S.tv.err='';}renderTv();renderTvSet();return r;}).finally(()=>{tvConnecting=null;});
+  tvConnecting=tv.connect().then(r=>{if(!r.ok){S.tv.retry=Date.now()+30000;S.tv.err=r.error;}else{S.tv.connected=r.connected;S.tv.err='';if(r.power!=null)S.tv.on=!!r.power;}renderTv();renderTvSet();return r;}).finally(()=>{tvConnecting=null;});
   return tvConnecting;
 }
 let tvErrAt=0;
@@ -29,30 +34,47 @@ async function tvKey(k,{quiet}={}){
     return r.ok;
   }finally{S.tv.busy--;}
 }
-function tvMode(on){
+/* T oder der Knopf: aus → einschalten (Fernbedienung erscheint, sobald es an ist), an → ein- und ausklappen */
+async function tvToggle(){
   if(!TV()||!S.tv.dev)return;
-  S.tv.mode=on;if(on){openFull();tvEnsure();}
-  renderTv();
+  if($('#full').hidden)openFull();
+  if(tvIsOn()){S.tv.hide=!S.tv.hide;renderTv();return;}
+  S.tv.hide=false;S.tv.waking=true;renderTv();
+  try{
+    await tvEnsure();
+    if(!tvIsOn()&&S.tv.connected){
+      /* Ältere Mac-App kennt kein Einschalten, dann weckt Home das Apple TV */
+      if(await tvKey('turn_on',{quiet:true}))S.tv.on=true;else if(await tvKey('home'))S.tv.on=true;
+    }
+  }finally{S.tv.waking=false;renderTv();}
 }
+async function tvOff(){if(await tvKey('turn_off')){S.tv.on=false;S.tv.hide=false;renderTv();}}
 function renderTv(){
-  const has=!!(TV()&&S.tv.dev),btn=$('#fTv'),pad=$('#fTvPad');
-  btn.hidden=!has;btn.classList.toggle('on',S.tv.mode);btn.setAttribute('aria-pressed',S.tv.mode?'true':'false');
-  pad.hidden=!(has&&S.tv.mode);
+  const has=!!(TV()&&S.tv.dev),btn=$('#fTv'),pad=$('#fTvPad'),on=tvIsOn(),open=tvPad();
+  /* Knopf oben: An/Aus-Zeichen, solange das Apple TV aus ist; ist es an und die Fernbedienung zugeklappt, das TV-Zeichen */
+  btn.hidden=!has||open;btn.classList.toggle('pw',!on);btn.classList.toggle('wait',!!S.tv.waking);
+  btn.innerHTML=on?TVICO.tv:TVICO.power;
+  btn.setAttribute('aria-label',on?'Apple-TV-Fernbedienung zeigen (T)':'Apple TV einschalten (T)');btn.title=on?'Fernbedienung (T)':'Apple TV einschalten (T)';
+  pad.hidden=!open;
   const p=S.tv.play,now=!S.tv.connected?(tvConnecting?'Verbinde …':S.tv.err||'Nicht verbunden')
     :p&&(p.title||p.app)?[p.app,p.title].filter(Boolean).join(' · '):p&&p.state==='paused'?'Pausiert':'Verbunden';
   setT('fTvNow',now);setT('fTvName',has?S.tv.dev.name:'Apple TV');
   pad.classList.toggle('live',S.tv.connected);pad.classList.toggle('playing',!!(p&&p.state==='playing'));
   const k=$('.f-keys');if(k)k.textContent=`Leertaste Start/Pause · ↑↓ Ziel${has?' · T Apple TV':''} · F Vollbild · Esc Übersicht`;
 }
-$('#fTv').addEventListener('click',()=>tvMode(!S.tv.mode));
+const TVICO={
+  tv:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg>',
+  power:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>'
+};
+$('#fTv').addEventListener('click',tvToggle);
 $('#fTvPad').addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault();}); /* kein Fokus, sonst löst Enter den Knopf mit aus */
-$('#fTvPad').addEventListener('click',e=>{const b=e.target.closest('[data-tv]');if(b)tvKey(b.dataset.tv);else if(e.target.closest('#fTvClose'))tvMode(false);});
+$('#fTvPad').addEventListener('click',e=>{const b=e.target.closest('[data-tv]');if(b)tvKey(b.dataset.tv);else if(e.target.closest('#fTvClose')){S.tv.hide=true;renderTv();}else if(e.target.closest('#fTvOff'))tvOff();});
 
 /* Tastatur: vor der Fahrt-Ansicht-Tastatur (szene.js), damit Pfeile und Leertaste ans Apple TV gehen */
 document.addEventListener('keydown',e=>{
   const tg=e.target;if(!TV()||!S.tv.dev||HANDY||e.metaKey||e.ctrlKey||e.altKey||(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))||document.querySelector('dialog[open]'))return;
-  if(e.key==='t'||e.key==='T'){e.preventDefault();e.stopImmediatePropagation();tvMode(!S.tv.mode||$('#full').hidden);return;}
-  if(!S.tv.mode||$('#full').hidden)return;
+  if(e.key==='t'||e.key==='T'){e.preventDefault();e.stopImmediatePropagation();if($('#full').hidden&&tvIsOn()){S.tv.hide=false;openFull();renderTv();}else tvToggle();return;}
+  if(!tvPad()||$('#full').hidden)return;
   const k=TVKEYS[e.key];if(!k)return;
   e.preventDefault();e.stopImmediatePropagation();
   if(e.repeat&&!/^(up|down|left|right|volume_up|volume_down)$/.test(k))return;
@@ -61,7 +83,9 @@ document.addEventListener('keydown',e=>{
 
 /* Automatisch pausieren und weiterlaufen lassen, einmal pro Sekunde */
 function tvAutoTick(){
-  if(!TV()||!S.tv.dev||!tvAuto())return;
+  if(!TV()||!S.tv.dev)return;
+  if(!S.tv.connected&&!$('#full').hidden)tvEnsure();  /* in der Fahrt-Ansicht wissen, ob das Apple TV an ist */
+  if(!tvAuto())return;
   const st=S.rec.state,T=S.tv;
   if(st==='idle'){T.ours=false;T.low=T.high=0;return;}
   if(!T.connected){tvEnsure();return;}
@@ -76,7 +100,8 @@ setInterval(tvAutoTick,1000);
 
 /* Meldungen der Mac-App: Verbindung und was gerade läuft */
 if(TV())TV().onEvent(m=>{
-  if(m.ev==='state'){S.tv.connected=!!m.connected;if(!m.connected)S.tv.play=null;else S.tv.err='';}
+  if(m.ev==='state'){S.tv.connected=!!m.connected;if(!m.connected){S.tv.play=null;S.tv.on=null;}else S.tv.err='';}
+  else if(m.ev==='power'){const was=tvIsOn();S.tv.on=!!m.on;if(m.on&&!was)S.tv.hide=false;}
   else if(m.ev==='play'){
     /* Läuft wieder, obwohl Wattbuch angehalten hat: von Hand fortgesetzt, dann nicht mehr eingreifen */
     if(m.state==='playing'&&S.tv.ours)S.tv.ours=false;
@@ -142,7 +167,7 @@ $('#tvBox').addEventListener('click',async e=>{
   else if(e.target.closest('#tvScan'))tvScan();
   else if(e.target.closest('#tvPinOk'))tvPin();
   else if(e.target.closest('#tvCancel')){await tv.cancel();S.tv.ui='';S.tv.err='';S.tv.again=false;renderTvSet();}
-  else if(e.target.closest('#tvOff')){const r=await tv.forget();S.tv.dev=null;S.tv.connected=false;S.tv.play=null;S.tv.mode=false;if(r.ok)S.tv.dev=r.device;renderTvSet();renderTv();toast('Apple TV getrennt');}
+  else if(e.target.closest('#tvOff')){const r=await tv.forget();S.tv.dev=null;S.tv.connected=false;S.tv.play=null;S.tv.on=null;S.tv.hide=false;if(r.ok)S.tv.dev=r.device;renderTvSet();renderTv();toast('Apple TV getrennt');}
 });
 $('#tvBox').addEventListener('change',e=>{if(e.target.id==='tvAuto'){S.set.tvAuto=e.target.checked;saveSet();$('#tvAutoL').classList.toggle('on',tvAuto());}});
 /* Enter im Code-Feld koppelt (und schließt nicht den Einstellungs-Dialog) */

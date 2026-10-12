@@ -1,11 +1,11 @@
 {
  "manifest": "wattbuch-web",
- "version": "a0a31f8a0d7b",
+ "version": "4963d27bd4c6",
  "files": {
-  "index.html": "f4bff5fad5ecca9ad40be51ee248b6105ba7ac524aac719a5016b3a358faa6e4",
-  "app.css": "6965bffdf0dbd91cc2c8072338a3019cd543e4a929dbd9d476ee3bab457e6279",
+  "index.html": "400f355b21076d065fbdc6fcc832df5598094320f3c7158daa80b08106afba9a",
+  "app.css": "f1222790eeef8b743f908a961c0277af1c6837b6e9f1187828b6fab7e9f9b7a3",
   "js/ansichten.js": "3f55dddd38cbb0435e88232cc5feeccd54415b5949101addfbabdd2400eb5da4",
-  "js/appletv.js": "6aa4cd235e33a35943ac67a661bf39baaa37056378ca54efb931d530f2e46369",
+  "js/appletv.js": "0446906a55fb6d85ffac9e3a7242c4a4ff2486d01ea03e0d521545e6621e6767",
   "js/aufnahme.js": "450d9e552b4bb37a060a3d058674137d579920752551b138959da18a5a238205",
   "js/basis.js": "7e37d3dd0e0b60d185251531784947668179a6ac4c5fcafaf2935953e33d0d0e",
   "js/daten.js": "24174f6e7ad9156c77b50be13f5e7cd704f8333b9b7de0d57fbfee109cf2993e",
@@ -19,6 +19,6 @@
   "js/strava.js": "a6f866301ec209426ab572b9a2ceca6a03eb5acac32599ea3e6c8700dbde880f",
   "js/stravaholen.js": "6c1f3e5f6223c0b91e2ebae30270b05ed23f70879e8df2a0f3e99d6a46cdbf5f",
   "js/strecken.js": "290669093867247869d4ca3f3be738c8b24710a9e274bd927ec1c795d3c6a462",
-  "js/szene.js": "7b54c0fcfe108842a0518109227792089a1026cf0f33871efcf84e08dead0c53"
+  "js/szene.js": "7e4d4e6ad88c974344d791456e748ac3b4f28871e3cb0da5e51a8820b4f3417e"
  }
 }
