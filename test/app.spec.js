@@ -494,6 +494,53 @@ test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
   expect(problems).toEqual([]);
 });
 
+/* Hügel mit Kuppe: 600 m flach, 1 km mit 6 % hoch, 1 km mit 5 % runter, 400 m flach */
+function gpxKuppe() {
+  let pts = '', ele = 100;
+  for (let i = 0; i <= 120; i++) {
+    const d = i * 25;
+    if (i) ele += 25 * (d <= 600 ? 0 : d <= 1600 ? 0.06 : d <= 2600 ? -0.05 : 0);
+    pts += `<trkpt lat="${(50 + d / 111320).toFixed(6)}" lon="8.000000"><ele>${ele.toFixed(1)}</ele></trkpt>`;
+  }
+  return Buffer.from(`<?xml version="1.0"?><gpx version="1.1"><trk><name>Kuppe</name><trkseg>${pts}</trkseg></trk></gpx>`);
+}
+
+test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async ({ page }) => {
+  const problems = await open(page);
+  await page.setInputFiles('#anyFile', { name: 'kuppe.gpx', mimeType: 'application/gpx+xml', buffer: gpxKuppe() });
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Kuppe' }).click();
+  // Ohne bekannte FTP lässt sich kein Coach wählen
+  await expect(page.locator('#coachSeg [data-coach="zuegig"]')).toBeDisabled();
+  await expect(page.locator('#coachNote')).toContainText('FTP-Test');
+  await page.evaluate(() => setFtp(220));
+  await page.click('#coachSeg [data-coach="zuegig"]');
+  await expect(page.locator('#coachNote')).toContainText('1 Anstieg, der größte 1,0 km');
+  await connectTrainer(page);
+  await start(page);
+  await expect(page.locator('#fCoach')).toBeVisible();
+  await page.clock.runFor(40_000);
+  await expect(page.locator('#fCoachT')).toContainText('Anstieg in');
+  await page.clock.runFor(60_000);
+  await expect(page.locator('#fCoachK')).toHaveText('Am Berg');
+  await expect(page.locator('#fCoachS')).toContainText('halte 210 W');
+  await page.clock.runFor(400_000);
+  const said = await page.evaluate(() => S.mom.log.map(m => m.title));
+  expect(said.some(t => t.startsWith('Anstieg in'))).toBe(true);
+  expect(said.some(t => /^Noch \d+ s drücken$/.test(t))).toBe(true);
+  expect(said).toContain('Jetzt erholen');
+  expect(said).not.toContain('Etwas zu fest'); // bergab wird nicht gemahnt
+  // Ausgeschaltet: keine Anzeige bei der nächsten Fahrt
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="save"]');
+  await page.click('#sumOk');
+  await page.click('#nav [data-v="live"]');
+  await page.click('#coachSeg [data-coach=""]');
+  await start(page);
+  await page.clock.runFor(5_000);
+  await expect(page.locator('#fCoach')).toBeHidden();
+  expect(problems).toEqual([]);
+});
+
 test('Geist der besten Fahrt auf derselben Strecke fährt mit', async ({ page }) => {
   const problems = await open(page);
   const route = await page.evaluate(() => { selectRoute(S.routes[0].id); return activeRoute().name; });

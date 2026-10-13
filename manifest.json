@@ -1,24 +1,25 @@
 {
  "manifest": "wattbuch-web",
- "version": "4963d27bd4c6",
+ "version": "971ceaaa429c",
  "files": {
-  "index.html": "400f355b21076d065fbdc6fcc832df5598094320f3c7158daa80b08106afba9a",
-  "app.css": "f1222790eeef8b743f908a961c0277af1c6837b6e9f1187828b6fab7e9f9b7a3",
+  "index.html": "307a75534b8b071eb70891ffc924d94f20b3c53852497b680e7c59cbd29eb359",
+  "app.css": "816ebc2b75c23067729b5d830224a4d67bc10bd4bea165d739e7c3643dc9f072",
   "js/ansichten.js": "3f55dddd38cbb0435e88232cc5feeccd54415b5949101addfbabdd2400eb5da4",
-  "js/appletv.js": "0446906a55fb6d85ffac9e3a7242c4a4ff2486d01ea03e0d521545e6621e6767",
+  "js/appletv.js": "901c61e5e0ebe258ded1eeabfcf535c22c15c24da745fafd03996f2b8a7fd0db",
   "js/aufnahme.js": "450d9e552b4bb37a060a3d058674137d579920752551b138959da18a5a238205",
   "js/basis.js": "7e37d3dd0e0b60d185251531784947668179a6ac4c5fcafaf2935953e33d0d0e",
-  "js/daten.js": "24174f6e7ad9156c77b50be13f5e7cd704f8333b9b7de0d57fbfee109cf2993e",
+  "js/coach.js": "2e8c9f17960718e7a24b9e80bd51ee2e53cf0b3d83906baf6057d32c00ec0da5",
+  "js/daten.js": "54d6c501cdfcf681001ddb3e0301daba25cc9e863423a730c0710b2c5b79ebde",
   "js/diagramme.js": "9e02d5e6a0c2958db678ec1ac8bbe263f7ef0b801a6d66e32db32c53288fbdb7",
-  "js/erlebnis.js": "97b0ee55e67f796922794501510bf803ca44acdd6538c4f23fc65a3135a85b51",
+  "js/erlebnis.js": "feaff97a3f0755247c38dba077d124ddd2b3f6140ec502e6e049db88533c9be3",
   "js/ftptest.js": "da83ccd18352978a38fc0b893d9ebaaa3fec3bdd4ba5a249b335f90c3044b326",
   "js/geraete.js": "243c4248a4286aa89df191c741d927601c8a493793418cd142ef8eae680f4cc7",
   "js/handy.js": "8b232ab684d5dd09a3f0f9683bf04f391412b370b99d8f0140f77a55b767cc95",
-  "js/konto.js": "bdaa7050e4eadb521b4424e8700f454526005ad1b78ec95a4a0a1f728f27a534",
-  "js/start.js": "49ee1414fb2b028143f827de293c14ddeec928ced3f91adf1647a5b46a725154",
+  "js/konto.js": "4aeda88478da2bb23dfdc6f2762bc1d4e2bf7fab3c556e4fe6973889dfb056d0",
+  "js/start.js": "bea90010e4d4b665004c283c1a13f50f9f25e93624f7892d6bdab1821152f9cd",
   "js/strava.js": "a6f866301ec209426ab572b9a2ceca6a03eb5acac32599ea3e6c8700dbde880f",
   "js/stravaholen.js": "6c1f3e5f6223c0b91e2ebae30270b05ed23f70879e8df2a0f3e99d6a46cdbf5f",
-  "js/strecken.js": "290669093867247869d4ca3f3be738c8b24710a9e274bd927ec1c795d3c6a462",
-  "js/szene.js": "7e4d4e6ad88c974344d791456e748ac3b4f28871e3cb0da5e51a8820b4f3417e"
+  "js/strecken.js": "34e878e1fed57bc701afc6894164206c1eb684f6b33919e7b4ab59ac8bdea8be",
+  "js/szene.js": "a30310259e1a98d68e1bdbdb5124ef77bdfe9578300798dcde6660db53c6f13b"
  }
 }

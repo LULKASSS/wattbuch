@@ -57,7 +57,7 @@ async function importData(d){
 
 /* ---------- Einstellungen ---------- */
 async function saveSet(){await DB.set('settings',S.set);}
-function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);saveSet();changed();werteMark();$('#setFtp').value=S.set.ftp;renderErg();}
+function setFtp(v){S.set.ftp=clamp(Math.round(v),50,600);S.set.ftpOk=true;saveSet();changed();werteMark();$('#setFtp').value=S.set.ftp;renderErg();renderCoachOpts();}
 function setWeight(v){S.set.weight=clamp(Math.round(v*10)/10,30,200);saveSet();changed();werteMark();}
 function openSet(){
   if(typeof stravaRefresh==='function'){renderStravaSet();stravaRefresh();}

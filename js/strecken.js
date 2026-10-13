@@ -90,6 +90,7 @@ function renderRoutes(){
   $$('#diffSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.df===S.set.diff));
   requestAnimationFrame(()=>placeSegThumb($('#diffSeg')));
   $('#routeLive').hidden=!activeRoute();$('#stFree').hidden=!!activeRoute();
+  if(typeof renderCoachOpts==='function')renderCoachOpts();
 }
 /* Löschen in zwei Schritten: erster Klick fragt, zweiter löscht */
 async function delRoute(btn){

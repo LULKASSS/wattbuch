@@ -95,8 +95,8 @@ function sync(){
       const w=(await sb('wattbuch_werte?select=werte,geaendert'))[0];
       if(w&&w.geaendert!==K.wg&&(K.first||!K.werte)){
         const v=w.werte||{};
-        if(fin(v.ftp))S.set.ftp=v.ftp;if(fin(v.weight))S.set.weight=v.weight;if(fin(v.bike))S.set.bike=v.bike;
-        await saveSet();K.werte=false;K.wg=w.geaendert;n++;if(typeof renderErg==='function')renderErg();
+        if(fin(v.ftp)){S.set.ftp=v.ftp;S.set.ftpOk=true;}if(fin(v.weight))S.set.weight=v.weight;if(fin(v.bike))S.set.bike=v.bike;
+        await saveSet();K.werte=false;K.wg=w.geaendert;n++;if(typeof renderErg==='function')renderErg();renderCoachOpts();
       }
       /* 2. Ausgang schicken: bis fünf Fahrten oder gut 1,5 MB pro Anfrage (lange Touren sind groß) */
       const ids=[...K.out.keys()];

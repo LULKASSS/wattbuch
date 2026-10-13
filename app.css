@@ -693,6 +693,23 @@ body[data-view="live"] .rrow.on{background:var(--accent-soft)}
 .f-ramp-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden}
 .f-ramp-bar i{display:block;height:100%;width:0;background:#F5C451;border-radius:2px;transition:width .9s linear}
 
+/* Coach: ruhige Karte unter dem Geist, Punkt zeigt, ob die Leistung passt */
+.coach-opts{flex-direction:column;align-items:stretch!important;gap:6px!important}
+.coach-opts .ftp-note{margin:0}
+.coach-opts .seg button:disabled{opacity:.45;cursor:default}
+.f-coach{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:200px;max-width:min(320px,40vw);padding:10px 16px 11px;border-radius:16px;background:rgba(10,8,20,.5);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(10px);text-align:right;animation:tvIn .3s var(--ease)}
+.f-coach-k{display:flex;align-items:center;gap:8px;font:500 clamp(10.5px,.72vw,13px) var(--mono);letter-spacing:.06em;text-transform:uppercase;color:rgba(241,238,255,.55)}
+.f-coach-k em{font-style:normal;text-transform:none;letter-spacing:0;display:inline-flex;align-items:center;gap:5px;color:rgba(241,238,255,.75)}
+.f-coach-k em:empty{display:none}
+.f-coach-k em::before{content:"";width:7px;height:7px;border-radius:50%;background:#6EE7B7;box-shadow:0 0 8px currentColor}
+.f-coach[data-st="lo"] .f-coach-k em::before{background:#7DB8FF}
+.f-coach[data-st="hi"] .f-coach-k em::before{background:#FDBA74}
+.f-coach b{font-size:clamp(17px,1.35vw,26px);font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.f-coach-s{font-size:clamp(12.5px,.88vw,16px);color:rgba(241,238,255,.7)}
+.f-coach-bar{align-self:stretch;height:3px;margin-top:6px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.f-coach-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7F5FE8,#C4B5FD);transition:width .9s linear}
+@media (max-width:640px){.f-coach{min-width:0;max-width:62vw;padding:7px 11px}.f-coach b{font-size:15px}.f-coach-s{font-size:12px}}
+
 /* Strava */
 .sv-ok{display:flex;align-items:center;gap:8px;margin:0;font-weight:500}
 .sv-ok i{width:8px;height:8px;border-radius:50%;background:#FC4C02}
@@ -843,26 +860,30 @@ html:not(.handy) .handy-only{display:none}
 .f-tvb.wait{animation:breathe 1.4s var(--ease) infinite;pointer-events:none}
 .f-tv-x{display:grid;place-items:center}
 #fTvOff:hover{color:#F2555A;border-color:rgba(242,85,90,.5)}
-.f-tv{width:212px;padding:12px 14px 12px;border-radius:20px;background:rgba(10,8,20,.62);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(14px);display:flex;flex-direction:column;gap:10px;animation:tvIn .25s var(--ease)}
+.f-tv{width:176px;padding:10px 12px;border-radius:18px;background:rgba(10,8,20,.42);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px);display:flex;flex-direction:column;gap:8px;animation:tvIn .25s var(--ease);transition:opacity .8s var(--ease)}
+/* Nach ein paar Sekunden ohne Bedienung tritt sie zurück, Maus oder Taste holen sie wieder */
+.f-tv.idle{opacity:.28}
+.f-tv.idle:hover{opacity:1;transition-duration:.2s}
+.f-tvb{width:34px!important;height:34px!important;opacity:.55;transition:opacity .2s}
+.f-tvb:hover{opacity:1}
 @keyframes tvIn{from{opacity:0;transform:translateY(-6px)}}
 .f-tv-head{display:flex;align-items:center;gap:8px;min-width:0}
 .f-tv-head i{width:7px;height:7px;border-radius:50%;background:rgba(241,238,255,.3);flex:none;transition:background .3s}
 .f-tv.live .f-tv-head i{background:#6EE7B7}
-.f-tv-head b{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.f-tv-x{width:24px;height:24px;border-radius:7px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(241,238,255,.7);font:600 11px var(--mono)}
+.f-tv-head b{flex:1;min-width:0;font-size:12.5px;font-weight:500;color:rgba(241,238,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f-tv-x{width:22px;height:22px;border-radius:7px;border:1px solid transparent;background:transparent;color:rgba(241,238,255,.7);font:600 11px var(--mono)}
 .f-tv-x:hover{background:rgba(255,255,255,.1)}
-.f-tv-now{font-size:12.5px;color:rgba(241,238,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px;margin-top:-4px}
-.f-tv-pad{position:relative;width:150px;height:150px;margin:0 auto;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr)}
+.f-tv-now{font-size:11.5px;color:rgba(241,238,255,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px;margin-top:-4px}
+.f-tv-pad{position:relative;width:118px;height:118px;margin:0 auto;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr)}
 .f-tv-pad button{border:0;background:transparent;color:rgba(241,238,255,.8);display:grid;place-items:center;border-radius:50%;transition:background .12s,color .12s,transform .12s}
 .f-tv-pad .u{grid-area:1/2}.f-tv-pad .l{grid-area:2/1}.f-tv-pad .r{grid-area:2/3}.f-tv-pad .d{grid-area:3/2}
 .f-tv-pad .ok{grid-area:2/2;margin:2px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font:600 13px var(--mono);letter-spacing:.04em;color:#F1EEFF}
 .f-tv button:hover{background:rgba(255,255,255,.12);color:#F1EEFF}
 .f-tv button.hit{background:#A78BFA;color:#0B0B0F;transform:scale(.94)}
 .f-tv-row{display:flex;justify-content:space-between;gap:4px}
-.f-tv-row button{flex:1;height:36px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(241,238,255,.85);display:grid;place-items:center;font-size:18px;font-weight:500}
+.f-tv-row button{flex:1;height:30px;border-radius:10px;border:0;background:rgba(255,255,255,.05);color:rgba(241,238,255,.75);display:grid;place-items:center;font-size:16px;font-weight:500}
 .f-tv.playing .pp{color:#A78BFA}
-.f-tv-keys{margin:0;font:500 10.5px/1.45 var(--mono);color:rgba(241,238,255,.45);letter-spacing:.02em;text-align:center}
-@media (max-width:900px){.f-tv{width:188px}.f-tv-pad{width:128px;height:128px}.f-tv-keys{display:none}}
+@media (max-width:900px){.f-tv{width:160px}.f-tv-pad{width:104px;height:104px}}
 .sv-ok.tv i{background:var(--fg-3)}
 .sv-ok.tv.on i{background:#6EE7B7}
 .tv-list{display:grid;gap:6px;margin-bottom:10px}

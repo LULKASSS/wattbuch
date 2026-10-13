@@ -45,12 +45,12 @@ const SNACK=[[250,'etwa eine Brezel'],[500,'etwa ein Stück Pizza'],[750,'etwa e
 function momReset(){
   const real=S.rides.filter(r=>!r.sample);
   S.mom={best:real.length?bestsOf(real):null,pb:{},km:0,kj:0,hm:0,peak:false,log:[]};
-  paceReset();
+  paceReset();coachReset();
 }
 /* Läuft jede Sekunde während der Aufnahme (aus tick) */
 function checkMoments(){
   const M=S.mom,R=S.rec;if(!M)return;
-  paceCheck();rampTick();
+  paceCheck();rampTick();coachTick();
   const p=R.p,n=p.length;
   if(M.best)for(const[d,l]of PB_DURS){
     if(n<d||M.pb[d])continue;

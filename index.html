@@ -54,6 +54,12 @@
           </div>
           <label class="chk sm" id="chkRev"><input type="checkbox" id="rev"><span class="box"></span>Umgekehrt fahren</label>
         </div>
+        <div class="rt-opts coach-opts" id="coachOpts">
+          <div class="rt-row"><span class="lbl">Coach</span>
+            <div class="seg sm" id="coachSeg"><span class="thumb"></span><button type="button" data-coach="">Aus</button><button type="button" data-coach="locker">Locker</button><button type="button" data-coach="zuegig">Zügig</button><button type="button" data-coach="vollgas">Vollgas</button></div>
+          </div>
+          <span class="ftp-note" id="coachNote"></span>
+        </div>
         <div class="devs" aria-label="Geräte">
           <div class="dev">
             <span class="dot" id="trDot"></span>
@@ -191,8 +197,9 @@
     <div class="f-tr">
       <div class="f-r"><span class="f-time" id="fTime">0:00</span><button type="button" class="f-x f-tvb" id="fTv" hidden aria-label="Apple TV steuern (T)" title="Apple TV (T)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></button><button type="button" class="f-x" id="fClose" aria-label="Zur Übersicht (Esc)" title="Übersicht (Esc)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
       <div class="f-ghost" id="fGhost" hidden><i></i><span id="fGhostT"></span></div>
-      <div class="f-tv" id="fTvPad" hidden>
-        <div class="f-tv-head"><i></i><b id="fTvName">Apple TV</b><button type="button" class="f-tv-x" id="fTvOff" aria-label="Apple TV ausschalten" title="Ausschalten"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg></button><button type="button" class="f-tv-x" id="fTvClose" aria-label="Fernbedienung zuklappen (T)" title="Zuklappen (T)">T</button></div>
+      <div class="f-coach" id="fCoach" hidden aria-live="polite"><span class="f-coach-k"><span id="fCoachK"></span><em id="fCoachI"></em></span><b id="fCoachT"></b><span class="f-coach-s" id="fCoachS"></span><span class="f-coach-bar" hidden><i id="fCoachBar"></i></span></div>
+      <div class="f-tv" id="fTvPad" hidden title="Tastatur: Pfeile, Enter OK, Esc Zurück, Leertaste Abspielen/Pause, +/− Ton, H Home">
+        <div class="f-tv-head"><i></i><b id="fTvName">Apple TV</b><button type="button" class="f-tv-x" id="fTvOff" aria-label="Apple TV ausschalten" title="Ausschalten"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg></button><button type="button" class="f-tv-x" id="fTvClose" aria-label="Fernbedienung zuklappen" title="Zuklappen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button></div>
         <span class="f-tv-now" id="fTvNow"></span>
         <div class="f-tv-pad" role="group" aria-label="Steuerkreuz">
           <button type="button" class="u" data-tv="up" aria-label="Hoch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
@@ -208,7 +215,6 @@
           <button type="button" data-tv="volume_down" aria-label="Leiser">−</button>
           <button type="button" data-tv="volume_up" aria-label="Lauter">+</button>
         </div>
-        <p class="f-tv-keys">Pfeile · Enter OK · Esc Zurück<br>Leertaste ⏯ · +/− Ton · H Home</p>
       </div>
       <div class="f-ramp" id="fRamp" hidden><span id="fRampT"></span><span class="f-ramp-bar"><i id="fRampBar"></i></span></div>
     </div>
@@ -260,6 +266,7 @@
 <script src="js/erlebnis.js"></script>
 <script src="js/szene.js"></script>
 <script src="js/ftptest.js"></script>
+<script src="js/coach.js"></script>
 <script src="js/strava.js"></script>
 <script src="js/stravaholen.js"></script>
 <script src="js/appletv.js"></script>

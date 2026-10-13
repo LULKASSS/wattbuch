@@ -424,7 +424,7 @@ function renderFull(){
   const P=S.pace,gEl=$('#fGhost');
   if(P&&R.state!=='idle'){const gap=P.total-S.sim.total;gEl.hidden=false;gEl.className='f-ghost'+(gap>0?'':' behind');setT('fGhostT',`${P.name} · ${gap>0?n0(gap)+' m vor dir':n0(-gap)+' m hinter dir'}`);}
   else gEl.hidden=true;
-  renderRamp();
+  renderRamp();renderCoach();
   /* Zielleistung direkt in der Fahrt-Ansicht */
   $('#fErg').classList.toggle('on',S.erg.on);setT('fErgW',S.erg.on?`${Math.round(S.erg.target)} W`:'Aus');
 }

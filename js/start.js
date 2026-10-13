@@ -96,7 +96,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.vi
   if(draft&&draft.p&&draft.p.length>=10){const r=makeRide(draft);r.name='Wiederhergestellte Fahrt';await DB.put(r);S.rides.push(r);toast('Unterbrochene Aufnahme wurde gespeichert');}
   if(draft)await DB.rm('draft');
   if(!HANDY&&!S.rides.length&&!(await DB.get('seeded'))){const r=makeSample();await DB.put(r);S.rides.push(r);await DB.set('seeded',true);}
-  go(S.view,true);
+  go(S.view,true);renderCoachOpts();
   if(typeof stravaRefresh==='function')stravaRefresh();
   if(typeof tvRefresh==='function')tvRefresh();
   renderKonto(true);sync();

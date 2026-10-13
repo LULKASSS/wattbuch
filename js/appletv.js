@@ -3,6 +3,7 @@
 /* Nur in der Mac-App (window.wattbuchDesktop.appletv, siehe desktop/appletv.js), im Browser unsichtbar.
    In der Fahrt-Ansicht steht die Fernbedienung ganz da, sobald das Apple TV an ist; ist es aus (Ruhezustand) oder nicht
    erreichbar, nur ein An/Aus-Knopf. T oder der Knopf: aus → einschalten, an → Fernbedienung ein- und ausklappen.
+   Ohne gekoppeltes Apple TV ist davon nichts zu sehen. Nach 5 s ohne Bedienung wird sie fast durchsichtig.
    Pfeile bewegen, Enter OK, Esc/⌫ Zurück, Leertaste Abspielen/Pause, +/− Lautstärke, H Home.
    Solange die Fernbedienung offen ist, gehen diese Tasten ans Apple TV.
    Automatisch pausieren (S.set.tvAuto, an): Fahrt pausiert oder 5 s kaum Leistung → Apple TV hält an,
@@ -26,7 +27,7 @@ let tvErrAt=0;
 async function tvKey(k,{quiet}={}){
   const tv=TV();if(!tv||!S.tv.dev)return false;
   if(S.tv.busy>4)return false;  /* Taste festgehalten und Apple TV kommt nicht nach: überzählige verwerfen */
-  S.tv.busy++;
+  S.tv.busy++;tvWakeUi();
   const b=$(`#fTvPad [data-tv="${k}"]`);if(b){b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),160);}
   try{
     const r=await tv.key(k);
@@ -54,7 +55,8 @@ function renderTv(){
   /* Knopf oben: An/Aus-Zeichen, solange das Apple TV aus ist; ist es an und die Fernbedienung zugeklappt, das TV-Zeichen */
   btn.hidden=!has||open;btn.classList.toggle('pw',!on);btn.classList.toggle('wait',!!S.tv.waking);
   btn.innerHTML=on?TVICO.tv:TVICO.power;
-  btn.setAttribute('aria-label',on?'Apple-TV-Fernbedienung zeigen (T)':'Apple TV einschalten (T)');btn.title=on?'Fernbedienung (T)':'Apple TV einschalten (T)';
+  btn.setAttribute('aria-label',on?'Apple-TV-Fernbedienung zeigen (Taste T)':'Apple TV einschalten (Taste T)');btn.title=on?'Apple-TV-Fernbedienung (Taste T)':'Apple TV einschalten (Taste T)';
+  if(open&&pad.hidden)tvWakeUi();
   pad.hidden=!open;
   const p=S.tv.play,now=!S.tv.connected?(tvConnecting?'Verbinde …':S.tv.err||'Nicht verbunden')
     :p&&(p.title||p.app)?[p.app,p.title].filter(Boolean).join(' · '):p&&p.state==='paused'?'Pausiert':'Verbunden';
@@ -67,6 +69,10 @@ const TVICO={
   power:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>'
 };
 $('#fTv').addEventListener('click',tvToggle);
+/* Ein paar Sekunden ohne Bedienung: Fernbedienung tritt zurück (halb durchsichtig), Maus oder Taste holen sie wieder */
+let tvIdleT=null;
+function tvWakeUi(){const pad=$('#fTvPad');pad.classList.remove('idle');clearTimeout(tvIdleT);tvIdleT=setTimeout(()=>pad.classList.add('idle'),5000);}
+$('#fTvPad').addEventListener('mousemove',()=>{if($('#fTvPad').classList.contains('idle'))tvWakeUi();});
 $('#fTvPad').addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault();}); /* kein Fokus, sonst löst Enter den Knopf mit aus */
 $('#fTvPad').addEventListener('click',e=>{const b=e.target.closest('[data-tv]');if(b)tvKey(b.dataset.tv);else if(e.target.closest('#fTvClose')){S.tv.hide=true;renderTv();}else if(e.target.closest('#fTvOff'))tvOff();});
 
