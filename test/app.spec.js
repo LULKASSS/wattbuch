@@ -407,6 +407,7 @@ test('App: neue Version wird angezeigt und lässt sich gleich einspielen, alte A
   await page.evaluate(() => { window.wattbuchDesktop = { backup: async () => {} }; appInfo(); });
   await page.click('#btnSet');
   await expect(page.locator('#appBox')).toContainText('Neue Version laden'); // ältere App ohne Selbst-Update
+  await expect(page.locator('#appBox a')).toHaveAttribute('href', /Wattbuch-mac-arm64\.zip$/); // Windows bekäme den Installer
   await page.click('#dlgSet .dlg-foot button');
   await page.addInitScript(fakeDesktopApp());
   await page.addInitScript(() => { window.__onboard = false; });

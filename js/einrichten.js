@@ -74,7 +74,7 @@ function renderAppBox(){
   if(!d){el.hidden=true;return;}
   el.hidden=false;
   /* Ältere App ohne Selbst-Update: einmal von Hand */
-  if(!A)el.innerHTML=`<h3>App</h3><div class="sv-line"><span class="ftp-note">Es gibt eine neue Version der App. Einmal laden und installieren, danach aktualisiert sie sich selbst.</span><a class="btn sm primary" href="${MAC_APP}">Neue Version laden</a></div>`;
+  if(!A)el.innerHTML=`<h3>App</h3><div class="sv-line"><span class="ftp-note">Es gibt eine neue Version der App. Einmal laden und installieren, danach aktualisiert sie sich selbst.</span><a class="btn sm primary" href="${/Windows/i.test(navigator.userAgent)?WIN_APP:MAC_APP}">Neue Version laden</a></div>`;
   else if(A.update)el.innerHTML=`<h3>App</h3><div class="sv-line"><span class="ftp-note">Wattbuch ${esc(A.update)} ist geladen und kommt beim nächsten Start.</span><button type="button" class="btn sm primary" id="appInstall"${S.rec.state!=='idle'?' disabled':''}>Jetzt neu starten</button></div>`;
   else el.innerHTML=`<h3>App</h3><p class="ftp-note">Version ${esc(A.version)} · aktualisiert sich von selbst.</p>`;
 }

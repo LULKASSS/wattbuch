@@ -1,6 +1,6 @@
 {
  "manifest": "wattbuch-web",
- "version": "5c8a307655fe",
+ "version": "720807cde8e0",
  "files": {
   "index.html": "c9f9b8d8a1349101183822b6e24d5a36559ddeb886001b24b158a765f858cfa6",
   "app.css": "2de9aa51f300b5395ad944561f8d178fde272ac8eb66d4889793de38e830e487",
@@ -11,7 +11,7 @@
   "js/coach.js": "dea23a79de7e5f21cf44728105916070beca8b2f99784dea0a86e089f2286df8",
   "js/daten.js": "ebcbf16e179082cf9b0f4f0d7482d1bc01236e6df375376653f7df443a6d8948",
   "js/diagramme.js": "9e02d5e6a0c2958db678ec1ac8bbe263f7ef0b801a6d66e32db32c53288fbdb7",
-  "js/einrichten.js": "67acd622f3cc37308e31e5a3facccb0b7009e5e33d7230c9e06cf71c8a913115",
+  "js/einrichten.js": "73e121a3d6dc5daa0a655cb2b50dba089b33d4c8b621152d6ce766233b53eac6",
   "js/erlebnis.js": "feaff97a3f0755247c38dba077d124ddd2b3f6140ec502e6e049db88533c9be3",
   "js/ftptest.js": "da83ccd18352978a38fc0b893d9ebaaa3fec3bdd4ba5a249b335f90c3044b326",
   "js/geraete.js": "78788cbaab91f4701e827a1ff3d4b51cd2496ba2592da14890de7c309705d04d",
