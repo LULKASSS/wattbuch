@@ -9,7 +9,7 @@ test.skip(process.platform !== 'darwin', 'nur auf dem Mac');
 test.describe.configure({ mode: 'serial' });
 
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-test-'));
-const launch = (dir = data, env = { WATTBUCH_UPDATE: '0' }) => electron.launch({ args: [path.join(__dirname, '..')], env: { ...process.env, WATTBUCH_DATA: dir, ...env } });
+const launch = (dir = data, env = { WATTBUCH_UPDATE: '0' }) => electron.launch({ args: [path.join(__dirname, '..')], env: { ...process.env, WATTBUCH_DATA: dir, WATTBUCH_ONBOARD: '0', ...env } });
 
 test.afterAll(() => fs.rmSync(data, { recursive: true, force: true }));
 
@@ -208,16 +208,18 @@ test('Strava: verbinden und Fahrt hochladen', async () => {
   const auth = await expect.poll(() => app.evaluate(() => global.__stravaAuth || null)).not.toBeNull().then(() => app.evaluate(() => global.__stravaAuth));
   const q = new URL(auth).searchParams;
   expect(q.get('client_id')).toBe('286463');
-  expect(q.get('scope')).toBe('read,activity:write'); // nur hochladen, Strava-Daten werden nicht gespeichert
-  const back = await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=read,activity:write`);
+  expect(q.get('scope')).toBe('read,activity:write,activity:read_all'); // hochladen und Runden als Strecken lesen
+  const back = await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=read,activity:write,activity:read_all`);
   expect(await back.text()).toContain('Mit Strava verbunden');
   await expect(page.locator('#svBox')).toContainText('Verbunden als Lukas R.');
   // Token-Tausch über die Edge Function, ohne Secret in der App
   expect(sv.seen.central).toEqual([{ apikey: expect.stringMatching(/^sb_publishable_/), body: { code: 'testcode' } }]);
   expect(sv.seen.tokens).toEqual([]);
   expect(fs.readFileSync(path.join(dir, 'profil', 'strava.json'), 'utf8')).not.toContain('clientSecret');
-  await expect(page.locator('#svInSt')).toHaveCount(0);
+  await expect(page.locator('#svInSt')).toHaveCount(0); // ganze Fahrten übernimmt die gemeinsame App nicht
   await expect(page.locator('#svBox')).not.toContainText('Neu verbinden');
+  await expect(page.locator('#svBox')).toContainText('meistgefahrenen Runden');
+  await expect.poll(() => sv.seen.lists.length).toBeGreaterThan(0); // Runden werden gleich gesucht
   await app.close();
   // Zugang abgelaufen: beim Neustart erneuert die Edge Function ihn
   const cf = path.join(dir, 'profil', 'strava.json');
@@ -332,5 +334,35 @@ test('Apple TV: koppeln, nach Neustart Tasten aus der Fahrt-Ansicht senden', asy
   await expect(page.locator('#tvScan')).toBeVisible();
   expect(fs.existsSync(store)).toBe(false);
   await app.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('App lädt neue Version im Hintergrund, Einrichtung beim ersten Start', async () => {
+  test.setTimeout(60_000);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wattbuch-self-'));
+  const http = require('node:http');
+  const zip = Buffer.from('PK-Testinhalt');
+  const srv = http.createServer((req, res) => {
+    const u = new URL(req.url, 'http://x');
+    if (u.pathname === '/app-version.json') { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ version: '9.9.9' })); }
+    if (u.pathname === '/Wattbuch-mac-arm64.zip') return res.end(zip);
+    res.statusCode = 404; res.end();
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const app = await launch(dir, { WATTBUCH_UPDATE: '0', WATTBUCH_ONBOARD: '1', WATTBUCH_SELFUPDATE_URL: `http://127.0.0.1:${srv.address().port}` });
+  const page = await app.firstWindow();
+  // Erster Start, niemand angemeldet: Einrichtung erscheint
+  await expect(page.locator('#dlgStart')).toBeVisible();
+  await expect(page.locator('#dlgStart')).toContainText('Willkommen bei Wattbuch');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#dlgStart')).toBeHidden();
+  // Neue Version liegt bereit
+  await expect(page.locator('#toast')).toContainText('Wattbuch 9.9.9 ist geladen', { timeout: 15000 });
+  expect(fs.readFileSync(path.join(dir, 'profil', 'neue-version', 'Wattbuch-mac-arm64.zip'))).toEqual(zip);
+  await page.click('#btnSet');
+  await expect(page.locator('#appBox')).toContainText('9.9.9');
+  await expect(page.locator('#appBox #appInstall')).toBeVisible();
+  await app.close();
+  srv.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });

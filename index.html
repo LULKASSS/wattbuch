@@ -32,7 +32,7 @@
       </div>
       <div class="ld-col" id="ldColWin">
         <a class="ld-btn" id="ldWin" href=""><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span><b>Für Windows laden</b><small>Windows 10 und 11, 64 Bit</small></span></a>
-        <ol><li>Installer starten.</li><li>Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.</li><li>Bluetooth in den Windows-Einstellungen einschalten.</li></ol>
+        <ol><li>Edge hält den Download an? Bei der Datei auf „…“ → „Behalten“ → „Mehr anzeigen“ → „Trotzdem behalten“. Mit Chrome klappt es direkt.</li><li>Installer starten.</li><li>Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.</li><li>Bluetooth in den Windows-Einstellungen einschalten.</li></ol>
       </div>
     </div>
   </div>
@@ -188,6 +188,7 @@
     <div class="dlg-h"><h2 id="setTitle">Einstellungen</h2><button class="icon-btn" value="x" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="set-body">
       <section class="sv"><h3>Konto</h3><div class="konto"></div></section>
+      <section class="sv no-handy" id="appBox" hidden></section>
       <section class="sv">
         <h3>Deine Werte</h3>
         <div class="vals">
@@ -271,6 +272,9 @@
   </div>
 </div>
 
+<!-- Erster Start der App: Konto, Werte, Strava (js/einrichten.js) -->
+<dialog id="dlgStart" aria-label="Wattbuch einrichten" tabindex="-1"><div class="dlg ob" id="obBox"></div></dialog>
+
 <dialog id="dlgSum" aria-label="Zusammenfassung der Fahrt" tabindex="-1"></dialog>
 
 <input type="file" id="anyFile" multiple accept=".json,.gpx,application/json,application/gpx+xml" hidden>
@@ -292,6 +296,7 @@
 <script src="js/daten.js"></script>
 <script src="js/konto.js"></script>
 <script src="js/handy.js"></script>
+<script src="js/einrichten.js"></script>
 <script src="js/start.js"></script>
 </body>
 </html>

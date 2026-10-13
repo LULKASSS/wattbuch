@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
   pendingImports: () => ipcRenderer.invoke('import:pending'),
   importsDone: names => ipcRenderer.invoke('import:done', names),
   onUpdate: cb => ipcRenderer.on('update:ready', (_e, v) => cb(v)),
+  /* Version, System, Einrichtung; neue App-Version geladen → onAppUpdate, installUpdate spielt sie ein und startet neu */
+  info: () => ipcRenderer.invoke('app:info'),
+  onAppUpdate: cb => ipcRenderer.on('app:update', (_e, m) => cb(m)),
+  installUpdate: () => ipcRenderer.invoke('app:install'),
   /* Apple TV nur am Mac (pyatv, Bonjour); unter Windows fehlt der Teil, die Seite blendet ihn dann aus */
   appletv: process.platform !== 'darwin' ? undefined : {
     status: () => ipcRenderer.invoke('atv:status'),

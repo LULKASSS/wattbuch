@@ -936,3 +936,20 @@ body.landing>*:not(#landing):not(#toast):not(#cvBack){display:none!important}
 .ld-btn.primary small{color:rgba(11,11,15,.7)}
 .ld-col ol{margin:0;padding:0 4px 0 22px;display:grid;gap:6px;font-size:13.5px;line-height:1.5;color:var(--fg-3)}
 @media (max-width:640px){.ld-dl{grid-template-columns:1fr;gap:28px}}
+
+/* ---------- Einrichten beim ersten Start ---------- */
+#dlgStart{width:min(520px,calc(100vw - 32px))}
+.dlg.ob{display:flex;flex-direction:column;gap:0;padding:0}
+.ob-dots{display:flex;gap:6px;padding:22px 26px 0}
+.ob-dots i{width:22px;height:4px;border-radius:2px;background:var(--line-2);transition:background .3s}
+.ob-dots i.done{background:color-mix(in srgb,var(--accent) 50%,var(--line-2))}
+.ob-dots i.on{background:var(--accent)}
+.ob-body{padding:16px 26px 8px;display:flex;flex-direction:column;gap:10px;min-height:230px}
+.ob-body h2{font-size:22px;letter-spacing:-.02em;margin:0}
+.ob-body h2 small{font-size:13px;font-weight:500;color:var(--fg-3);margin-left:6px}
+.ob-body .ftp-note{margin:0}
+.ob-body .konto{margin-top:6px}
+.ob-vals{margin-top:6px}
+.ob-tip{font-size:12.5px!important}
+.ob-foot{display:flex;align-items:center;gap:10px;padding:16px 22px 20px 26px;border-top:1px solid var(--line)}
+@media (max-width:520px){.ob-vals{grid-template-columns:repeat(2,minmax(0,1fr))}}

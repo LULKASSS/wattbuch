@@ -12,6 +12,7 @@ const { pathToFileURL } = require('node:url');
 const { createUpdater } = require('./update');
 const { createStrava } = require('./strava');
 const { createAppleTv } = require('./appletv');
+const { createSelfUpdate } = require('./selfupdate');
 const ROOT = path.join(__dirname, '..');
 /* Woher Updates kommen; in Tests per WATTBUCH_UPDATE_URL umgelenkt, WATTBUCH_UPDATE=0 schaltet ab */
 const UPDATE_URL = process.env.WATTBUCH_UPDATE_URL || 'https://lulkasss.github.io/wattbuch';
@@ -188,6 +189,14 @@ app.whenReady().then(async () => {
   const wrapAtv = fn => async (_e, arg) => { try { return { ok: true, ...(await fn(arg)) }; } catch (e) { return { ok: false, error: e.message, code: e.code || '' }; } };
   for (const k of ['status', 'prepare', 'scan', 'pair', 'pin', 'cancel', 'connect', 'key', 'forget']) ipcMain.handle('atv:' + k, wrapAtv(a => atv[k](a)));
   app.on('will-quit', () => atv.stop());
+
+  /* Die App selbst: neue Version im Hintergrund laden, beim Beenden einspielen (selfupdate.js) */
+  const self = createSelfUpdate({ dataDir: app.getPath('userData'), log: m => console.log(m), send: m => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('app:update', m); } });
+  /* Einrichtung beim ersten Start: in Tests per WATTBUCH_ONBOARD=0 aus */
+  ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, onboard: process.env.WATTBUCH_ONBOARD !== '0', update: self.ready ? self.ready.version : null }));
+  ipcMain.handle('app:install', () => { if (self.install(true)) { app.quit(); return true; } return false; });
+  app.on('will-quit', () => { if (self.ready) self.install(false); });
+  if (UPDATES || process.env.WATTBUCH_SELFUPDATE_URL) { setTimeout(() => self.check(), process.env.WATTBUCH_SELFUPDATE_URL ? 3000 : 15000); setInterval(() => self.check(), 6 * 3600 * 1000); }
 
   /* Beim Start kurz (max. 3 s) auf ein Update warten, damit gleich die neueste Fassung erscheint */
   if (UPDATES) await Promise.race([updater.check().catch(e => console.log('Update:', e.message)), new Promise(r => setTimeout(r, 3000))]);

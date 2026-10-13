@@ -11,7 +11,7 @@ let svWait=15000;                 // so lange lässt sich der automatische Uploa
 const svAuto=()=>S.set.stravaAuto!==false,svOn=()=>!!(SV()&&S.strava.connected&&svAuto()),svBusy=new Set();
 let svT=null;
 
-async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.status();if(r.ok)S.strava=r;renderStravaSet();stravaSync();if(typeof stravaImport==='function')stravaImport();}
+async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.status();if(r.ok)S.strava=r;renderStravaSet();stravaSync();if(typeof svPull==='function')svPull();}
 
 function stravaDesc(r){
   const s=stats(r);
@@ -104,7 +104,7 @@ function renderStravaSet(){
 async function stravaConnect(){
   const sv=SV(),b=$('#svConnect');if(b){b.disabled=true;b.textContent='Warte auf Strava im Browser …';}
   const r=await sv.connect();
-  if(r.ok){S.strava=r;toast('Mit Strava verbunden');stravaSync();if(typeof stravaImport==='function')stravaImport();}else toast('Strava: '+r.error);
+  if(r.ok){S.strava=r;toast('Mit Strava verbunden');stravaSync();if(typeof svPull==='function')svPull(true);}else toast('Strava: '+r.error);
   renderStravaSet();
 }
 $('#svBox').addEventListener('click',async e=>{

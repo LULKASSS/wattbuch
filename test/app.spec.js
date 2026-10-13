@@ -362,6 +362,65 @@ const fakeDesktopStrava = () => {
   } };
 };
 
+/* App-Brücke mit Version (neue App): onboard = Einrichtung beim ersten Start, update = schon geladene neue Version */
+const fakeDesktopApp = ({ onboard = true, update = null } = {}) => () => {
+  window.__installed = 0;
+  window.wattbuchDesktop = { backup: async () => {}, info: async () => ({ version: '1.0.1', platform: 'darwin', onboard: window.__onboard ?? true, update: window.__update ?? null }),
+    installUpdate: async () => { window.__installed++; return true; }, onAppUpdate: cb => { window.__appUpdate = cb; },
+    strava: { status: async () => ({ ok: true, configured: true, central: true, connected: false }), connect: async () => ({ ok: true, connected: true, central: true, canRead: true, athlete: { name: 'Test' } }), activities: async () => ({ ok: true, list: [] }) } };
+};
+
+test('App: Einrichtung beim ersten Start mit Konto, Werten und Strava', async ({ page }) => {
+  const problems = await open(page, { before: fakeDesktopApp() });
+  const dlg = page.locator('#dlgStart');
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText('Willkommen bei Wattbuch');
+  await expect(page.locator('#obNext')).toHaveText('Ohne Konto weiter');
+  await page.click('#obNext');
+  await expect(dlg).toContainText('Deine Werte');
+  await page.fill('#obKg', '300');
+  await page.click('#obNext');
+  await expect(page.locator('#obMsg')).toContainText('Gewicht');
+  await page.fill('#obKg', '81,5');
+  await page.fill('#obFtp', '245');
+  await page.click('#obNext');
+  await expect(dlg).toContainText('Strava');
+  await page.click('#obSv');
+  await expect(page.locator('#obSv')).toHaveText('Mit Strava verbunden');
+  await expect(page.locator('#obNext')).toHaveText('Weiter');
+  await page.click('#obNext');
+  await expect(dlg).toContainText('Alles bereit');
+  await page.click('#obNext');
+  await expect(dlg).toBeHidden();
+  expect(await page.evaluate(() => [S.set.weight, S.set.ftp, S.set.onboarded])).toEqual([81.5, 245, true]);
+  await page.evaluate(() => DB.get('settings')); // erst fertig speichern lassen, dann neu laden
+  // Kommt nach dem Neuladen nicht wieder
+  await page.reload();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await page.clock.runFor(1000);
+  await expect(dlg).toBeHidden();
+  expect(problems).toEqual([]);
+});
+
+test('App: neue Version wird angezeigt und lässt sich gleich einspielen, alte App bekommt einen Link', async ({ page }) => {
+  const problems = await open(page, { before: () => { window.__onboard = false; } });
+  await page.evaluate(() => { window.wattbuchDesktop = { backup: async () => {} }; appInfo(); });
+  await page.click('#btnSet');
+  await expect(page.locator('#appBox')).toContainText('Neue Version laden'); // ältere App ohne Selbst-Update
+  await page.click('#dlgSet .dlg-foot button');
+  await page.addInitScript(fakeDesktopApp());
+  await page.addInitScript(() => { window.__onboard = false; });
+  await page.reload();
+  await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await expect(page.locator('#dlgStart')).toBeHidden();
+  await page.evaluate(() => window.__appUpdate({ version: '1.0.2' }));
+  await expect(toast(page)).toContainText('Wattbuch 1.0.2 ist geladen');
+  await page.click('#btnSet');
+  await page.click('#appInstall');
+  expect(await page.evaluate(() => window.__installed)).toBe(1);
+  expect(problems).toEqual([]);
+});
+
 test('Strava: Fahrt mit Rolle geht von selbst hoch, abbrechen und nachholen', async ({ page }) => {
   const problems = await open(page, { before: fakeDesktopStrava });
   await connectTrainer(page);

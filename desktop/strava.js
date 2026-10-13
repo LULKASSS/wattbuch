@@ -1,7 +1,8 @@
 /* Strava für die Mac-App: Fahrten hochladen und die eigenen Fahrten lesen (Import nach Wattbuch).
  * Normalfall: alle nutzen Wattbuchs gemeinsame Strava-App (CENTRAL). Deren Secret liegt nur in der Supabase Edge Function
  * strava-token (supabase/functions), die Code bzw. Erneuerungs-Token gegen Zugangs-Token tauscht. Gemeinsam heißt nur
- * Hochladen (Scope ohne activity:read_all): Stravas Regeln erlauben kein dauerhaftes Speichern von Strava-Daten.
+ * Hochladen und Lesen für die eigenen meistgefahrenen Runden (als Strecken, nur auf dem eigenen Gerät). Ganze Fahrten
+ * übernehmen gibt es dort nicht: Stravas Regeln erlauben kein dauerhaftes Speichern von Strava-Daten bei uns.
  * Steht in strava.json ein eigenes Client-Secret (Lukas' alte Einrichtung), läuft alles direkt mit dieser App, inklusive
  * Übernehmen der eigenen Fahrten. Zugangs-Token liegen nur im App-Datenordner (strava.json, nur für den eigenen Benutzer lesbar).
  * Anmeldung: Browser öffnet Strava, Strava leitet auf http://localhost:<port>/strava zurück. */
@@ -71,7 +72,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', tokenUrl = 
         srv.listen(0, '127.0.0.1', () => {
           const port = srv.address().port;
           srv6 = http.createServer(handler);srv6.on('error', () => {});srv6.listen(port, '::1');
-          const url = `${baseUrl}/oauth/authorize?` + new URLSearchParams({ client_id: own(c) ? c.clientId : CENTRAL.clientId, response_type: 'code', redirect_uri: `http://localhost:${port}/strava`, approval_prompt: 'auto', scope: own(c) ? 'read,activity:write,activity:read_all' : 'read,activity:write', state });
+          const url = `${baseUrl}/oauth/authorize?` + new URLSearchParams({ client_id: own(c) ? c.clientId : CENTRAL.clientId, response_type: 'code', redirect_uri: `http://localhost:${port}/strava`, approval_prompt: 'auto', scope: 'read,activity:write,activity:read_all', state });
           Promise.resolve(openBrowser(url)).catch(reject);
         });
         setTimeout(() => reject(Object.assign(new Error('Keine Antwort von Strava (5 min)'), { server: both })), 5 * 60000);

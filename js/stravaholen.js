@@ -10,7 +10,11 @@
    (Strava erlaubt 100). Über das Konto kommen die Fahrten auch aufs Handy. */
 const SVR=/^(Ride|VirtualRide|GravelRide|MountainBikeRide|EBikeRide|EMountainBikeRide|Velomobile|Handcycle)$/;
 const SI={run:null,total:0,done:0,until:0,err:'',calls:[]};
-const svInOn=()=>!!(SV()&&S.strava.connected&&S.strava.canRead&&S.set.stravaIn!==false);
+/* Ganze Fahrten übernehmen nur mit eigener Strava-App; Runden als Strecken auch mit der gemeinsamen */
+const svInOn=()=>!!(SV()&&S.strava.connected&&S.strava.canRead&&!S.strava.central&&S.set.stravaIn!==false);
+const svRoutesOn=()=>!!(SV()&&S.strava.connected&&S.strava.canRead);
+/* Alles, was von Strava kommt, auf Stand bringen: Fahrten (falls erlaubt, holt danach die Runden) oder nur die Runden */
+function svPull(force){if(svInOn())return stravaImport();return favRoutes(force);}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function svCall(fn){
@@ -90,7 +94,7 @@ async function stravaImport(){
   })();
   return SI.run;
 }
-setInterval(()=>stravaImport(),30*60000);
+setInterval(()=>svPull(),30*60000);
 
 /* Stand in den Einstellungen */
 function svInText(){
@@ -105,9 +109,9 @@ function svInText(){
 function renderSvIn(){const el=$('#svInSt');if(el)el.textContent=svInText();}
 function svInHTML(){
   const st=S.strava;
-  if(!st.canRead&&st.central)return'';   // gemeinsame Strava-App: nur Hochladen, siehe desktop/strava.js
-  if(!st.canRead)return`<p class="ftp-note">Damit Wattbuch deine Strava-Fahrten übernehmen darf, einmal neu verbinden und „Aktivitäten ansehen“ erlauben.</p>
+  if(!st.canRead)return`<p class="ftp-note">Damit deine meistgefahrenen Runden als Strecken kommen${st.central?'':' und Wattbuch deine Strava-Fahrten übernehmen darf'}, einmal neu verbinden und „Aktivitäten ansehen“ erlauben.</p>
     <div class="dlg-row"><button type="button" class="btn sm primary" id="svConnect">Neu verbinden</button></div>`;
+  if(st.central)return`<p class="ftp-note">Deine meistgefahrenen Runden (mindestens 3× gefahren) kommen als Strecken dazu, jeden Tag aktualisiert.</p>`;
   const on=S.set.stravaIn!==false;
   return`<label class="chk sm${on?' on':''}" id="svInL"><input type="checkbox" id="svInChk"${on?' checked':''}><span class="box"></span>Alle Fahrten aus Strava übernehmen</label>
     ${on?`<p class="ftp-note sv-in" id="svInSt">${svInText()}</p><p class="ftp-note">Deine meistgefahrenen Runden kommen als Strecken dazu.</p>`:''}`;
@@ -156,9 +160,10 @@ function favName(c){
   return b&&b[1]>=2?b[0].slice(0,60):`Deine Runde · ${n0(c[0].km)} km`;
 }
 async function favRoutes(force){
-  if(favRun||!svInOn())return;
+  if(favRun||!svRoutesOn())return;
+  /* Täglich neu schauen, damit neue Lieblingsrunden dazukommen und die Zahl „× gefahren“ stimmt */
   const st=(await DB.get('favR'))||{};
-  if(!force&&st.at&&Date.now()-st.at<7*864e5)return;
+  if(!force&&st.at&&Date.now()-st.at<864e5)return;
   favRun=true;let added=0;
   try{
     const list=[];
