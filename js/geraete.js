@@ -81,7 +81,7 @@ function onCP(e){
 function btFail(e){
   const m=(e&&e.message)||'';
   if(/cancel/i.test(m))return;
-  if(/adapter|not available|unavailable|permission|denied|not allowed|globally disabled/i.test(m)){toast('Bluetooth nicht verfügbar. Ist es an? Mac: Systemeinstellungen → Datenschutz → Bluetooth → Wattbuch erlauben');return;}
+  if(/adapter|not available|unavailable|permission|denied|not allowed|globally disabled/i.test(m)){toast('Bluetooth nicht verfügbar. Ist es an? Mac: Systemeinstellungen → Datenschutz → Bluetooth → Wattbuch erlauben. Windows: Einstellungen → Bluetooth einschalten');return;}
   if(e&&e.name==='NotFoundError')return;
   toast('Verbinden ging nicht: '+m);
 }

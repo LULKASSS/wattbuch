@@ -19,6 +19,29 @@
 <body data-view="live">
 <canvas class="backdrop" id="cvBack" aria-hidden="true"></canvas>
 
+<!-- Webseite am Computer: nur Download, gefahren und ausgewertet wird in der App (am Handy bleibt die Handy-Ansicht) -->
+<section class="landing" id="landing" hidden>
+  <div class="ld-in">
+    <span class="lbl">Für deinen Rollentrainer</span>
+    <h1>Watt aufnehmen.<br>Echte Strecken fahren.<br>Wissen, wann du drücken sollst.</h1>
+    <p class="ld-lead">Wattbuch verbindet sich per Bluetooth mit Rolle, Pulsgurt und Trittfrequenz, fährt Strecken mit echter Steigung nach, und ein Coach sagt dir unterwegs, wie viel Watt gerade richtig sind. Deine Fahrten siehst du danach auch am Handy.</p>
+    <p class="ld-msg" id="ldMsg" hidden></p>
+    <div class="ld-dl">
+      <a class="ld-btn" id="ldMac" href=""><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg><span><b>Für Mac laden</b><small>Apple-Chip (M1 oder neuer)</small></span></a>
+      <a class="ld-btn" id="ldWin" href=""><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg><span><b>Für Windows laden</b><small>Windows 10 und 11, 64 Bit</small></span></a>
+    </div>
+    <div class="ld-steps">
+      <div><b>Mac</b><ol><li>Zip öffnen, Wattbuch in den Programme-Ordner ziehen.</li><li>Beim ersten Start „Fertig“, dann Systemeinstellungen → Datenschutz &amp; Sicherheit → „Trotzdem öffnen“.</li><li>Bluetooth erlauben.</li></ol></div>
+      <div><b>Windows</b><ol><li>Installer starten.</li><li>Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.</li><li>Bluetooth in den Windows-Einstellungen einschalten.</li></ol></div>
+    </div>
+    <div class="ld-f">
+      <div><b>Strecken mit Steigung</b><span>Die Rolle wird am Berg schwerer, mit Straße, Landschaft und Höhenprofil.</span></div>
+      <div><b>Coach</b><span>Aufwärmen, Zielleistung, „noch 20 s über die Kuppe“. Auf Wunsch hält die Rolle die Watt selbst.</span></div>
+      <div><b>Konto</b><span>In der App anmelden, dann sind deine Fahrten auf jedem Gerät, auch am Handy unter dieser Adresse.</span></div>
+    </div>
+  </div>
+</section>
+
 <header class="top"><div class="wrap top-in">
   <nav class="seg" id="nav" aria-label="Ansicht">
     <span class="thumb" aria-hidden="true"></span>
@@ -81,7 +104,7 @@
           </div>
         </div>
         <button type="button" class="lnk sm-lnk" id="btnCdAll" hidden>Sensor nicht in der Liste? Alle Geräte zeigen</button>
-        <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. Am Mac die <a href="https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip">Wattbuch-App laden</a> oder Chrome nehmen.</p>
+        <p class="note" id="noBt" hidden>Dieser Browser kann kein Bluetooth. <a href="./">Wattbuch-App für Mac oder Windows laden</a> oder Chrome nehmen.</p>
         <div class="start-go" id="startCtrls"></div>
       </div>
 

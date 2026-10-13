@@ -157,7 +157,7 @@ addEventListener('online',()=>syncSoon(300));
 /* Anzeige: überall, wo ein .konto-Platz ist (Einstellungen, Übersicht am Handy) */
 function kontoHTML(){
   if(!K.s)return`<div class="k-form">
-    <p class="ftp-note">Mit Konto gleichen sich Mac und Handy von selbst ab.</p>
+    <p class="ftp-note">Mit Konto gleichen sich Computer und Handy von selbst ab.</p>
     <div class="k-ins"><input class="k-in" type="email" name="email" autocomplete="username" placeholder="E-Mail" aria-label="E-Mail">
     <input class="k-in" type="password" name="pw" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort"></div>
     <div class="dlg-row"><button type="button" class="btn sm primary" data-k="in">Anmelden</button><button type="button" class="btn sm ghost" data-k="neu">Konto anlegen</button></div>

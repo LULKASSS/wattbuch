@@ -106,12 +106,16 @@ const DB=(()=>{
    ?handy erzwingt die Handy-Fassung (zum Testen am Mac), ?fahren schaltet sie ab. Die Mac-App ist nie Handy. */
 /* Mac-App zum Herunterladen: jüngstes GitHub-Release, gebaut mit npm run app:release */
 const MAC_APP='https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip';
+/* Windows-App: Installer, gebaut von GitHub (.github/workflows/windows.yml) und ans jüngste Release gehängt */
+const WIN_APP='https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-Setup-win-x64.exe';
 const HANDY=(()=>{
   const q=location.search;
   if(window.wattbuchDesktop||/[?&]fahren\b/.test(q))return false;
   if(/[?&]handy\b/.test(q))return true;
   try{return matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<600;}catch(_){return false;}
 })();
+/* Am Computer im Browser: nur die Download-Seite, gefahren wird in der App. ?app (Tests) und ?fake (Entwickeln) zeigen die App. */
+const LANDING=!window.wattbuchDesktop&&!HANDY&&!/[?&](app|fake|fahren)\b/.test(location.search);
 
 /* ---------- Zustand ---------- */
 const S={

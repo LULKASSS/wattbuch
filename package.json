@@ -2,7 +2,7 @@
   "name": "wattbuch",
   "productName": "Wattbuch",
   "version": "1.0.0",
-  "description": "Watt aufnehmen und auswerten, Strecken mit echter Steigung",
+  "description": "Watt aufnehmen und auswerten, Strecken mit echter Steigung (Mac und Windows)",
   "main": "desktop/main.js",
   "private": true,
   "author": "Lukas Rückborn",
@@ -39,8 +39,35 @@
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "Wattbuch verbindet sich per Bluetooth mit Rollentrainer, Pulsgurt und Trittfrequenzsensor.",
         "NSLocalNetworkUsageDescription": "Wattbuch sucht dein Apple TV im WLAN, um es während der Fahrt zu steuern.",
-        "NSBonjourServices": ["_airplay._tcp", "_companion-link._tcp", "_mediaremotetv._tcp", "_raop._tcp", "_appletv-v2._tcp", "_touch-able._tcp", "_device-info._tcp", "_sleep-proxy._udp"]
+        "NSBonjourServices": [
+          "_airplay._tcp",
+          "_companion-link._tcp",
+          "_mediaremotetv._tcp",
+          "_raop._tcp",
+          "_appletv-v2._tcp",
+          "_touch-able._tcp",
+          "_device-info._tcp",
+          "_sleep-proxy._udp"
+        ]
       }
+    },
+    "win": {
+      "icon": "desktop/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Wattbuch-Setup-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Wattbuch",
+      "uninstallDisplayName": "Wattbuch"
     }
   },
   "devDependencies": {

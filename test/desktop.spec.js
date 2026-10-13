@@ -318,6 +318,7 @@ test('Apple TV: koppeln, nach Neustart Tasten aus der Fahrt-Ansicht senden', asy
   app = await launch(dir, env);
   page = await app.firstWindow();
   await expect(page.locator('#v-live')).toHaveClass(/active/);
+  await expect.poll(() => page.evaluate(() => !!S.tv.dev)).toBe(true); // Kopplung erst geladen, dann T
   await page.keyboard.press('t');
   await expect(page.locator('#fTvPad')).toBeVisible();
   await expect(page.locator('#fTvNow')).toHaveText('Testkino · Testfolge');

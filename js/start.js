@@ -71,8 +71,25 @@ let rzT=null;
 window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{placeThumb();placeSegThumb($('#smSeg'));placeSegThumb($('#diffSeg'));$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null));},120);});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>$$('.view.active canvas').forEach(c=>c._draw&&c._draw(null)));
 
+/* ---------- Download-Seite (Webseite am Computer) ---------- */
+function showLanding(){
+  document.body.classList.add('landing');document.documentElement.lang='de';$('#landing').hidden=false;
+  $('#ldMac').href=MAC_APP;$('#ldWin').href=WIN_APP;
+  /* Passendes System zuerst und hervorgehoben */
+  const win=/Windows/i.test(navigator.userAgent);
+  (win?$('#ldWin'):$('#ldMac')).classList.add('primary');if(win)$('.ld-dl').prepend($('#ldWin'));
+  /* Zurück aus der Bestätigungs-Mail: angemeldet wird in der App */
+  const h=new URLSearchParams(location.hash.slice(1)),m=$('#ldMsg');
+  if(h.get('access_token')||h.get('error')){
+    m.hidden=false;m.textContent=h.get('access_token')?'E-Mail bestätigt. Lade jetzt die App, öffne sie und melde dich in den Einstellungen mit deiner E-Mail an.'
+      :'Der Link aus der Mail ist abgelaufen oder schon benutzt. Dein Konto ist meist trotzdem bestätigt: einfach in der App anmelden.';
+    history.replaceState(null,'',location.pathname+location.search);
+  }
+}
+
 /* ---------- Start ---------- */
 (async()=>{
+  if(LANDING){showLanding();return;}
   $('#noBt').hidden=hasBT;document.documentElement.lang='de';
   /* Handy: Leiste unten statt oben (außerhalb der Kopfzeile, deren Unschärfe sonst „fixed“ verschluckt) */
   if(HANDY){document.documentElement.classList.add('handy');document.body.appendChild($('#nav'));}

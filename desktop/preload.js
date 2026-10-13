@@ -1,4 +1,4 @@
-/* Brücke zwischen Seite und Mac-App: Sicherung, Bluetooth-Geräteauswahl, Strava, Apple TV.
+/* Brücke zwischen Seite und App (Mac und Windows): Sicherung, Bluetooth-Geräteauswahl, Strava, Apple TV.
  * Die Seite merkt an window.wattbuchDesktop, dass sie in der App läuft. */
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -9,7 +9,8 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
   pendingImports: () => ipcRenderer.invoke('import:pending'),
   importsDone: names => ipcRenderer.invoke('import:done', names),
   onUpdate: cb => ipcRenderer.on('update:ready', (_e, v) => cb(v)),
-  appletv: {
+  /* Apple TV nur am Mac (pyatv, Bonjour); unter Windows fehlt der Teil, die Seite blendet ihn dann aus */
+  appletv: process.platform !== 'darwin' ? undefined : {
     status: () => ipcRenderer.invoke('atv:status'),
     prepare: () => ipcRenderer.invoke('atv:prepare'),
     scan: () => ipcRenderer.invoke('atv:scan'),

@@ -1,0 +1,24 @@
+# Baut die Windows-App (Installer) und hängt sie ans jüngste Release, damit der Download-Link
+# releases/latest/download/Wattbuch-Setup-win-x64.exe immer passt. Startet von selbst nach npm run app:release.
+name: Windows-App
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --ignore-scripts
+      - run: node scripts/check.mjs
+      - run: npx electron-builder --win nsis --x64 --publish never
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+      - name: Ans jüngste Release hängen
+        shell: bash
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          tag=$(gh release view --json tagName -q .tagName)
+          gh release upload "$tag" dist/Wattbuch-Setup-win-x64.exe --clobber

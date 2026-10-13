@@ -152,8 +152,8 @@ function renderHome(){
   v.innerHTML=`
   <div class="page-h"><div><h1>Übersicht</h1>${real.length?`<p class="sub-h">${real.length} ${real.length===1?'Fahrt':'Fahrten'} · zuletzt ${fmtDate(recent[0].start)}</p>`:''}</div></div>
   <div class="home">
-    ${real.length?'':K.s?`<div class="card empty"><b>${K.busy||!K.last?'Fahrten werden geholt …':'Im Konto liegen noch keine Fahrten'}</b>${K.busy||!K.last?'Einen Moment.':'Am Mac in den Einstellungen mit demselben Konto anmelden, dann kommen sie von selbst hierher.'}</div>`
-      :`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Mit deinem Konto anmelden, dann kommen die Fahrten vom Mac von selbst.<div class="konto empty-k">${kontoHTML()}</div></div>`}
+    ${real.length?'':K.s?`<div class="card empty"><b>${K.busy||!K.last?'Fahrten werden geholt …':'Im Konto liegen noch keine Fahrten'}</b>${K.busy||!K.last?'Einen Moment.':'In der App am Computer mit demselben Konto anmelden, dann kommen sie von selbst hierher.'}</div>`
+      :`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Mit deinem Konto anmelden, dann kommen die Fahrten vom Computer von selbst.<div class="konto empty-k">${kontoHTML()}</div></div>`}
     ${now?`<div class="card hform">
       <div class="card-h"><h3>Form</h3><span class="tag ${fw[1]}">${fw[0]}</span></div>
       <div class="hk3">

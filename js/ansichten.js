@@ -179,7 +179,7 @@ function renderRides(){
     <div class="list-gh"><h3>${mName(g.d)}</h3><span>${g.rides.length} ${g.rides.length===1?'Fahrt':'Fahrten'} · ${fmtHM(g.sec)} h${g.km?` · ${n0(g.km)} km`:''}</span></div>
     <div class="row-h" aria-hidden="true"><span>Datum</span><span>Name</span><span>Dauer</span><span>Ø Watt</span><span class="np">NP</span><span class="kj">kJ</span><span>Verlauf</span></div>
     <div class="list">${g.rides.map(rideRow).join('')}</div>
-  </div>`).join(''):`<div class="list">${HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Mac. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Rolle verbinden, Strecke wählen, losfahren.<div class="empty-a"><button type="button" class="btn primary" data-go="live">Zu „Fahren“</button></div></div>`}</div>`}`;
+  </div>`).join(''):`<div class="list">${HANDY?`<div class="card empty"><b>Noch keine Fahrten auf dem Handy</b>Gefahren wird am Computer. ${K.s?'Sobald er im selben Konto angemeldet ist, kommen sie von selbst.':'In der Übersicht mit deinem Konto anmelden, dann kommen sie von selbst.'}<div class="empty-a"><button type="button" class="btn primary" data-go="home">Zur Übersicht</button></div></div>`:`<div class="card empty"><b>Noch keine Fahrt</b>Rolle verbinden, Strecke wählen, losfahren.<div class="empty-a"><button type="button" class="btn primary" data-go="live">Zu „Fahren“</button></div></div>`}</div>`}`;
 }
 
 /* ---------- Detail ---------- */

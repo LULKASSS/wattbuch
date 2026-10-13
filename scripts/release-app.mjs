@@ -1,5 +1,6 @@
-/* Baut Wattbuch.app, packt sie als Zip und stellt sie als neues GitHub-Release bereit.
- * Die Webseite verlinkt immer das jüngste Release (MAC_APP in js/basis.js). Braucht gh (angemeldet). */
+/* Baut Wattbuch.app, packt sie als Zip und stellt sie als neues GitHub-Release bereit. Danach baut GitHub die
+ * Windows-App (.github/workflows/windows.yml) und hängt sie an dasselbe Release.
+ * Die Webseite verlinkt immer das jüngste Release (MAC_APP/WIN_APP in js/basis.js). Braucht gh (angemeldet). */
 import { execSync } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,13 +20,16 @@ rmSync(zip, { force: true });
 sh(`ditto -c -k --keepParent "${built}" "${zip}"`);
 
 const d = new Date(), p = n => String(n).padStart(2, '0');
-const tag = `mac-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+const tag = `app-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
 const notes = [
-  'Wattbuch für Mac (Apple-Chip, M1 oder neuer).',
+  'Wattbuch für Mac (Apple-Chip, M1 oder neuer) und Windows 10/11 (64 Bit). Die Windows-Datei kommt ein paar Minuten später dazu.',
   '',
-  '1. Zip öffnen, Wattbuch.app in den Programme-Ordner ziehen und starten.',
-  '2. Die App ist nicht bei Apple beglaubigt: beim ersten Start „Fertig“ klicken, dann Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“.',
-  '3. Bluetooth erlauben, Einstellungen → Strava → „Mit Strava verbinden“.'
+  'Mac: Zip öffnen, Wattbuch.app in den Programme-Ordner ziehen. Die App ist nicht bei Apple beglaubigt: beim ersten Start „Fertig“ klicken, dann Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“.',
+  'Windows: Installer starten. Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.',
+  '',
+  'Danach Bluetooth erlauben und in den Einstellungen mit deinem Konto anmelden.'
 ].join('\n');
-sh(`gh release create ${tag} "${zip}" --latest --target main --title "Wattbuch für Mac (${d.toLocaleDateString('de-DE')})" --notes-file -`, { input: notes, stdio: ['pipe', 'inherit', 'inherit'] });
-console.log('✅ Bereit: https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip');
+sh(`gh release create ${tag} "${zip}" --latest --target main --title "Wattbuch für Mac und Windows (${d.toLocaleDateString('de-DE')})" --notes-file -`, { input: notes, stdio: ['pipe', 'inherit', 'inherit'] });
+sh('gh workflow run windows.yml --ref main');
+console.log('✅ Mac bereit: https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip');
+console.log('⏳ Windows wird auf GitHub gebaut (gh run watch), danach: …/releases/latest/download/Wattbuch-Setup-win-x64.exe');

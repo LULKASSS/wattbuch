@@ -1,4 +1,5 @@
-/* Wattbuch als Mac-App (Electron).
+/* Wattbuch als App für Mac und Windows (Electron). Apple TV und iCloud gibt es nur am Mac,
+ * unter Windows liegt die Sicherung in Dokumente\Wattbuch.
  * Lädt dieselbe index.html wie die Webseite. Dazu kommt, was der Browser nicht kann:
  * Bluetooth-Geräteauswahl ohne Chrome, automatische Sicherung nach iCloud Drive und
  * eine Rückfrage, bevor das Fenster während einer Aufnahme geschlossen wird. */
@@ -72,7 +73,7 @@ async function readBackup() {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280, height: 880, minWidth: 380, minHeight: 600,
-    title: 'Wattbuch', backgroundColor: '#0b0b0f', show: false,
+    title: 'Wattbuch', backgroundColor: '#0b0b0f', show: false, autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, backgroundThrottling: false }
   });
   win.once('ready-to-show', () => win.show());
@@ -110,10 +111,12 @@ function createWindow() {
   return win;
 }
 
+/* Menü: am Mac wie gewohnt mit App- und Fenster-Menü, unter Windows eine schlichte Leiste (Alt blendet sie ein) */
 function buildMenu() {
+  const mac = process.platform === 'darwin';
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { role: 'appMenu' },
-    { label: 'Ablage', submenu: [
+    mac && { role: 'appMenu' },
+    { label: mac ? 'Ablage' : 'Datei', submenu: [
       { label: 'Nach Updates suchen …', click: () => backgroundUpdate(true) },
       { type: 'separator' },
       { label: 'Sicherungsordner öffnen', accelerator: 'CmdOrCtrl+Shift+S', click: () => shell.openPath(backupDir) },
@@ -121,8 +124,8 @@ function buildMenu() {
     ] },
     { role: 'editMenu' },
     { label: 'Darstellung', submenu: [{ role: 'reload', label: 'Neu laden' }, { role: 'togglefullscreen' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'toggleDevTools', label: 'Entwicklerwerkzeuge' }] },
-    { role: 'windowMenu' }
-  ]));
+    mac && { role: 'windowMenu' }
+  ].filter(Boolean)));
 }
 
 function setAbout() {

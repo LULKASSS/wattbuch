@@ -39,8 +39,11 @@ async function open(page, { before, motion = false, realtime = false, url = '/',
   if (!realtime) await page.clock.install();
   await page.addInitScript({ path: FAKE });
   if (before) await page.addInitScript(before);
-  await page.goto(url);
-  await expect(page.locator('#v-' + view)).toHaveClass(/active/);
+  // Am Computer zeigt die Webseite sonst nur die Download-Seite
+  if (!/[?&](app|handy|landing)\b/.test(url)) url = url.replace(/^([^?#]*)(\?[^#]*)?/, (_, p, q) => p + (q ? q + '&app' : '?app'));
+  const landing = /[?&]landing\b/.test(url);
+  await page.goto(url.replace(/[?&]landing\b/, ''));
+  if (!landing) await expect(page.locator('#v-' + view)).toHaveClass(/active/);
   return problems;
 }
 
@@ -332,10 +335,21 @@ test('Zusammenfassung: Export für Strava lädt TCX', async ({ page }) => {
   expect(xml).toContain('<ns3:Watts>180</ns3:Watts>');
 });
 
-test('Browser: Einstellungen bieten die Mac-App zum Laden an', async ({ page }) => {
+test('Webseite am Computer: nur Download für Mac und Windows, Mail-Bestätigung mit Hinweis', async ({ page }) => {
+  const problems = await open(page, { url: '/?landing#access_token=x&type=signup' });
+  await expect(page.locator('#landing')).toBeVisible();
+  await expect(page.locator('#ldMac')).toHaveAttribute('href', /Wattbuch-mac-arm64\.zip$/);
+  await expect(page.locator('#ldWin')).toHaveAttribute('href', /Wattbuch-Setup-win-x64\.exe$/);
+  await expect(page.locator('#nav')).toBeHidden();
+  await expect(page.locator('#ldMsg')).toContainText('E-Mail bestätigt');
+  expect(await page.evaluate(() => location.hash)).toBe('');
+  expect(problems).toEqual([]);
+});
+
+test('Browser: Einstellungen bieten die App zum Laden an', async ({ page }) => {
   await open(page);
   await page.click('#btnSet');
-  await expect(page.locator('#svMacApp')).toHaveAttribute('href', 'https://github.com/LULKASSS/wattbuch/releases/latest/download/Wattbuch-mac-arm64.zip');
+  await expect(page.locator('#svMacApp')).toHaveAttribute('href', '/'); // führt zur Download-Seite
   await expect(page.locator('#svBox input')).toHaveCount(0);
 });
 
