@@ -431,6 +431,7 @@ function renderFull(){
   else gEl.hidden=true;
   renderRamp();renderCoach();
   /* Zielleistung direkt in der Fahrt-Ansicht */
+  setT('fErgL',S.coach&&S.erg.on?'Coach':'Ziel');
   $('#fErg').classList.toggle('on',S.erg.on);setT('fErgW',S.erg.on?`${Math.round(S.erg.target)} W`:'Aus');
 }
 $('#fErg').addEventListener('click',e=>{

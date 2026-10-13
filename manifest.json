@@ -1,25 +1,25 @@
 {
  "manifest": "wattbuch-web",
- "version": "42aa1f11a7cd",
+ "version": "1bcc5dcf1c8e",
  "files": {
-  "index.html": "0ab9ff802fdeea89bfc1948427468e0edd914e91674e7bef429aaa1e5ea7f9e5",
+  "index.html": "74d90bd409eecbc19f23e4e599cc9bfa4a432d6f329b61c987a3a93784a6a5e4",
   "app.css": "ea6805c7882e523805800a397e18444b4f3514d99a18b2f09475fcc3fb4b3112",
   "js/ansichten.js": "3f55dddd38cbb0435e88232cc5feeccd54415b5949101addfbabdd2400eb5da4",
   "js/appletv.js": "3745309e0fe1af04bba14527f39d723387efc76c36b6de5e9d442c9d1281d9eb",
-  "js/aufnahme.js": "5fc41c9018c95b5ed52d4683c7390eb23b29becba0741f0954205b14ce7de17c",
+  "js/aufnahme.js": "70db495de92854576a7c9d10baa226748bdc27e16c33075c05243d57959a2e42",
   "js/basis.js": "7e37d3dd0e0b60d185251531784947668179a6ac4c5fcafaf2935953e33d0d0e",
-  "js/coach.js": "f8559ed3d110e90e1dbedb22fa327da650ca665b9a7ad9eec8f467a6900fc6ed",
+  "js/coach.js": "fb972555c707e1aaa9626031536ba06a23387fabde8d75f835700aaadcb31c4a",
   "js/daten.js": "88642a3f24ed3678e683e081ca51266f149e0cc4562740da7cbef94d312040ab",
   "js/diagramme.js": "9e02d5e6a0c2958db678ec1ac8bbe263f7ef0b801a6d66e32db32c53288fbdb7",
   "js/erlebnis.js": "feaff97a3f0755247c38dba077d124ddd2b3f6140ec502e6e049db88533c9be3",
   "js/ftptest.js": "da83ccd18352978a38fc0b893d9ebaaa3fec3bdd4ba5a249b335f90c3044b326",
-  "js/geraete.js": "243c4248a4286aa89df191c741d927601c8a493793418cd142ef8eae680f4cc7",
+  "js/geraete.js": "2eab289d3c2dda3335d01ee0b96d7d07e5f0c81d284df0490e98eed18f2fac90",
   "js/handy.js": "8b232ab684d5dd09a3f0f9683bf04f391412b370b99d8f0140f77a55b767cc95",
   "js/konto.js": "d72e27ae853083e7c22bb7091de7344ac30310f007d0bad3ca7ef32ee66e8210",
   "js/start.js": "83055d0c80f09d924a521f10eaadd26ecc524b2fcb8fa4029b50b10a99515012",
   "js/strava.js": "a6f866301ec209426ab572b9a2ceca6a03eb5acac32599ea3e6c8700dbde880f",
   "js/stravaholen.js": "6c1f3e5f6223c0b91e2ebae30270b05ed23f70879e8df2a0f3e99d6a46cdbf5f",
   "js/strecken.js": "34e878e1fed57bc701afc6894164206c1eb684f6b33919e7b4ab59ac8bdea8be",
-  "js/szene.js": "9b40ac8ef0dcece9422dadb49f135420e6c919e751ec62ba8caa1131a811eaaf"
+  "js/szene.js": "af08c9869a17ec8f7ec057e52ee087ded17cb9ac2035284c74ae48eebc0a34ef"
  }
 }

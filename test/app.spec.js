@@ -522,6 +522,7 @@ test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async 
   await connectTrainer(page);
   await start(page);
   await expect(page.locator('#fCoach')).toBeVisible();
+  await page.click('#fErgW'); // Zielleistung aus: selbst treten, der Coach sagt nur an
   await page.clock.runFor(5_000);
   await expect(page.locator('#fGhost')).toBeHidden(); // mit Coach fährt niemand mit
   // Erst aufwärmen: 50 % FTP plus ein bisschen, nicht gleich die volle Leistung
@@ -564,6 +565,7 @@ test('Coach: auch an sanfter Steigung „Mehr Watt“ mit konkreter Zielleistung
   await page.click('#coachSeg [data-coach="zuegig"]');
   await connectTrainer(page);
   await start(page);
+  await page.click('#fErgW');
   await page.clock.runFor(330_000);
   await expect(page.locator('#fCoachK')).toHaveText('Flach');
   await expect(page.locator('#fCoachW')).toHaveText('175'); // 80 % FTP
@@ -579,6 +581,31 @@ test('Coach: auch an sanfter Steigung „Mehr Watt“ mit konkreter Zielleistung
   await page.clock.runFor(300_000);
   expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Du bist gut drauf');
   expect(await page.evaluate(() => S.coach.boost)).toBeGreaterThan(1);
+  expect(problems).toEqual([]);
+});
+
+test('Coach stellt die Zielleistung der Rolle ein, eigene Änderung bleibt als Versatz', async ({ page }) => {
+  const problems = await open(page);
+  await page.evaluate(() => setFtp(220));
+  await page.click('#coachSeg [data-coach="zuegig"]');
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(3_000);
+  await expect(page.locator('#fErgL')).toHaveText('Coach');
+  const coachW = +(await page.locator('#fCoachW').textContent());
+  await expect(page.locator('#fErgW')).toHaveText(coachW + ' W');
+  await expect.poll(() => fake(page, () => window.__fakeBle.ergTarget)).toBe(coachW); // die Rolle hält, was der Coach sagt
+  await page.click('[data-ferg="10"]');
+  await page.clock.runFor(2_000);
+  await expect(page.locator('#fCoachK')).toContainText('+10 W von dir');
+  await expect(page.locator('#fCoachW')).toHaveText(String(coachW + 10));
+  // Nach dem Aufwärmen bleibt der Versatz auf der höheren Leistung
+  await page.clock.runFor(310_000);
+  await expect(page.locator('#fErgW')).toHaveText('185 W'); // 80 % von 220 = 175, plus 10
+  await page.click('#fCtrl [data-a="end"]');
+  await page.click('#fCtrl [data-a="save"]');
+  await page.click('#sumOk');
+  expect(await page.evaluate(() => S.erg.on)).toBe(false); // der Coach hat sie eingeschaltet, also auch wieder aus
   expect(problems).toEqual([]);
 });
 

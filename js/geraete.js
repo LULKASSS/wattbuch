@@ -9,7 +9,8 @@ function feed(r,src){
   while(L.raw.length&&now-L.raw[0].t>5000)L.raw.shift();
 }
 function avgSince(ms){const now=performance.now();let s=0,n=0;for(const x of S.live.raw)if(now-x.t<=ms){s+=x.v;n++;}return n?s/n:null;}
-function curPow(){const v=avgSince(3000);if(v!=null)return v;return isLive()?0:null;}
+/* Angezeigte Leistung: Schnitt der letzten 2 s (ruhig genug zum Ablesen, schnell genug zum Reagieren) */
+function curPow(){const v=avgSince(2000);if(v!=null)return v;return isLive()?0:null;}
 function samplePow(){let v=avgSince(1100);if(v==null)v=avgSince(3000);return v==null?0:Math.round(v);}
 const fresh=(t,ms)=>performance.now()-t<=ms;
 function curHR(){return S.live.hr&&fresh(S.live.tH,5000)?S.live.hr:null;}

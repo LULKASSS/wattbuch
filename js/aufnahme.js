@@ -58,7 +58,7 @@ async function saveRec(){
   S.detail=r.id;go('detail');showSummary(r);
 }
 async function discardRec(){await DB.rm('draft');resetRec();toast('Fahrt verworfen');}
-function resetRec(){Object.assign(S.rec,{state:'idle',startISO:null,trainer:false,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0,auto:false});resetSim();wake(false);renderControls();renderRecPill();renderRoutes();}
+function resetRec(){if(typeof coachEnd==='function')coachEnd();Object.assign(S.rec,{state:'idle',startISO:null,trainer:false,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0,auto:false});resetSim();wake(false);renderControls();renderRecPill();renderRoutes();}
 function saveDraft(){const R=S.rec,rt=activeRoute();R.lastDraft=R.p.length;DB.set('draft',{startISO:R.startISO,p:R.p,hr:R.hr,cad:R.cad,spd:R.spd,dist:R.dist,alt:R.alt,route:rt?rt.name:null,gain:Math.round(S.sim.gain),trainer:R.trainer});}
 async function wake(on){
   try{

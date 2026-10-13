@@ -59,8 +59,22 @@ function coachReset(){
   const G=coachGoal();
   if(!G||!ftpKnown()||S.ramp){S.coach=null;$('#fCoach').hidden=true;return;}
   const rt=activeRoute();
-  S.coach={G,climbs:rt?planClimbs(rt,G):[],said:{},cueAt:-1e9,cueW:null,low:0,lowAt:-1e9,high:0,highAt:-1e9,good:0,goodAt:-1e9,boost:1,ui:null};
+  S.coach={G,climbs:rt?planClimbs(rt,G):[],said:{},cueAt:-1e9,cueW:null,low:0,lowAt:-1e9,high:0,highAt:-1e9,good:0,goodAt:-1e9,boost:1,ui:null,ergOff:0,ergSet:null,ergAuto:false};
+  /* Die Rolle hält von Anfang an, was der Coach sagt (Zielleistung an, beginnend beim Aufwärmen) */
+  if(isLive()){S.coach.ergAuto=!S.erg.on;S.erg.on=true;S.erg.target=S.coach.ergSet=warmWatt(0,G);ergChanged();}
 }
+/* Zielleistung folgt dem Coach. Eigene Änderungen (±, Pfeiltasten, Eingabe) bleiben als Versatz auf allen Werten
+   erhalten, z. B. +10 W. Zielleistung aus: der Coach zeigt nur an, du trittst selbst. */
+function coachErg(ui){
+  const C=S.coach;
+  if(!S.erg.on){C.ergSet=null;return;}
+  if(C.ergSet!=null&&S.erg.target!==C.ergSet)C.ergOff=clamp(C.ergOff+S.erg.target-C.ergSet,-150,150);
+  const w=Math.max(0,ui.w+C.ergOff);
+  if(w!==S.erg.target){S.erg.target=w;ergChanged();}
+  C.ergSet=w;
+}
+/* Ende der Fahrt: hat der Coach die Zielleistung eingeschaltet, schaltet er sie auch wieder aus */
+function coachEnd(){const C=S.coach;if(C&&C.ergAuto&&S.erg.on){S.erg.on=false;ergChanged();}S.coach=null;}
 const coachSay=(key,...m)=>{const C=S.coach;if(C.said[key])return;C.said[key]=1;C.cueAt=S.rec.p.length;moment(...m);};
 /* Ansagen aus dem Flachen mit Abstand: höchstens alle 40 s eine, damit es nicht nervt */
 function coachCue(...m){const C=S.coach,n=S.rec.p.length;if(n-C.cueAt<40)return false;C.cueAt=n;moment(...m);return true;}
@@ -119,8 +133,8 @@ function coachTick(){
     else if(ui.w<=C.cueW*.88){if(coachCue('road',`Rollen lassen: ${ui.w} W`,'Kraft sparen für das nächste Stück'))C.cueW=ui.w;}
   }
   else C.cueW=null;
-  /* Dauerhaft drunter, drüber oder genau richtig: sanft erinnern bzw. loben */
-  if(a30!=null&&n>60){
+  /* Dauerhaft drunter, drüber oder genau richtig: sanft erinnern bzw. loben (nicht, wenn die Rolle die Leistung hält) */
+  if(a30!=null&&n>60&&!S.erg.on){
     /* Zu fest bremst der Coach nur beim Aufwärmen (am Berg gibt es eigene Ansagen). Wer sonst dauerhaft drüber fährt,
        ist gut drauf: dann geht das Ziel um 3 % hoch, bis +12 % */
     C.low=a30<ui.w*.88?C.low+1:0;C.high=!ui.climb&&coachGrade(rt,d)>-1&&a30>ui.w*(warm?1.15:1.06)?C.high+1:0;C.good=Math.abs(a30-ui.w)<=ui.w*.07?C.good+1:0;
@@ -129,18 +143,18 @@ function coachTick(){
     if(!warm&&C.high>=240&&C.boost<1.12){C.boost=Math.round((C.boost+.03)*100)/100;C.high=0;C.cueW=null;C.cueAt=-1e9;coachCue('trophy','Du bist gut drauf',`Ziel hoch auf ${paceWatt(rt,d,G,C.boost)} W, weiter so`,'gold');}
     if(C.good>=180&&n-C.goodAt>=600&&coachCue('trophy','Stark, genau richtig',`Seit 3 min auf ${ui.w} W`,'gold')){C.goodAt=n;C.good=0;}
   }
-  C.ui=ui;
+  C.ui=ui;coachErg(ui);
 }
 
 /* Anzeige in der Fahrt-Ansicht (aus renderFull): Zielleistung groß, darunter was zu tun ist */
 function renderCoach(){
   const C=S.coach,el=$('#fCoach');
   if(!C||!C.ui||S.rec.state==='idle'){el.hidden=true;return;}
-  const u=C.ui;el.hidden=false;
-  setT('fCoachK',u.k);setT('fCoachW',String(u.w));setT('fCoachT',u.t);setT('fCoachS',u.s);
-  const now=lastAvg(3),st=now==null||S.rec.p.length<3?'':now<u.w*.93?'lo':now>u.w*1.07?'hi':'ok';
+  const u=C.ui,off=S.erg.on?C.ergOff:0,w=Math.max(0,u.w+off);el.hidden=false;
+  setT('fCoachK',u.k+(off?` · ${off>0?'+':'−'}${Math.abs(off)} W von dir`:''));setT('fCoachW',String(w));setT('fCoachT',u.t);setT('fCoachS',u.s);
+  const now=lastAvg(3),st=now==null||S.rec.p.length<3?'':now<w*.93?'lo':now>w*1.07?'hi':'ok';
   if(el.dataset.st!==st)el.dataset.st=st;
-  setT('fCoachI',st==='lo'?`▲ ${n0(u.w-now)} W mehr`:st==='hi'?`▼ ${n0(now-u.w)} W weniger`:st==='ok'?'✓ passt':'');
+  setT('fCoachI',S.erg.on?'Rolle hält die Leistung':st==='lo'?`▲ ${n0(w-now)} W mehr`:st==='hi'?`▼ ${n0(now-w)} W weniger`:st==='ok'?'✓ passt':'');
   const b=$('#fCoachBar');b.parentNode.hidden=u.bar==null;if(u.bar!=null)b.style.width=(clamp(u.bar,0,1)*100).toFixed(1)+'%';
 }
 
