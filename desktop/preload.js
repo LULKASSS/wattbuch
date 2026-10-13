@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('wattbuchDesktop', {
     connect: () => ipcRenderer.invoke('strava:connect'),
     disconnect: () => ipcRenderer.invoke('strava:disconnect'),
     upload: ride => ipcRenderer.invoke('strava:upload', ride),
+    sport: id => ipcRenderer.invoke('strava:sport', String(id)),
     activities: opts => ipcRenderer.invoke('strava:activities', opts),
     streams: (id, kind) => ipcRenderer.invoke('strava:streams', { id: String(id), kind })
   }

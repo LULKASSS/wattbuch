@@ -153,7 +153,7 @@ test('Geräteauswahl hängt nicht, wenn die Seite während einer Suche neu lädt
 /* Nachgebauter Strava-Server: Anmeldung, Token, Upload mit Verarbeitung. Spielt auch die Edge Function strava-token (gemeinsame App) */
 async function fakeStrava() {
   const http = require('node:http');
-  const seen = { uploads: [], tokens: [], central: [], lists: [], streams: [] };
+  const seen = { uploads: [], tokens: [], central: [], lists: [], streams: [], sports: [] };
   const srv = http.createServer((req, res) => {
     let body = []; req.on('data', d => body.push(d)); req.on('end', () => {
       body = Buffer.concat(body).toString('utf8');
@@ -161,6 +161,8 @@ async function fakeStrava() {
       const tok = { access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Lukas', lastname: 'R.' } };
       if (u.pathname === '/functions/v1/strava-token') { seen.central.push({ apikey: req.headers.apikey, body: JSON.parse(body) }); return send(tok); }
       if (u.pathname === '/oauth/token') { seen.tokens.push(body); return send({ access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Lukas', lastname: 'R.' } }); }
+      const pm = /^\/api\/v3\/activities\/(\d+)$/.exec(u.pathname);
+      if (pm && req.method === 'PUT') { seen.sports.push({ id: pm[1], body: JSON.parse(body) }); return send({ id: +pm[1] }); }
       if (u.pathname === '/api/v3/uploads' && req.method === 'POST') { seen.uploads.push({ auth: req.headers.authorization, body }); return send({ id: 55, id_str: '55', status: 'Your activity is still being processed.' }); }
       if (u.pathname === '/api/v3/uploads/55') return send({ id: 55, id_str: '55', activity_id: 987654321, status: 'Your activity is ready.' });
       /* Eigene Aktivitäten: draußen ohne Wattmesser, Zwift mit Watt, eine aus Wattbuch hochgeladene, eine Wanderung, eine zu kurze */
@@ -243,6 +245,9 @@ test('Strava: verbinden und Fahrt hochladen', async () => {
   expect(sv.seen.central[1].body).toEqual({ refresh_token: 'testerneuern' });
   for (const s of ['name="data_type"', 'tcx', 'name="trainer"', 'Rollentraining am Abend', '<ns3:Watts>150</ns3:Watts>', 'wattbuch-u1']) expect(up.body).toContain(s);
   expect(await page.evaluate(() => S.rides.find(r => r.id === 'u1').strava.state)).toBe('ok');
+  // Danach zum Virtual Ride gemacht (beim Hochladen lässt Strava die Sportart nicht zu)
+  expect(sv.seen.sports).toEqual([{ id: '987654321', body: { sport_type: 'VirtualRide', trainer: true } }]);
+  expect(await page.evaluate(() => S.rides.find(r => r.id === 'u1').strava.vr)).toBe(true);
   await app.close();
   sv.close();
   fs.rmSync(dir, { recursive: true, force: true });

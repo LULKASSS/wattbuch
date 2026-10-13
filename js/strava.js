@@ -11,7 +11,22 @@ let svWait=15000;                 // so lange lässt sich der automatische Uploa
 const svAuto=()=>S.set.stravaAuto!==false,svOn=()=>!!(SV()&&S.strava.connected&&svAuto()),svBusy=new Set();
 let svT=null;
 
-async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.status();if(r.ok)S.strava=r;renderStravaSet();stravaSync();if(typeof svPull==='function')svPull();}
+async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.status();if(r.ok)S.strava=r;renderStravaSet();stravaSync();stravaVirtual();if(typeof svPull==='function')svPull();}
+/* Früher hochgeladene Wattbuch-Fahrten sind auf Strava ein normaler Ride: einmal zum Virtual Ride machen (braucht eine
+   App, die das kann). Gemerkt in r.strava.vr; was Strava ablehnt, bleibt wie es ist und wird nicht wieder versucht. */
+let svVirtRun=false;
+async function stravaVirtual(){
+  const sv=SV();if(svVirtRun||!sv||!sv.sport||!S.strava.connected)return;
+  svVirtRun=true;let n=0;
+  try{
+    for(const r of S.rides.filter(x=>x.src!=='strava'&&x.strava&&x.strava.state==='ok'&&x.strava.id&&x.strava.vr==null)){
+      const res=await sv.sport(r.strava.id);
+      if(!res.ok&&res.status===401)break;
+      r.strava.vr=!!(res.ok&&res.virtual);if(r.strava.vr)n++;await DB.put(r);
+    }
+  }finally{svVirtRun=false;}
+  if(n)toast(`${n} ${n===1?'Fahrt':'Fahrten'} auf Strava zum Virtual Ride gemacht`);
+}
 
 function stravaDesc(r){
   const s=stats(r);
@@ -64,7 +79,7 @@ async function stravaUpload(r,auto=false){
     if(!auto||tries===1)toast('Strava: '+res.error+(auto?' – wird später nochmal versucht':''));
   }
   else if(res.processing){r.strava={state:'verarbeitung',uploadId:res.uploadId,auto:true,tries,retry:Date.now()+60000};toast('Strava verarbeitet die Fahrt noch, sie erscheint gleich');}
-  else{r.strava={state:'ok',id:res.activityId,url:res.url,at:new Date().toISOString()};toast(res.duplicate?'War schon auf Strava':'Auf Strava hochgeladen');}
+  else{r.strava={state:'ok',id:res.activityId,url:res.url,at:new Date().toISOString(),vr:!!res.virtual};toast(res.duplicate?'War schon auf Strava':'Auf Strava hochgeladen');}
   await DB.put(r);autoBackup();stravaChanged(r);
   return r.strava;
 }

@@ -105,6 +105,17 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', tokenUrl = 
     return status();
   }
 
+  /* Beim Hochladen lässt sich die Sportart nicht angeben (TCX kennt nur „Biking“ → Ride), also danach auf
+     „Virtual Ride“ ändern: gefahren wird auf einer virtuellen Straße. Klappt das nicht, bleibt es ein Ride. */
+  async function virtual(t, id) {
+    try { await api('PUT', `/api/v3/activities/${id}`, { token: t, json: { sport_type: 'VirtualRide', trainer: true } }); return true; }
+    catch (e) { log('Strava Sportart: ' + e.message); return false; }
+  }
+  /* Schon hochgeladene Wattbuch-Fahrt nachträglich zum Virtual Ride machen */
+  async function sport(id) {
+    if (!/^\d+$/.test(String(id))) throw new Error('Ungültige Aktivität');
+    return { virtual: await virtual(await token(), id) };
+  }
   /* Fahrt hochladen (TCX) und warten, bis Strava sie verarbeitet hat */
   async function upload({ tcx, name, description, externalId }) {
     const t = await token();
@@ -115,11 +126,11 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', tokenUrl = 
       await new Promise(r => setTimeout(r, 1500));
       up = await api('GET', `/api/v3/uploads/${up.id_str || up.id}`, { token: t });
     }
-    if (up.activity_id) return { activityId: String(up.activity_id), url: `https://www.strava.com/activities/${up.activity_id}` };
+    if (up.activity_id) return { activityId: String(up.activity_id), url: `https://www.strava.com/activities/${up.activity_id}`, virtual: await virtual(t, up.activity_id) };
     if (up.error) {
       /* schon hochgeladen? Strava nennt dann die vorhandene Aktivität */
       const dup = /duplicate of .*?(\d{6,})/i.exec(up.error);
-      if (dup) return { activityId: dup[1], url: `https://www.strava.com/activities/${dup[1]}`, duplicate: true };
+      if (dup) return { activityId: dup[1], url: `https://www.strava.com/activities/${dup[1]}`, duplicate: true, virtual: await virtual(t, dup[1]) };
       throw new Error(up.error);
     }
     return { processing: true, uploadId: String(up.id_str || up.id) };
@@ -138,7 +149,7 @@ function createStrava({ dataDir, baseUrl = 'https://www.strava.com', tokenUrl = 
     return { streams: await api('GET', `/api/v3/activities/${id}/streams?keys=${keys}&key_by_type=true`, { token: await token() }) };
   }
 
-  return { status, connect, disconnect, upload, activities, streams };
+  return { status, connect, disconnect, upload, activities, streams, sport };
 }
 
 module.exports = { createStrava };

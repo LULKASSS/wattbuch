@@ -422,6 +422,25 @@ test('App: neue Version wird angezeigt und lässt sich gleich einspielen, alte A
   expect(problems).toEqual([]);
 });
 
+test('Strava: früher hochgeladene Fahrten werden einmal zum Virtual Ride', async ({ page }) => {
+  const problems = await open(page, { before: () => {
+    window.__sport = [];
+    window.wattbuchDesktop = { backup: async () => {}, strava: {
+      status: async () => ({ ok: true, configured: true, connected: true, athlete: { name: 'Test' } }),
+      sport: async id => { window.__sport.push(id); return { ok: true, virtual: true }; }
+    } };
+  } });
+  const ride = (id, strava) => ({ id, start: '2026-10-09T17:30:00.000Z', name: 'Rollentraining', p: Array(600).fill(150), hr: null, cad: null, spd: null, dist: null, alt: null, strava });
+  await page.setInputFiles('#anyFile', json('f.json', { app: 'wattbuch', rides: [ride('a', { state: 'ok', id: '111', url: 'x' }), ride('b', { state: 'ok', id: '222', url: 'x', vr: true }), ride('c', { state: 'fehler' })] }));
+  await page.evaluate(() => stravaRefresh());
+  await expect(toast(page)).toHaveText('1 Fahrt auf Strava zum Virtual Ride gemacht');
+  expect(await page.evaluate(() => window.__sport)).toEqual(['111']);
+  await page.evaluate(() => stravaRefresh());
+  await page.clock.runFor(500);
+  expect(await page.evaluate(() => window.__sport)).toEqual(['111']); // nur einmal
+  expect(problems).toEqual([]);
+});
+
 test('Strava: Fahrt mit Rolle geht von selbst hoch, abbrechen und nachholen', async ({ page }) => {
   const problems = await open(page, { before: fakeDesktopStrava });
   await connectTrainer(page);
