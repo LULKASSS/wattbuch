@@ -967,7 +967,7 @@ test('Handy wird von selbst erkannt, ?fahren schaltet die Aufnahme wieder frei @
 
 /* Nachgebautes Supabase (Anmeldung + die zwei Wattbuch-Tabellen) im Speicher, für mehrere Geräte gleichzeitig */
 function fakeSupabase() {
-  const users = new Map(), rides = new Map(), werte = new Map();
+  const users = new Map(), rides = new Map(), werte = new Map(), urls = [];
   let tick = 0;
   const ts = () => new Date(Date.UTC(2026, 0, 1) + ++tick * 1000).toISOString();
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -978,6 +978,8 @@ function fakeSupabase() {
     if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     const body = req.postData() ? JSON.parse(req.postData()) : null;
     if (p === '/auth/v1/signup') {
+      urls.push(req.url());
+      if (body.email.startsWith('bestaetigen')) { users.set(body.email, { id: 'u' + (users.size + 1), email: body.email, pw: body.password }); return send(200, { id: 'x', email: body.email }); }
       if (users.has(body.email)) return send(422, { error_code: 'user_already_exists', msg: 'User already registered' });
       const u = { id: 'u' + (users.size + 1), email: body.email, pw: body.password }; users.set(u.email, u); return send(200, session(u));
     }
@@ -987,6 +989,7 @@ function fakeSupabase() {
       return send(200, session(u));
     }
     if (p === '/auth/v1/logout') return send(204);
+    if (p === '/auth/v1/user') { const id = (req.headers()['authorization'] || '').replace('Bearer tok-', ''), u = [...users.values()].find(x => x.id === id); return u ? send(200, { id: u.id, email: u.email }) : send(401, { msg: 'invalid' }); }
     const uid = (req.headers()['authorization'] || '').replace('Bearer tok-', '');
     if (![...users.values()].some(u => u.id === uid)) return send(401, { message: 'JWT expired' });
     if (p === '/rest/v1/wattbuch_fahrten' && m === 'GET') {
@@ -1004,11 +1007,36 @@ function fakeSupabase() {
   }
   return {
     route: ctx => ctx.route('https://nysoyxbsdsxdvyknnkbc.supabase.co/**', handle),
-    rides: () => [...rides.values()], werte: uid => werte.get(uid)
+    rides: () => [...rides.values()], werte: uid => werte.get(uid), urls
   };
 }
 /* Uhr weiterdrehen, bis der Abgleich durch ist (Netz läuft echt, Wartezeiten mit der gefälschten Uhr) */
 const settle = async (page, fn, want) => expect.poll(async () => { await page.clock.runFor(2000); return fn(); }, { timeout: 10000 }).toEqual(want);
+
+test('Konto: Bestätigungs-Mail führt zurück zu Wattbuch und meldet gleich an', async ({ page }) => {
+  const sb = fakeSupabase();
+  await sb.route(page.context());
+  let problems = await open(page);
+  await page.click('#btnSet');
+  const box = page.locator('#dlgSet .konto');
+  await box.locator('[name=email]').fill('bestaetigen@example.org');
+  await box.locator('[name=pw]').fill('geheim123');
+  await box.locator('[data-k="neu"]').click();
+  await expect(box).toContainText('Link in der Mail');
+  expect(new URL(sb.urls[0]).searchParams.get('redirect_to')).toBe('https://lulkasss.github.io/wattbuch/');
+  // Link aus der Mail: Supabase schickt mit der Anmeldung im Anker zurück (frisch laden, nur der Anker ändert sonst nichts)
+  await page.goto('about:blank');
+  problems = await open(page, { url: '/#access_token=tok-u1&refresh_token=ref-u1&expires_in=3600&token_type=bearer&type=signup' });
+  await expect(toast(page)).toHaveText('E-Mail bestätigt, du bist angemeldet');
+  expect(await page.evaluate(() => location.hash)).toBe('');
+  await page.click('#btnSet');
+  await expect(page.locator('#dlgSet .konto')).toContainText('Angemeldet als bestaetigen@example.org');
+  // Abgelaufener Link: verständlicher Hinweis statt Fehler
+  await page.goto('about:blank');
+  problems = await open(page, { url: '/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired' });
+  await expect(toast(page)).toContainText('abgelaufen oder schon benutzt');
+  expect(problems).toEqual([]);
+});
 
 test('Konto: Fahrten vom Mac kommen von selbst aufs Handy, Änderungen am Handy zurück', async ({ page, browser }) => {
   const sb = fakeSupabase();

@@ -1,6 +1,6 @@
 {
  "manifest": "wattbuch-web",
- "version": "f4e9b2aa7591",
+ "version": "42aa1f11a7cd",
  "files": {
   "index.html": "0ab9ff802fdeea89bfc1948427468e0edd914e91674e7bef429aaa1e5ea7f9e5",
   "app.css": "ea6805c7882e523805800a397e18444b4f3514d99a18b2f09475fcc3fb4b3112",
@@ -15,8 +15,8 @@
   "js/ftptest.js": "da83ccd18352978a38fc0b893d9ebaaa3fec3bdd4ba5a249b335f90c3044b326",
   "js/geraete.js": "243c4248a4286aa89df191c741d927601c8a493793418cd142ef8eae680f4cc7",
   "js/handy.js": "8b232ab684d5dd09a3f0f9683bf04f391412b370b99d8f0140f77a55b767cc95",
-  "js/konto.js": "4aeda88478da2bb23dfdc6f2762bc1d4e2bf7fab3c556e4fe6973889dfb056d0",
-  "js/start.js": "3433bd4a96694b0df4bbd83e4b219379cec754bd7ab52fbf2405e49d878424e9",
+  "js/konto.js": "d72e27ae853083e7c22bb7091de7344ac30310f007d0bad3ca7ef32ee66e8210",
+  "js/start.js": "83055d0c80f09d924a521f10eaadd26ecc524b2fcb8fa4029b50b10a99515012",
   "js/strava.js": "a6f866301ec209426ab572b9a2ceca6a03eb5acac32599ea3e6c8700dbde880f",
   "js/stravaholen.js": "6c1f3e5f6223c0b91e2ebae30270b05ed23f70879e8df2a0f3e99d6a46cdbf5f",
   "js/strecken.js": "34e878e1fed57bc701afc6894164206c1eb684f6b33919e7b4ab59ac8bdea8be",

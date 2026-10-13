@@ -28,12 +28,31 @@ async function sbAuth(path,body){
   return d;
 }
 function kSession(d){K.s={access:d.access_token,refresh:d.refresh_token,exp:Date.now()+(d.expires_in||3600)*1000,id:d.user&&d.user.id,email:d.user&&d.user.email};}
+/* Der Bestätigungslink in der Mail führt zurück zur Webseite (auch aus der Mac-App heraus), nicht auf die Startseite von Supabase */
+const K_BACK='https://lulkasss.github.io/wattbuch/';
 async function kLogin(email,pw,neu){
-  if(neu){const d=await sbAuth('signup',{email,password:pw});if(!d.access_token)return'mail';kSession(d);}
+  if(neu){const d=await sbAuth('signup?redirect_to='+encodeURIComponent(K_BACK),{email,password:pw});if(!d.access_token)return'mail';kSession(d);}
   else kSession(await sbAuth('token?grant_type=password',{email,password:pw}));
-  /* Erster Abgleich: alles Lokale vormerken, das Konto gewinnt bei Fahrten, die es schon kennt */
+  await kFirst();return'ok';
+}
+/* Erster Abgleich: alles Lokale vormerken, das Konto gewinnt bei Fahrten, die es schon kennt */
+async function kFirst(){
   Object.assign(K,{first:true,pulled:null,werte:true,wg:null,err:'',mine:{},out:new Map([...S.rides.filter(r=>!r.sample).map(r=>r.id),...S.gone].map(id=>[id,Date.now()]))});
-  await kSave();sync();return'ok';
+  await kSave();sync();
+}
+/* Zurück aus der Bestätigungs-Mail: Supabase hängt die Anmeldung als #access_token=… an, dann gleich angemeldet.
+   Abgelaufener oder schon benutzter Link (#error=…): Konto ist meist trotzdem bestätigt, also einfach anmelden. */
+async function kFromLink(){
+  const h=new URLSearchParams(location.hash.slice(1)),at=h.get('access_token'),err=h.get('error_description')||h.get('error');
+  if(!at&&!err)return;
+  history.replaceState(null,'',location.pathname+location.search);
+  if(err){toast('Der Link aus der Mail ist abgelaufen oder schon benutzt. Melde dich einfach mit E-Mail und Passwort an.');return;}
+  if(K.s)return;
+  try{
+    const r=await fetch(SB.url+'/auth/v1/user',{headers:{apikey:SB.key,authorization:'Bearer '+at}}),u=await r.json();if(!r.ok)throw 0;
+    kSession({access_token:at,refresh_token:h.get('refresh_token'),expires_in:+h.get('expires_in')||3600,user:u});
+    await kFirst();renderKonto(true);toast('E-Mail bestätigt, du bist angemeldet');
+  }catch(_){toast('E-Mail bestätigt. Melde dich jetzt mit E-Mail und Passwort an.');}
 }
 async function kLogout(){
   const t=K.s&&K.s.access;
