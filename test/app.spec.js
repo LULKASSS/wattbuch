@@ -341,7 +341,7 @@ test('Webseite am Computer: nur Download für Mac und Windows, Mail-Bestätigung
   await expect(page.locator('#ldMac')).toHaveAttribute('href', /Wattbuch-mac-arm64\.zip$/);
   await expect(page.locator('#ldWin')).toHaveAttribute('href', /Wattbuch-Setup-win-x64\.exe$/);
   await expect(page.locator('#nav')).toBeHidden();
-  await expect(page.locator('#ldMsg')).toContainText('E-Mail bestätigt');
+  await expect(page.locator('#ldOk')).toContainText('Konto aktiviert');
   expect(await page.evaluate(() => location.hash)).toBe('');
   expect(problems).toEqual([]);
 });

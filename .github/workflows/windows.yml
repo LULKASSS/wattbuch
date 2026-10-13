@@ -9,6 +9,8 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
+      # Windows-Zeilenenden würden die Prüfsummen in manifest.json verfälschen
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }

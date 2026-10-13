@@ -1,9 +1,9 @@
 {
  "manifest": "wattbuch-web",
- "version": "257f39904ce2",
+ "version": "18f93d0d921e",
  "files": {
-  "index.html": "ce94eecf217b9eb9733ebde28a6ea7919c5e2c878a94dda913f9c5499943f728",
-  "app.css": "73fb3332442f2056560e404fd20932def2429582c01e1a9c2dfaca304e3394f3",
+  "index.html": "59e2d85dd90a6f24d6cf7155582fafdaa69b2608de4f95584618fc5633f99f42",
+  "app.css": "03500fb04a9a67aaefee9940f64847fa0f8d0f43d010fe3b57e07408c89013f7",
   "js/ansichten.js": "06446eeddb355eb25ea152419cb049ee1ea339e3b5d0abfa57c721d106720da6",
   "js/appletv.js": "3745309e0fe1af04bba14527f39d723387efc76c36b6de5e9d442c9d1281d9eb",
   "js/aufnahme.js": "70db495de92854576a7c9d10baa226748bdc27e16c33075c05243d57959a2e42",
@@ -16,7 +16,7 @@
   "js/geraete.js": "78788cbaab91f4701e827a1ff3d4b51cd2496ba2592da14890de7c309705d04d",
   "js/handy.js": "b5a500e2fedab6c6e67526f0f606cf672fa47bd21af0972d9cdeb1e08da10554",
   "js/konto.js": "3f8b059c5c112987fb93ee237451eeaf32e39f78a9e125ca1ae43e446811b010",
-  "js/start.js": "e07a0c4a5f31e1e4e83d787affe05c272b94174a72a4a4f434bb3e5e42490599",
+  "js/start.js": "e68fcbb59eaa02daee5b1d69e6c11cf0ade6421e7899544051cc666b9f6b478a",
   "js/strava.js": "584c771123b6ab77046d35ff66d6b7008bf9af491532557b7479b849209ea592",
   "js/stravaholen.js": "6c1f3e5f6223c0b91e2ebae30270b05ed23f70879e8df2a0f3e99d6a46cdbf5f",
   "js/strecken.js": "34e878e1fed57bc701afc6894164206c1eb684f6b33919e7b4ab59ac8bdea8be",

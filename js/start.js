@@ -77,12 +77,14 @@ function showLanding(){
   $('#ldMac').href=MAC_APP;$('#ldWin').href=WIN_APP;
   /* Passendes System zuerst und hervorgehoben */
   const win=/Windows/i.test(navigator.userAgent);
-  (win?$('#ldWin'):$('#ldMac')).classList.add('primary');if(win)$('.ld-dl').prepend($('#ldWin'));
-  /* Zurück aus der Bestätigungs-Mail: angemeldet wird in der App */
-  const h=new URLSearchParams(location.hash.slice(1)),m=$('#ldMsg');
-  if(h.get('access_token')||h.get('error')){
-    m.hidden=false;m.textContent=h.get('access_token')?'E-Mail bestätigt. Lade jetzt die App, öffne sie und melde dich in den Einstellungen mit deiner E-Mail an.'
-      :'Der Link aus der Mail ist abgelaufen oder schon benutzt. Dein Konto ist meist trotzdem bestätigt: einfach in der App anmelden.';
+  (win?$('#ldWin'):$('#ldMac')).classList.add('primary');if(win)$('.ld-dl').prepend($('#ldColWin'));
+  /* Zurück aus der Bestätigungs-Mail: Konto ist aktiviert, angemeldet wird in der App */
+  const h=new URLSearchParams(location.hash.slice(1)),ok=!!h.get('access_token');
+  if(ok||h.get('error')){
+    $('#ldOk').hidden=false;$('#ldOk').classList.toggle('warn',!ok);
+    setT('ldOkT',ok?'Konto aktiviert':'Link schon benutzt oder abgelaufen');
+    setT('ldOkS',ok?'Öffne Wattbuch und melde dich in den Einstellungen mit deiner E-Mail an. Noch nicht installiert? Hier laden:'
+      :'Dein Konto ist vermutlich schon aktiviert. Melde dich einfach in der App mit deiner E-Mail an.');
     history.replaceState(null,'',location.pathname+location.search);
   }
 }
