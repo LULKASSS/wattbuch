@@ -62,7 +62,6 @@ function renderTv(){
     :p&&(p.title||p.app)?[p.app,p.title].filter(Boolean).join(' · '):p&&p.state==='paused'?'Pausiert':'Verbunden';
   setT('fTvNow',now);setT('fTvName',has?S.tv.dev.name:'Apple TV');
   pad.classList.toggle('live',S.tv.connected);pad.classList.toggle('playing',!!(p&&p.state==='playing'));
-  const k=$('.f-keys');if(k)k.textContent=`Leertaste Start/Pause · ↑↓ Ziel${has?' · T Apple TV':''} · F Vollbild · Esc Übersicht`;
 }
 const TVICO={
   tv:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg>',

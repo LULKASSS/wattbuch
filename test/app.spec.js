@@ -1110,7 +1110,7 @@ test('Apple TV: aus nur ein An/Aus-Knopf, an steht die Fernbedienung ganz da, au
   await expect(page.locator('#fTv')).toBeVisible();
   await expect(page.locator('#fTv')).toHaveClass(/pw/);
   await expect(page.locator('#fTvPad')).toBeHidden();
-  await expect(page.locator('.f-keys')).toContainText('T Apple TV');
+  await expect(page.locator('.f-keys')).toHaveCount(0); // keine Tasten-Legende in der Fahrt-Ansicht
   // Aus: Leertaste bleibt bei der Fahrt
   await page.keyboard.press(' ');
   expect(await ride()).toBe('pause');

@@ -1,11 +1,11 @@
 {
  "manifest": "wattbuch-web",
- "version": "971ceaaa429c",
+ "version": "b2f42d1c4b38",
  "files": {
-  "index.html": "307a75534b8b071eb70891ffc924d94f20b3c53852497b680e7c59cbd29eb359",
-  "app.css": "816ebc2b75c23067729b5d830224a4d67bc10bd4bea165d739e7c3643dc9f072",
+  "index.html": "e45609c35a73004c38a6d5516a58e67f40a4e8648c50d7ca532f131147dd98cd",
+  "app.css": "45b5bef4997dc50d5a4dcc69dad12bc616097d9871a0eb1c0781b5d04f3c4035",
   "js/ansichten.js": "3f55dddd38cbb0435e88232cc5feeccd54415b5949101addfbabdd2400eb5da4",
-  "js/appletv.js": "901c61e5e0ebe258ded1eeabfcf535c22c15c24da745fafd03996f2b8a7fd0db",
+  "js/appletv.js": "3745309e0fe1af04bba14527f39d723387efc76c36b6de5e9d442c9d1281d9eb",
   "js/aufnahme.js": "450d9e552b4bb37a060a3d058674137d579920752551b138959da18a5a238205",
   "js/basis.js": "7e37d3dd0e0b60d185251531784947668179a6ac4c5fcafaf2935953e33d0d0e",
   "js/coach.js": "2e8c9f17960718e7a24b9e80bd51ee2e53cf0b3d83906baf6057d32c00ec0da5",
