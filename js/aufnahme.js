@@ -13,12 +13,32 @@ function pushSample(){
 }
 function startRec(){
   if(!isLive()){toast('Erst die Rolle verbinden');return;}
-  Object.assign(S.rec,{state:'rec',startISO:new Date().toISOString(),trainer:false,acc:0,run:performance.now(),p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0});
+  Object.assign(S.rec,{state:'rec',startISO:new Date().toISOString(),trainer:false,acc:0,run:performance.now(),p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0,auto:false});
   resetSim();wake(true);renderControls();renderRoutes();
   if(innerWidth<900)$('.card.live').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function pauseRec(){if(S.rec.state!=='rec')return;S.rec.acc+=performance.now()-S.rec.run;S.rec.state='pause';saveDraft();renderControls();}
-function resumeRec(){S.rec.run=performance.now();S.rec.state='rec';renderControls();}
+function resumeRec(){S.rec.run=performance.now();S.rec.state='rec';S.rec.auto=false;renderControls();}
+/* Automatisch pausieren (S.set.autoPause, an): 4 s ohne Tritt → Pause, und die stehenden Sekunden fliegen wieder raus,
+   damit Schnitt und Zeit nicht leiden. Wieder 2 s mit mindestens 30 W → weiter. Von Hand pausiert bleibt pausiert.
+   Nicht beim FTP-Test, dort heißt Aufhören: Test vorbei. */
+const autoPauseOn=()=>S.set.autoPause!==false;
+function autoPauseTick(){
+  const R=S.rec;if(!autoPauseOn()||(S.ramp&&!S.ramp.done))return;
+  if(R.state==='rec'){
+    const n=R.p.length;let z=0;while(z<n&&z<10&&R.p[n-1-z]<5)z++;
+    if(z<4||n-z<10)return;
+    pauseRec();
+    for(const k of['p','hr','cad','spd','dist','alt'])R[k].length=n-z;
+    R.acc=R.p.length*1000;R.auto=true;R.go=0;saveDraft();
+    moment('road','Automatisch pausiert','Tritt einfach wieder an, dann geht es weiter');
+  }
+  else if(R.state==='pause'&&R.auto){
+    const pw=curPow();R.go=pw!=null&&pw>=30?R.go+1:0;
+    if(R.go>=2){resumeRec();moment('road','Weiter geht es','Pause automatisch beendet');}
+  }
+}
+setInterval(autoPauseTick,1000);
 function askEnd(){if(S.rec.state==='rec')pauseRec();S.rec.state='confirm';renderControls();}
 function backFromEnd(){S.rec.state='pause';renderControls();}
 function makeRide(d){
@@ -38,7 +58,7 @@ async function saveRec(){
   S.detail=r.id;go('detail');showSummary(r);
 }
 async function discardRec(){await DB.rm('draft');resetRec();toast('Fahrt verworfen');}
-function resetRec(){Object.assign(S.rec,{state:'idle',startISO:null,trainer:false,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0});resetSim();wake(false);renderControls();renderRecPill();renderRoutes();}
+function resetRec(){Object.assign(S.rec,{state:'idle',startISO:null,trainer:false,acc:0,run:0,p:[],hr:[],cad:[],spd:[],dist:[],alt:[],lastDraft:0,auto:false});resetSim();wake(false);renderControls();renderRecPill();renderRoutes();}
 function saveDraft(){const R=S.rec,rt=activeRoute();R.lastDraft=R.p.length;DB.set('draft',{startISO:R.startISO,p:R.p,hr:R.hr,cad:R.cad,spd:R.spd,dist:R.dist,alt:R.alt,route:rt?rt.name:null,gain:Math.round(S.sim.gain),trainer:R.trainer});}
 async function wake(on){
   try{

@@ -35,6 +35,7 @@ ergIn.addEventListener('blur',()=>{S.erg.target=clamp(parseInt(ergIn.value,10)||
 ergIn.addEventListener('keydown',e=>{if(e.key==='Enter')ergIn.blur();if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();S.erg.target=clamp(S.erg.target+(e.key==='ArrowUp'?1:-1),0,1000);ergIn.value=S.erg.target;ergChanged();}});
 bindHover($('#cvLive'),x=>{S.liveHover=x;});
 $('#btnSet').onclick=openSet;
+$('#autoPause').addEventListener('change',e=>{S.set.autoPause=e.target.checked;saveSet();$('#autoPauseL').classList.toggle('on',e.target.checked);});
 $('#setFtp').addEventListener('focus',e=>e.target.select());
 $('#setKg').addEventListener('focus',e=>e.target.select());
 $('#setBike').addEventListener('focus',e=>e.target.select());

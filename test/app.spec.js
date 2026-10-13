@@ -542,6 +542,34 @@ test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async 
   expect(problems).toEqual([]);
 });
 
+test('Auto-Pause: Stehenbleiben pausiert ohne Null-Watt-Sekunden, Antreten setzt fort, abschaltbar', async ({ page }) => {
+  const problems = await open(page);
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(30_000);
+  await fake(page, () => window.__fakeBle.set({ power: 0, cad: 0 }));
+  await page.clock.runFor(20_000);
+  expect(await page.evaluate(() => S.rec.state)).toBe('pause');
+  const r = await page.evaluate(() => ({ n: S.rec.p.length, min: Math.min(...S.rec.p), t: Math.round(recElapsed() / 1000) }));
+  expect(r.min).toBeGreaterThan(100); // die stehenden Sekunden sind wieder raus
+  expect(r.t).toBe(r.n);
+  expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Automatisch pausiert');
+  await fake(page, () => window.__fakeBle.set({ power: 180, cad: 88 }));
+  await page.clock.runFor(5_000);
+  expect(await page.evaluate(() => S.rec.state)).toBe('rec');
+  // Von Hand pausiert: Treten setzt nicht fort
+  await page.keyboard.press(' ');
+  await page.clock.runFor(5_000);
+  expect(await page.evaluate(() => S.rec.state)).toBe('pause');
+  await page.keyboard.press(' ');
+  // Abgeschaltet: bleibt in der Aufnahme
+  await page.evaluate(() => { S.set.autoPause = false; });
+  await fake(page, () => window.__fakeBle.set({ power: 0, cad: 0 }));
+  await page.clock.runFor(10_000);
+  expect(await page.evaluate(() => S.rec.state)).toBe('rec');
+  expect(problems).toEqual([]);
+});
+
 test('Geist der besten Fahrt auf derselben Strecke fährt mit', async ({ page }) => {
   const problems = await open(page);
   const route = await page.evaluate(() => { selectRoute(S.routes[0].id); return activeRoute().name; });
