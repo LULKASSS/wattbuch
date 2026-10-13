@@ -92,8 +92,8 @@ function paceWatt(rt,d,G,boost=1){const ftp=S.set.ftp;return w5(clamp(ftp*G.base
 function coachTick(){
   const C=S.coach;if(!C||S.rec.state!=='rec')return;
   const G=C.G,ftp=S.set.ftp,rt=S.sim.done?null:activeRoute(),d=S.sim.d,lap=S.sim.lap,a30=lastAvg(30),n=S.rec.p.length;
-  const el=recElapsed()/1000,warm=el<WARM,ww=warmWatt(el,G);
-  if(n>=3)coachSay('w0','bolt','Erst mal aufwärmen',`5 min locker einrollen, ab ${ww} W langsam steigern`);
+  const el=recElapsed()/1000,warm=el<WARM&&!C.skip,ww=warmWatt(el,G);
+  if(n>=3&&!C.skip)coachSay('w0','bolt','Erst mal aufwärmen',`5 min locker einrollen, ab ${ww} W langsam steigern`);
   let ui=null;
   const c=rt?C.climbs.find(x=>d<x.over):null,k=lap+':'+(c?c.s:'');
   if(c&&d>=c.s){
@@ -104,9 +104,10 @@ function coachTick(){
       else if(done>=.5&&c.t>=240&&tTop>90)coachSay(k+'h','peak','Halbzeit am Berg',`Noch ${fmtMin(tTop)} bei ${w} W, dranbleiben`);
       else if(c.t>=40)coachSay(k+'s','bolt',`Jetzt ${w} W drücken`,`${n1(c.len/1000)} km mit ${n1(c.g)} % · ≈ ${fmtMin(c.t)} bis oben`);
       if(a30!=null&&d-c.s>150&&tTop>120&&a30>w*1.12)coachSay(k+'f','bolt','Etwas zu fest',`Noch ${fmtMin(tTop)} bis oben, Richtung ${w} W`);
-      ui={k:'Am Berg',w,t:tOver<=60?`Noch ${n0(tOver)} s drücken`:`Noch ${fmtMin(tTop)} bis oben`,s:`${n1(Math.max(0,c.top-d)/1000)} km · ${n1(gradeAt(rt,d))} %`,bar:done,climb:1};
+      ui={k:'Am Berg',w,t:tOver<=60?`Noch ${n0(tOver)} s bis über die Kuppe`:`Noch ${fmtMin(tTop)} bis oben`,
+        s:tOver<=60?'Jetzt zahlt sich Druck doppelt aus, danach rollst du dich aus':`${n1(gradeAt(rt,d))} % · noch ${n1(Math.max(0,c.top-d)/1000)} km: am Berg bringt jedes Watt Tempo, gleichmäßig bleiben`,bar:done,climb:1};
     }
-    else ui={k:'Über die Kuppe',w,t:`Noch ${n0(rideTime(rt,d,c.over,w))} s drücken`,s:'dann rollen lassen',bar:1,climb:1};
+    else ui={k:'Über die Kuppe',w,t:`Noch ${n0(rideTime(rt,d,c.over,w))} s drücken`,s:'Oben noch Tempo mitnehmen, bis es bergab rollt, dann erholen',bar:1,climb:1};
   }
   if(rt){
     /* Hinter der Kuppe bergab: erholen, mit Blick auf den nächsten Anstieg */
@@ -119,13 +120,16 @@ function coachTick(){
   }
   if(!ui){
     const g=coachGrade(rt,d),pw=paceWatt(rt,d,G,C.boost),w=warm?Math.min(pw,ww):pw;
-    const nxt=c&&d<c.s&&c.s-d<=1500?`Anstieg in ${c.s-d<1000?n0(c.s-d)+' m':n1((c.s-d)/1000)+' km'} · ${n1(c.g)} %`:null;
-    if(warm)ui={k:'Aufwärmen',w,t:`Noch ${fmtDur(WARM-el)} einrollen`,s:nxt||`dann ${w5(ftp*G.base)} W im Flachen`,bar:el/WARM};
-    else ui={k:g>=1.5?'Leicht bergauf':g<=-2.5?'Bergab':g<=-1?'Leicht bergab':'Flach',w,
-      t:g>=1.5?'Etwas mehr drücken':g<=-2.5?'Rollen lassen, erholen':g<=-1?'Etwas rausnehmen':'Gleichmäßig treten',
-      s:nxt||(Math.abs(g)>=1?`${g>0?'+':''}${n1(g)} % voraus`:`Ziel: ${G.n}`)};
+    const nxt=c&&d<c.s&&c.s-d<=1500?`Anstieg in ${c.s-d<1000?n0(c.s-d)+' m':n1((c.s-d)/1000)+' km'} (${n1(c.g)} %): noch Kraft sammeln`:null;
+    if(warm)ui={k:'Aufwärmen',w,t:`Noch ${fmtDur(WARM-el)} einrollen`,s:nxt||`Langsam steigern, damit Beine und Kreislauf mitkommen · dann ${w5(ftp*G.base)} W`,bar:el/WARM,warm:1};
+    else ui={k:(g>=1.5?'Leicht bergauf':g<=-2.5?'Bergab':g<=-1?'Leicht bergab':'Flach')+(C.boost>1?` · +${n0((C.boost-1)*100)} %`:''),w,
+      t:g>=1.5?'Etwas mehr drücken':g<=-2.5?'Rollen lassen':g<=-1?'Etwas rausnehmen':'Gleichmäßig treten',
+      s:g>=1.5?`${n1(g)} % voraus: am Hang bringt jedes Watt mehr Tempo als im Flachen`
+        :g<=-2.5?`${n1(g)} % bergab: Watt bringen hier kaum Tempo, erholen`
+        :g<=-1?'Leicht bergab: das rollt fast von selbst'
+        :nxt||(rt?'Flach: gleichmäßiger Druck ist hier am schnellsten':`Frei fahren: gleichmäßig ${G.n.toLowerCase()} treten`)};
   }
-  if(!warm)coachSay('w1','bolt','Aufgewärmt',`Jetzt geht es los: ${ui.w} W`,'gold');
+  if(!warm&&!C.skip)coachSay('w1','bolt','Aufgewärmt',`Jetzt geht es los: ${ui.w} W`,'gold');
   /* Wechsel der Zielleistung ansagen (nicht am Berg, da gibt es eigene Ansagen) */
   if(!warm&&!ui.climb){
     if(C.cueW==null)C.cueW=ui.w;
@@ -155,8 +159,36 @@ function renderCoach(){
   const now=lastAvg(3),st=now==null||S.rec.p.length<3?'':now<w*.93?'lo':now>w*1.07?'hi':'ok';
   if(el.dataset.st!==st)el.dataset.st=st;
   setT('fCoachI',S.erg.on?'Rolle hält die Leistung':st==='lo'?`▲ ${n0(w-now)} W mehr`:st==='hi'?`▼ ${n0(now-w)} W weniger`:st==='ok'?'✓ passt':'');
+  $('#fCoachSkip').hidden=!u.warm;
+  const rt=activeRoute(),cv=$('#cvCoach');cv.hidden=!rt||S.sim.done;
+  if(!cv.hidden&&Math.abs(S.sim.d-(C.viewD??-99))>2){C.viewD=S.sim.d;drawCoachView(cv,rt,S.sim.d,C);}
   const b=$('#fCoachBar');b.parentNode.hidden=u.bar==null;if(u.bar!=null)b.style.width=(clamp(u.bar,0,1)*100).toFixed(1)+'%';
 }
+
+/* Ausblick in der Coach-Karte: Höhenprofil der nächsten 1000 m in Steigungsfarben, du links, Kuppe und
+   „ab hier rollen lassen“ markiert. Damit sieht man, warum gleich mehr oder weniger Watt dran sind. */
+function drawCoachView(c,rt,d,C){
+  const dpr=Math.min(2,devicePixelRatio||1),W=c.clientWidth,H=c.clientHeight;if(!W||!H)return;
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);}
+  const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const L=1000,end=Math.min(rt.dist,d+L),N=40,es=[];
+  for(let i=0;i<=N;i++)es.push(eleAt(rt,d+(end-d)*i/N));
+  let mn=Math.min(...es),mx=Math.max(...es);const span=Math.max(15,mx-mn);mn-=(span-(mx-mn))/2;
+  const X=x=>(x-d)/L*W,Y=e=>H-3-(e-mn)/span*(H-8);
+  for(let i=0;i<N;i++){
+    const x0=d+(end-d)*i/N,x1=d+(end-d)*(i+1)/N;
+    ctx.beginPath();ctx.moveTo(X(x0),H);ctx.lineTo(X(x0),Y(es[i]));ctx.lineTo(X(x1),Y(es[i+1]));ctx.lineTo(X(x1),H);ctx.closePath();
+    ctx.fillStyle=gradeStyle(gradeAt(rt,(x0+x1)/2)).c;ctx.globalAlpha=.55;ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  let lastX=-1e9;  /* Beschriftungen, die zu dicht kämen, nur als Strich */
+  const mark=(x,txt)=>{if(x<d||x>end)return;const px=X(x);if(px-lastX<52)txt='';else lastX=px;ctx.strokeStyle='rgba(241,238,255,.8)';ctx.setLineDash([2,2]);ctx.beginPath();ctx.moveTo(px,0);ctx.lineTo(px,H);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='600 10px '+(css('--mono')||'monospace');ctx.fillStyle='#F1EEFF';ctx.textAlign=px>W-40?'right':'left';ctx.fillText(txt,px+(px>W-40?-4:4),10);};
+  for(const cl of C.climbs){if(cl.s>d+5)mark(cl.s,'Anstieg');mark(cl.top,'Kuppe');if(cl.over>cl.top+30)mark(cl.over,'rollen');}
+  ctx.beginPath();ctx.arc(3,Y(es[0]),3.5,0,7);ctx.fillStyle='#fff';ctx.fill();
+}
+/* Aufwärmen überspringen (schon warm gefahren): sofort die volle Leistung des Ziels */
+$('#fCoachSkip').addEventListener('click',()=>{const C=S.coach;if(!C||C.skip)return;C.skip=true;coachTick();renderCoach();moment('bolt','Aufwärmen übersprungen',`Los geht es mit ${C.ui?C.ui.w:''} W`);});
 
 /* Startkarte: Ziel wählen, Vorschau der Anstiege */
 function renderCoachOpts(){

@@ -532,6 +532,8 @@ test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async 
   await expect(page.locator('#fCoachS')).toContainText('Anstieg in');
   await page.clock.runFor(60_000);
   await expect(page.locator('#fCoachK')).toHaveText('Am Berg');
+  await expect(page.locator('#fCoachS')).toContainText('am Berg bringt jedes Watt Tempo'); // immer mit Begründung
+  await expect(page.locator('#cvCoach')).toBeVisible(); // Ausblick auf die nächsten 1000 m
   await expect(page.locator('#fCoachI')).toContainText('passt'); // 180 W getreten, im Aufwärmen am Berg ist das genug
   await page.clock.runFor(400_000);
   const said = await page.evaluate(() => S.mom.log.map(m => m.title));
@@ -606,6 +608,23 @@ test('Coach stellt die Zielleistung der Rolle ein, eigene Änderung bleibt als V
   await page.click('#fCtrl [data-a="save"]');
   await page.click('#sumOk');
   expect(await page.evaluate(() => S.erg.on)).toBe(false); // der Coach hat sie eingeschaltet, also auch wieder aus
+  expect(problems).toEqual([]);
+});
+
+test('Coach: Aufwärmen überspringen', async ({ page }) => {
+  const problems = await open(page);
+  await page.evaluate(() => setFtp(220));
+  await page.click('#coachSeg [data-coach="zuegig"]');
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(3_000);
+  await expect(page.locator('#fCoachK')).toHaveText('Aufwärmen');
+  await page.click('#fCoachSkip');
+  await expect(page.locator('#fCoachK')).toHaveText('Flach');
+  await expect(page.locator('#fCoachSkip')).toBeHidden();
+  await expect(page.locator('#fErgW')).toHaveText('175 W'); // gleich die volle Leistung im Flachen
+  await expect(page.locator('#fCoachS')).toContainText('Frei fahren');
+  expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Aufwärmen übersprungen');
   expect(problems).toEqual([]);
 });
 

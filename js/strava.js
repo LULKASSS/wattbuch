@@ -16,7 +16,7 @@ async function stravaRefresh(){const sv=SV();if(!sv)return;const r=await sv.stat
 function stravaDesc(r){
   const s=stats(r);
   return[`Mit Wattbuch auf der Rolle${r.route?` · Strecke ${r.route}`:''}`,
-    `Ø ${n0(s.avg)} W · NP ${n0(s.np)} W · ${n0(s.kj)} kJ · TSS ${n0(s.tss)}`,
+    `Normalized Power ${n0(s.np)} W`,
     r.ftpTest?`FTP-Test: ${r.ftpTest.ftp} W (beste Minute ${r.ftpTest.best} W)`:''].filter(Boolean).join('\n');
 }
 
