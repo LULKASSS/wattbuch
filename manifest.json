@@ -1,14 +1,14 @@
 {
  "manifest": "wattbuch-web",
- "version": "33ef0c05a17d",
+ "version": "f4e9b2aa7591",
  "files": {
-  "index.html": "db4874f72440f1cf849297bea306c6d1f1c2bd41d48b04fb48cd5c9d16aedd01",
-  "app.css": "45b5bef4997dc50d5a4dcc69dad12bc616097d9871a0eb1c0781b5d04f3c4035",
+  "index.html": "0ab9ff802fdeea89bfc1948427468e0edd914e91674e7bef429aaa1e5ea7f9e5",
+  "app.css": "ea6805c7882e523805800a397e18444b4f3514d99a18b2f09475fcc3fb4b3112",
   "js/ansichten.js": "3f55dddd38cbb0435e88232cc5feeccd54415b5949101addfbabdd2400eb5da4",
   "js/appletv.js": "3745309e0fe1af04bba14527f39d723387efc76c36b6de5e9d442c9d1281d9eb",
   "js/aufnahme.js": "5fc41c9018c95b5ed52d4683c7390eb23b29becba0741f0954205b14ce7de17c",
   "js/basis.js": "7e37d3dd0e0b60d185251531784947668179a6ac4c5fcafaf2935953e33d0d0e",
-  "js/coach.js": "2e8c9f17960718e7a24b9e80bd51ee2e53cf0b3d83906baf6057d32c00ec0da5",
+  "js/coach.js": "f8559ed3d110e90e1dbedb22fa327da650ca665b9a7ad9eec8f467a6900fc6ed",
   "js/daten.js": "88642a3f24ed3678e683e081ca51266f149e0cc4562740da7cbef94d312040ab",
   "js/diagramme.js": "9e02d5e6a0c2958db678ec1ac8bbe263f7ef0b801a6d66e32db32c53288fbdb7",
   "js/erlebnis.js": "feaff97a3f0755247c38dba077d124ddd2b3f6140ec502e6e049db88533c9be3",
@@ -20,6 +20,6 @@
   "js/strava.js": "a6f866301ec209426ab572b9a2ceca6a03eb5acac32599ea3e6c8700dbde880f",
   "js/stravaholen.js": "6c1f3e5f6223c0b91e2ebae30270b05ed23f70879e8df2a0f3e99d6a46cdbf5f",
   "js/strecken.js": "34e878e1fed57bc701afc6894164206c1eb684f6b33919e7b4ab59ac8bdea8be",
-  "js/szene.js": "a30310259e1a98d68e1bdbdb5124ef77bdfe9578300798dcde6660db53c6f13b"
+  "js/szene.js": "9b40ac8ef0dcece9422dadb49f135420e6c919e751ec62ba8caa1131a811eaaf"
  }
 }

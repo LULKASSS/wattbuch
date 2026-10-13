@@ -691,22 +691,25 @@ body[data-view="live"] .rrow.on{background:var(--accent-soft)}
 .f-ramp-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden}
 .f-ramp-bar i{display:block;height:100%;width:0;background:#F5C451;border-radius:2px;transition:width .9s linear}
 
-/* Coach: ruhige Karte unter dem Geist, Punkt zeigt, ob die Leistung passt */
+/* Coach: deutliche Karte rechts oben, Zielleistung groß, Pfeil sagt mehr oder weniger */
 .coach-opts{flex-direction:column;align-items:stretch!important;gap:6px!important}
 .coach-opts .ftp-note{margin:0}
 .coach-opts .seg button:disabled{opacity:.45;cursor:default}
-.f-coach{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:200px;max-width:min(320px,40vw);padding:10px 16px 11px;border-radius:16px;background:rgba(10,8,20,.5);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(10px);text-align:right;animation:tvIn .3s var(--ease)}
-.f-coach-k{display:flex;align-items:center;gap:8px;font:500 clamp(10.5px,.72vw,13px) var(--mono);letter-spacing:.06em;text-transform:uppercase;color:rgba(241,238,255,.55)}
-.f-coach-k em{font-style:normal;text-transform:none;letter-spacing:0;display:inline-flex;align-items:center;gap:5px;color:rgba(241,238,255,.75)}
-.f-coach-k em:empty{display:none}
-.f-coach-k em::before{content:"";width:7px;height:7px;border-radius:50%;background:#6EE7B7;box-shadow:0 0 8px currentColor}
-.f-coach[data-st="lo"] .f-coach-k em::before{background:#7DB8FF}
-.f-coach[data-st="hi"] .f-coach-k em::before{background:#FDBA74}
-.f-coach b{font-size:clamp(17px,1.35vw,26px);font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.f-coach{--cc:#A78BFA;display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:clamp(220px,17vw,320px);max-width:min(360px,42vw);padding:12px 18px 13px;border-radius:18px;background:linear-gradient(160deg,rgba(127,95,232,.34),rgba(10,8,20,.62) 60%);border:1px solid color-mix(in srgb,var(--cc) 65%,transparent);box-shadow:0 0 0 1px rgba(0,0,0,.2),0 8px 34px color-mix(in srgb,var(--cc) 28%,transparent);backdrop-filter:blur(12px);text-align:right;animation:tvIn .3s var(--ease);transition:border-color .5s,box-shadow .5s}
+.f-coach[data-st="lo"]{--cc:#7DB8FF}
+.f-coach[data-st="hi"]{--cc:#FDBA74}
+.f-coach[data-st="ok"]{--cc:#6EE7B7}
+.f-coach-k{display:flex;align-items:center;gap:7px;font:600 clamp(10.5px,.72vw,13px) var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#C4B5FD}
+.f-coach-k i{width:7px;height:7px;border-radius:50%;background:var(--cc);box-shadow:0 0 10px var(--cc);transition:background .5s}
+.f-coach-m{display:flex;align-items:baseline;gap:5px;line-height:1}
+.f-coach-m b{font-size:clamp(40px,3.4vw,68px);font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.f-coach-m small{font-size:clamp(15px,1.1vw,22px);color:rgba(241,238,255,.65);font-weight:500}
+.f-coach-i{font-style:normal;font:600 clamp(12.5px,.88vw,16px) var(--mono);color:var(--cc);min-height:1.2em;transition:color .5s}
+.f-coach-t{font-size:clamp(16px,1.2vw,23px);font-weight:600;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
 .f-coach-s{font-size:clamp(12.5px,.88vw,16px);color:rgba(241,238,255,.7)}
-.f-coach-bar{align-self:stretch;height:3px;margin-top:6px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.f-coach-bar{align-self:stretch;height:3px;margin-top:7px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
 .f-coach-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7F5FE8,#C4B5FD);transition:width .9s linear}
-@media (max-width:640px){.f-coach{min-width:0;max-width:62vw;padding:7px 11px}.f-coach b{font-size:15px}.f-coach-s{font-size:12px}}
+@media (max-width:640px){.f-coach{min-width:0;max-width:62vw;padding:8px 12px}.f-coach-m b{font-size:30px}.f-coach-t{font-size:14px}.f-coach-s{font-size:12px}}
 
 /* Strava */
 .sv-ok{display:flex;align-items:center;gap:8px;margin:0;font-weight:500}

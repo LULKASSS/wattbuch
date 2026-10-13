@@ -73,22 +73,27 @@ const MTN=[0,1,2].map(l=>{const a=[];for(let i=0;i<256;i++){let v=0;for(let o=1;
 const STARS=Array.from({length:140},(_,i)=>({x:hash(i*3.1),y:Math.pow(hash(i*5.7),1.6),r:.5+hash(i*1.3)*1.2,p:hash(i*9.1)*6}));
 const SCV={alp:0,vp:null,gap:null,lastT:0,riding:false,pw:0,zc:null,g:0}; /* geglättete Werte zwischen den Bildern */
 
-/* Geist: beste frühere Fahrt auf dieser Strecke, sonst Schrittmacher mit 75 % FTP */
+/* Mitfahrer: Geist der besten früheren Fahrt auf dieser Strecke, sonst ein Schrittmacher, der genau die Zielleistung
+   fährt und nur da ist, solange eine Zielleistung an ist. Mit Coach oder beim FTP-Test fährt niemand mit. */
 function paceReset(){
-  if(S.ramp){S.pace=null;return;} /* beim FTP-Test fährt niemand mit */
+  if(S.ramp||(typeof coachGoal==='function'&&coachGoal()&&ftpKnown())){S.pace=null;return;}
   const rt=activeRoute(),ftp=S.set.ftp;
   const prev=rt?S.rides.filter(r=>!r.sample&&r.route===rt.name&&r.dist&&r.dist.length>30):[];
   const best=prev.sort((a,b)=>b.dist[b.dist.length-1]/b.dist.length-a.dist[a.dist.length-1]/a.dist.length)[0];
   S.pace=best?{kind:'geist',name:'Dein Geist',dist:best.dist,total:0,v:0,ahead:null}
-             :{kind:'pacer',name:`Schrittmacher ${Math.round(ftp*.75/5)*5} W`,watt:Math.round(ftp*.75/5)*5,total:0,v:0,ahead:null};
+             :{kind:'pacer',name:'Schrittmacher',total:0,v:0,ahead:null,off:true};
 }
 function paceStep(dt){
   const P=S.pace;if(!P)return;
   if(P.kind==='geist'){const t=recElapsed()/1000,i=Math.min(P.dist.length-1,Math.floor(t)),f=Math.min(1,t-i);const a=P.dist[i],b=P.dist[i+1]??a;P.v=Math.max(0,b-a);P.total=a+(b-a)*f;return;}
+  /* Ohne Zielleistung wartet der Schrittmacher unsichtbar neben dir und setzt beim Einschalten dort an */
+  if(!S.erg.on){P.off=true;P.total=S.sim.total;P.v=S.sim.v;P.ahead=null;return;}
+  P.off=false;P.name=`Schrittmacher ${Math.round(S.erg.target)} W`;
   const rt=activeRoute(),m=S.set.weight+S.set.bike;
   const pd=rt?(rt.loop?P.total%rt.dist:Math.min(P.total,rt.dist)):0,g=rt?gradeAt(rt,pd):0,th=Math.atan(g/100);
   const res=m*PHYS.g*(PHYS.crr*Math.cos(th)+Math.sin(th))+.5*PHYS.rho*PHYS.cda*P.v*P.v;
-  P.v=clamp(P.v+(P.watt/Math.max(P.v,1)-res)/(m+1.5)*dt,0,25);P.total+=P.v*dt;
+  const w=S.erg.target;
+  P.v=clamp(P.v+(w/Math.max(P.v,1)-res)/(m+1.5)*dt,0,25);P.total+=P.v*dt;
 }
 /* Jede Sekunde aus checkMoments: Überholen und Tageszeit melden */
 let lastDay=null;
@@ -96,7 +101,7 @@ function paceCheck(){
   const d=dayAt(rideMin()).n;
   if(lastDay&&d!==lastDay&&recElapsed()>60000)moment('peak',{Nacht:'Die Nacht bricht herein',Morgengrauen:'Der Morgen graut',Tag:'Guten Morgen, Sonne',Sonnenuntergang:'Die Sonne geht unter',Abendrot:'Abendrot'}[d]||d,`${fmtDur(recElapsed()/1000)} unterwegs`);
   lastDay=d;
-  const P=S.pace;if(!P||recElapsed()<20000)return;
+  const P=S.pace;if(!P||P.off||recElapsed()<20000)return;
   const ahead=S.sim.total>P.total+5;
   if(P.ahead!=null&&ahead!==P.ahead)moment('flag',ahead?`${P.name} überholt`:`${P.name} zieht vorbei`,ahead?'Weiter so, nicht nachlassen':`Abstand ${n0(P.total-S.sim.total)} m`,ahead?'gold':'');
   P.ahead=ahead;
@@ -236,7 +241,7 @@ function drawScene(c,opt={}){
   ctx.globalAlpha=1;
   /* Geist / Schrittmacher als Radfahrer */
   const Pc=S.pace;
-  if(Pc&&riding){
+  if(Pc&&!Pc.off&&riding){
     const tg=Pc.total-S.sim.total;if(SCV.gap==null||Math.abs(tg-SCV.gap)>40)SCV.gap=tg;else SCV.gap+=(Pc.v-S.sim.v)*dt+(tg-SCV.gap)*Math.min(1,dt*1.5);
     const gap=SCV.gap;
     if(gap>1.5&&gap<far-10){const tgt=pos+gap;let ii=0;while(ii<NP-1&&P[ii+1].s<tgt)ii++;const a=P[ii],b=P[ii+1],f=clamp((tgt-a.s)/((b.s-a.s)||1),0,1);
@@ -365,7 +370,7 @@ function drawFullProf(c){
   path();ctx.fillStyle='rgba(230,222,255,.14)';ctx.fill();
   ctx.save();ctx.beginPath();ctx.rect(0,0,X(S.sim.d),H);ctx.clip();path();const gr=ctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,'rgba(167,139,250,.9)');gr.addColorStop(1,'rgba(127,95,232,.25)');ctx.fillStyle=gr;ctx.fill();ctx.restore();
   const dot=(d,col,r)=>{ctx.beginPath();ctx.arc(X(d),Y(eleAt(rt,d)),r,0,7);ctx.fillStyle=col;ctx.fill();};
-  if(S.pace&&S.rec.state!=='idle'){const gd=rt.loop?S.pace.total%rt.dist:Math.min(S.pace.total,rt.dist);dot(gd,S.pace.kind==='geist'?'#E6DEFF':'#F5C451',4);}
+  if(S.pace&&!S.pace.off&&S.rec.state!=='idle'){const gd=rt.loop?S.pace.total%rt.dist:Math.min(S.pace.total,rt.dist);dot(gd,S.pace.kind==='geist'?'#E6DEFF':'#F5C451',4);}
   dot(S.sim.d,'#fff',5.5);
 }
 
@@ -422,7 +427,7 @@ function renderFull(){
   const bio={wald:'Wald',felder:'Felder',alpen:'Alpen'}[biomeAt(rt,SCV.vp||0,rt?trackAt(rt,SCV.vp||0).e:0)];
   setT('fProg',`${dayAt(rideMin()).n} · ${bio}${rt&&rt.loop&&S.sim.lap>1?` · Runde ${S.sim.lap}`:''}`);
   const P=S.pace,gEl=$('#fGhost');
-  if(P&&R.state!=='idle'){const gap=P.total-S.sim.total;gEl.hidden=false;gEl.className='f-ghost'+(gap>0?'':' behind');setT('fGhostT',`${P.name} · ${gap>0?n0(gap)+' m vor dir':n0(-gap)+' m hinter dir'}`);}
+  if(P&&!P.off&&R.state!=='idle'){const gap=P.total-S.sim.total;gEl.hidden=false;gEl.className='f-ghost'+(gap>0?'':' behind');setT('fGhostT',`${P.name} · ${gap>0?n0(gap)+' m vor dir':n0(-gap)+' m hinter dir'}`);}
   else gEl.hidden=true;
   renderRamp();renderCoach();
   /* Zielleistung direkt in der Fahrt-Ansicht */

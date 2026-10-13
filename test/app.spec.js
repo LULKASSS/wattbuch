@@ -479,7 +479,10 @@ test('Vollbild: Szene, große Anzeige, Tastatur', async ({ page }) => {
   await expect(page.locator('#fKmOf')).toContainText('von 25,5 km');
   await expect(page.locator('#fMapBox')).toBeVisible(); // Strecke von oben
   expect(await painted(page, '#cvFullMap')).toBeGreaterThan(0.01);
-  await expect(page.locator('#fGhost')).toContainText('Schrittmacher 150 W');
+  await expect(page.locator('#fGhost')).toBeHidden(); // Schrittmacher nur mit Zielleistung
+  await page.click('#fErgW');
+  await page.clock.runFor(600);
+  await expect(page.locator('#fGhost')).toContainText('Schrittmacher 130 W');
   expect(await painted(page, '#cvFull')).toBeGreaterThan(0.3);
   expect(await painted(page, '#cvFullProf')).toBeGreaterThan(0.05);
   await page.keyboard.press(' ');
@@ -519,15 +522,22 @@ test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async 
   await connectTrainer(page);
   await start(page);
   await expect(page.locator('#fCoach')).toBeVisible();
-  await page.clock.runFor(40_000);
-  await expect(page.locator('#fCoachT')).toContainText('Anstieg in');
+  await page.clock.runFor(5_000);
+  await expect(page.locator('#fGhost')).toBeHidden(); // mit Coach fährt niemand mit
+  // Erst aufwärmen: 50 % FTP plus ein bisschen, nicht gleich die volle Leistung
+  await expect(page.locator('#fCoachK')).toHaveText('Aufwärmen');
+  expect(+(await page.locator('#fCoachW').textContent())).toBeLessThan(130);
+  await page.clock.runFor(35_000);
+  await expect(page.locator('#fCoachS')).toContainText('Anstieg in');
   await page.clock.runFor(60_000);
   await expect(page.locator('#fCoachK')).toHaveText('Am Berg');
-  await expect(page.locator('#fCoachS')).toContainText('halte 210 W');
+  await expect(page.locator('#fCoachI')).toContainText('passt'); // 180 W getreten, im Aufwärmen am Berg ist das genug
   await page.clock.runFor(400_000);
   const said = await page.evaluate(() => S.mom.log.map(m => m.title));
   expect(said.some(t => t.startsWith('Anstieg in'))).toBe(true);
   expect(said.some(t => /^Noch \d+ s drücken$/.test(t))).toBe(true);
+  expect(said).toContain('Erst mal aufwärmen');
+  expect(said).toContain('Aufgewärmt');
   expect(said).toContain('Jetzt erholen');
   expect(said).not.toContain('Etwas zu fest'); // bergab wird nicht gemahnt
   // Ausgeschaltet: keine Anzeige bei der nächsten Fahrt
@@ -539,6 +549,36 @@ test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async 
   await start(page);
   await page.clock.runFor(5_000);
   await expect(page.locator('#fCoach')).toBeHidden();
+  expect(problems).toEqual([]);
+});
+
+test('Coach: auch an sanfter Steigung „Mehr Watt“ mit konkreter Zielleistung', async ({ page }) => {
+  test.setTimeout(120_000);
+  const problems = await open(page);
+  // 3,5 km flach, dann 1,5 km mit 2 % (zu flach für einen „Anstieg“, aber Grund für mehr Druck)
+  let pts = '', ele = 100;
+  for (let i = 0; i <= 200; i++) { const d = i * 25; if (i) ele += 25 * (d > 3500 ? 0.02 : 0); pts += `<trkpt lat="${(50 + d / 111320).toFixed(6)}" lon="8.000000"><ele>${ele.toFixed(1)}</ele></trkpt>`; }
+  await page.setInputFiles('#anyFile', { name: 'welle.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(`<?xml version="1.0"?><gpx version="1.1"><trk><name>Sanfte Rampe</name><trkseg>${pts}</trkseg></trk></gpx>`) });
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Sanfte Rampe' }).click();
+  await page.evaluate(() => setFtp(220));
+  await page.click('#coachSeg [data-coach="zuegig"]');
+  await connectTrainer(page);
+  await start(page);
+  await page.clock.runFor(330_000);
+  await expect(page.locator('#fCoachK')).toHaveText('Flach');
+  await expect(page.locator('#fCoachW')).toHaveText('175'); // 80 % FTP
+  await page.clock.runFor(120_000);
+  await expect(page.locator('#fCoachK')).toHaveText('Leicht bergauf');
+  expect(+(await page.locator('#fCoachW').textContent())).toBeGreaterThan(190);
+  await expect(page.locator('#fCoachI')).toContainText('mehr');
+  const said = await page.evaluate(() => S.mom.log.map(m => m.title));
+  expect(said.some(t => /^Mehr Watt: (19|20)\d W$/.test(t))).toBe(true);
+  expect(said).toContain('Langsam angehen'); // 180 W gleich am Anfang ist zu viel fürs Aufwärmen
+  // Dauerhaft über dem Ziel: der Coach traut dir mehr zu und hebt das Ziel an
+  await fake(page, () => window.__fakeBle.set({ power: 260 }));
+  await page.clock.runFor(300_000);
+  expect(await page.evaluate(() => S.mom.log.map(m => m.title))).toContain('Du bist gut drauf');
+  expect(await page.evaluate(() => S.coach.boost)).toBeGreaterThan(1);
   expect(problems).toEqual([]);
 });
 
