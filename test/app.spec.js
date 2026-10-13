@@ -506,6 +506,7 @@ function gpxKuppe() {
 }
 
 test('Coach: nur mit bekannter FTP, sagt Anstieg, Kuppe und Erholung an', async ({ page }) => {
+  test.setTimeout(120_000); // sieben Minuten Fahrt, auf GitHub deutlich langsamer
   const problems = await open(page);
   await page.setInputFiles('#anyFile', { name: 'kuppe.gpx', mimeType: 'application/gpx+xml', buffer: gpxKuppe() });
   await page.locator('#rtList [data-route]').filter({ hasText: 'Kuppe' }).click();
