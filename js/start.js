@@ -123,8 +123,9 @@ function showLanding(){
   await appInfo();maybeSetup();
   /* Mac-App: neue Version der Oberfläche liegt bereit → neu laden, sobald keine Aufnahme läuft */
   if(window.wattbuchDesktop&&window.wattbuchDesktop.onUpdate)window.wattbuchDesktop.onUpdate(()=>{
-    /* nicht während einer Fahrt, eines Dialogs, einer Gerätesuche oder eines Verbindungsaufbaus */
-    const busy=()=>S.rec.state!=='idle'||document.querySelector('dialog[open]')||document.getElementById('btPick')||[S.tr,S.hrm,S.cd].some(d=>d.state==='wait');
+    /* nicht während einer Fahrt, eines Dialogs oder einer Gerätesuche. Eine verbundene Rolle nie trennen; ein Gerät, das schon über eine Minute vergeblich neu verbunden wird
+       (Pulsgurt nach der Fahrt aus), hält das Update aber nicht mehr auf */
+    const busy=()=>S.rec.state!=='idle'||document.querySelector('dialog[open]')||document.getElementById('btPick')||S.tr.state==='on'||[S.tr,S.hrm,S.cd].some(d=>d.state==='wait'&&Date.now()-(d.waitSince||0)<60000);
     const go=()=>{if(!busy())location.reload();else setTimeout(go,10000);};go();
   });
   /* Mac-App: Dateien aus iCloud Drive/Wattbuch/Import/ übernehmen (z. B. Strecken aus Strava) */

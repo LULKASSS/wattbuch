@@ -685,6 +685,39 @@ test('Coach stellt die Zielleistung der Rolle ein, eigene Änderung bleibt als V
   expect(problems).toEqual([]);
 });
 
+test('Coach rechnet richtig: angesagte Zeit stimmt, kurze Anstiege mehr, leere Reserve weniger', async ({ page }) => {
+  test.setTimeout(120_000);
+  const problems = await open(page);
+  await page.setInputFiles('#anyFile', { name: 'kuppe.gpx', mimeType: 'application/gpx+xml', buffer: gpxKuppe() });
+  await page.locator('#rtList [data-route]').filter({ hasText: 'Kuppe' }).click();
+  await page.evaluate(() => setFtp(220));
+  await page.click('#coachSeg [data-coach="zuegig"]');
+  await connectTrainer(page);
+  await start(page);
+  await page.click('#fCoachSkip');
+  const plan = await page.evaluate(() => ({ s: S.coach.climbs[0].s, top: S.coach.climbs[0].top, t: S.coach.climbs[0].t, w: S.coach.climbs[0].w }));
+  await page.clock.runFor(420_000);
+  // Die Rolle hält, was der Coach sagt: so lange wie angesagt (± 10 %) hat der Anstieg gedauert
+  const real = await page.evaluate(({ s, top }) => { const d = S.rec.dist; return d.findIndex(x => x >= top) - d.findIndex(x => x >= s); }, plan);
+  expect(Math.abs(real - plan.t) / plan.t).toBeLessThan(0.1);
+  // Rechnung ohne Fahrt: kurzer Hügel bekommt mehr als ein langer Berg, leere Reserve bremst bei Vollgas
+  const r = await page.evaluate(() => {
+    const mk = (km, pct) => { const pts = []; for (let i = 0; i <= km * 40 + 40; i++) { const d = i * 25; pts.push([50 + d / 111320, 8, 100 + Math.max(0, Math.min(d, km * 1000)) * pct / 100]); } return prepRoute(buildRoute('t', pts), false); };
+    const G = COACH.vollgas, C = { boost: 1, W: 20000, wbal: 20000 };
+    const kurz = mk(0.5, 6), lang = mk(8, 6), ck = findClimbs(kurz)[0], cl = findClimbs(lang)[0];
+    const wk = climbWatt(kurz, ck.s, ck, G, C), wl = climbWatt(lang, cl.s, cl, G, C);
+    C.wbal = 1000; const leer = climbWatt(kurz, ck.s, ck, G, C);
+    const flach = paceWatt(lang, 9000, G), steil = paceWatt(lang, 1000, G);
+    return { wk, wl, leer, flach, steil, ftp: S.set.ftp };
+  });
+  expect(r.wk).toBeGreaterThan(r.wl);
+  expect(r.wk).toBeGreaterThan(r.ftp);          // kurz: über der FTP, die Reserve reicht
+  expect(r.wl).toBeLessThanOrEqual(r.ftp);      // 8 km: nicht über die FTP
+  expect(r.leer).toBeLessThan(r.wk);            // Reserve leer: weniger
+  expect(r.steil / r.flach).toBeLessThanOrEqual(1.16); // Wellen: höchstens +15 %
+  expect(problems).toEqual([]);
+});
+
 test('Coach: Aufwärmen überspringen', async ({ page }) => {
   const problems = await open(page);
   await page.evaluate(() => setFtp(220));

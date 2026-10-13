@@ -25,8 +25,30 @@ function speedAt(P,g){
   return Math.max(lo,1);
 }
 function rideTime(rt,d0,d1,P){let t=0;for(let x=d0;x<d1;x+=rt.step){const s=Math.min(rt.step,d1-x);t+=s/speedAt(P,gradeAt(rt,x+s/2));}return t;}
-/* Wie fest am Berg: je kürzer, desto mehr über der FTP geht, gedeckelt durch das Ziel */
-function climbWatt(t,G){const cap=t<=180?1.2:t<=480?1.08:t<=1200?1:.95;return w5(S.set.ftp*Math.min(cap,G.top));}
+/* Kraftreserve über der FTP (W′, Modell von Skiba 2015): über der FTP verbraucht jede Sekunde (P − FTP) Joule,
+   darunter füllt sie sich wieder auf, umso schneller, je lockerer (τ = 546·e^(−0,01·(FTP − P)) + 316 s).
+   Größe aus deinem besten 5-min-Wert: (P5 − FTP)·300, ohne den 18 kJ; begrenzt auf 8–30 kJ. */
+function wPrime(){const b=bestsOf(aggRides())[300];return clamp(b?(b.w-S.set.ftp)*300:18000,8000,30000);}
+function wbalStep(C,p){
+  const cp=S.set.ftp;
+  if(p>cp)C.wbal=Math.max(0,C.wbal-(p-cp));
+  else{const tau=546*Math.exp(-.01*(cp-p))+316;C.wbal+=(C.W-C.wbal)*(1-Math.exp(-1/tau));}
+}
+/* Wie fest am Berg (bis hinter die Kuppe): Studien zu welligen Zeitfahren zeigen, dass +5–10 % am Berg und weniger
+   bergab schneller sind als gleichmäßige Leistung (Swain 1997, Atkinson u. a. 2007). Kurze Anstiege vertragen mehr
+   (bis +25 %), lange weniger (+8 %), gedeckelt durch das Ziel. Über der FTP nur so viel, wie die Reserve W′ bis über
+   die Kuppe hergibt, ein Viertel bleibt übrig; in den letzten 40 s darf fast alles raus. */
+function climbWatt(rt,d,c,G,C){
+  const ftp=S.set.ftp,base=ftp*G.base*C.boost;
+  let w=base*1.1,t=rideTime(rt,d,c.over,w);
+  for(let k=0;k<3;k++){
+    const up=t<=120?.25:t<=300?.18:t<=900?.12:.08,last=t<=40;
+    w=Math.min(base*(1+up),ftp*G.top*C.boost*(last?1.1:1));
+    if(w>ftp)w=Math.max(ftp,Math.min(w,ftp+(last?.9:.75)*C.wbal/Math.max(t,15)));
+    t=rideTime(rt,d,c.over,w);
+  }
+  return w5(Math.max(w,base));
+}
 
 /* Anstiege: ab 3 % im Schnitt, mindestens 200 m und 12 Hm. Kurze Dellen (bis 12 m runter, 400 m ohne neuen Gipfel)
    gehören dazu. over = Punkt hinter der Kuppe, ab dem es mit mehr als 2,5 % bergab geht (höchstens 300 m weiter). */
@@ -50,7 +72,8 @@ function findClimbs(rt){
 }
 /* Leistung und Dauer je Anstieg zum Ziel passend */
 function planClimbs(rt,G){
-  return findClimbs(rt).map(c=>{let w=w5(S.set.ftp*G.base);for(let k=0;k<2;k++)w=climbWatt(rideTime(rt,c.s,c.top,w),G);return{...c,w,t:rideTime(rt,c.s,c.top,w)};});
+  const C={boost:1,W:wPrime()};C.wbal=C.W;
+  return findClimbs(rt).map(c=>{const w=climbWatt(rt,c.s,c,G,C);return{...c,w,t:rideTime(rt,c.s,c.top,w)};});
 }
 const fmtMin=t=>t<90?`${n0(t)} s`:`${n0(t/60)} min`;
 
@@ -59,7 +82,8 @@ function coachReset(){
   const G=coachGoal();
   if(!G||!ftpKnown()||S.ramp){S.coach=null;$('#fCoach').hidden=true;return;}
   const rt=activeRoute();
-  S.coach={G,climbs:rt?planClimbs(rt,G):[],said:{},cueAt:-1e9,cueW:null,low:0,lowAt:-1e9,high:0,highAt:-1e9,good:0,goodAt:-1e9,boost:1,ui:null,ergOff:0,ergSet:null,ergAuto:false};
+  S.coach={G,climbs:rt?planClimbs(rt,G):[],said:{},cueAt:-1e9,cueW:null,low:0,lowAt:-1e9,high:0,highAt:-1e9,good:0,goodAt:-1e9,boost:1,ui:null,ergOff:0,ergSet:null,ergAuto:false,W:wPrime()};
+  S.coach.wbal=S.coach.W;
   /* Die Rolle hält von Anfang an, was der Coach sagt (Zielleistung an, beginnend beim Aufwärmen) */
   if(isLive()){S.coach.ergAuto=!S.erg.on;S.erg.on=true;S.erg.target=S.coach.ergSet=warmWatt(0,G);ergChanged();}
 }
@@ -82,22 +106,25 @@ function lastAvg(n){const p=S.rec.p,k=Math.min(n,p.length);if(!k)return null;let
 /* Erst aufwärmen: 5 min von 50 % FTP langsam hoch auf die Grundleistung des Ziels */
 const WARM=300;
 const warmWatt=(el,G)=>w5(S.set.ftp*(.5+(G.base-.5)*clamp(el/WARM,0,1)));
-/* Zielleistung jetzt: Grundleistung des Ziels, an jeder Steigung mehr (+7 % je Prozent), bergab weniger.
+/* Zielleistung jetzt: Grundleistung des Ziels, an jeder Steigung mehr (+5 % je Prozent, höchstens +15 %),
+   bergab weniger (höchstens −25 %), wie in den Studien zu welligen Strecken.
    Blick 40–100 m voraus, damit man vor der Welle anzieht und nicht erst mittendrin. Gerechnet mit der echten Steigung
    der Strecke, nicht mit der abgeschwächten an der Rolle. */
 const coachGrade=(rt,d)=>rt?(gradeAt(rt,d+40)+gradeAt(rt,d+100))/2:0;
-function paceWatt(rt,d,G,boost=1){const ftp=S.set.ftp;return w5(clamp(ftp*G.base*boost*(1+.07*coachGrade(rt,d)),ftp*.45,ftp*G.top*boost));}
+function paceWatt(rt,d,G,boost=1){const ftp=S.set.ftp;return w5(clamp(ftp*G.base*boost*(1+clamp(.05*coachGrade(rt,d),-.25,.15)),ftp*.45,ftp*G.top*boost));}
 
 /* Jede Sekunde aus checkMoments */
 function coachTick(){
   const C=S.coach;if(!C||S.rec.state!=='rec')return;
   const G=C.G,ftp=S.set.ftp,rt=S.sim.done?null:activeRoute(),d=S.sim.d,lap=S.sim.lap,a30=lastAvg(30),n=S.rec.p.length;
   const el=recElapsed()/1000,warm=el<WARM&&!C.skip,ww=warmWatt(el,G);
+  wbalStep(C,S.rec.p[n-1]||0);
+  const res=C.wbal/C.W;
   if(n>=3&&!C.skip)coachSay('w0','bolt','Erst mal aufwärmen',`5 min locker einrollen, ab ${ww} W langsam steigern`);
   let ui=null;
   const c=rt?C.climbs.find(x=>d<x.over):null,k=lap+':'+(c?c.s:'');
   if(c&&d>=c.s){
-    const w=warm?Math.min(c.w,w5(ww*1.25)):c.w;
+    const cw=climbWatt(rt,d,c,G,C),w=warm?Math.min(cw,w5(ww*1.25)):cw;
     const tTop=rideTime(rt,d,c.top,w),tOver=rideTime(rt,d,c.over,w),done=(d-c.s)/(c.top-c.s);
     if(d<c.top){
       if(tOver<=60&&c.t>=40)coachSay(k+'k','flag',`Noch ${n0(tOver)} s drücken`,c.over>c.top+30?'Über die Kuppe, bis es bergab rollt, dann erholen':'Bis oben dranbleiben, dann erholen','gold');
@@ -105,7 +132,10 @@ function coachTick(){
       else if(c.t>=40)coachSay(k+'s','bolt',`Jetzt ${w} W drücken`,`${n1(c.len/1000)} km mit ${n1(c.g)} % · ≈ ${fmtMin(c.t)} bis oben`);
       if(a30!=null&&d-c.s>150&&tTop>120&&a30>w*1.12)coachSay(k+'f','bolt','Etwas zu fest',`Noch ${fmtMin(tTop)} bis oben, Richtung ${w} W`);
       ui={k:'Am Berg',w,t:tOver<=60?`Noch ${n0(tOver)} s bis über die Kuppe`:`Noch ${fmtMin(tTop)} bis oben`,
-        s:tOver<=60?'Jetzt zahlt sich Druck doppelt aus, danach rollst du dich aus':`${n1(gradeAt(rt,d))} % · noch ${n1(Math.max(0,c.top-d)/1000)} km: am Berg bringt jedes Watt Tempo, gleichmäßig bleiben`,bar:done,climb:1};
+        s:tOver<=60?(w>ftp&&res>.3?'Die Reserve reicht: jetzt alles raus, danach rollst du dich aus':'Jetzt zahlt sich Druck doppelt aus, danach rollst du dich aus')
+          :w>ftp?`${n1(gradeAt(rt,d))} % · über der FTP, die Reserve reicht bis über die Kuppe`
+          :res<.5&&w5(ftp*G.base*C.boost*1.08)>w?`${n1(gradeAt(rt,d))} % · Reserve knapp, deshalb nicht mehr`
+          :`${n1(gradeAt(rt,d))} % · noch ${n1(Math.max(0,c.top-d)/1000)} km: am Berg bringt jedes Watt Tempo, gleichmäßig bleiben`,bar:done,climb:1};
     }
     else ui={k:'Über die Kuppe',w,t:`Noch ${n0(rideTime(rt,d,c.over,w))} s drücken`,s:'Oben noch Tempo mitnehmen, bis es bergab rollt, dann erholen',bar:1,climb:1};
   }
@@ -119,12 +149,15 @@ function coachTick(){
     if(c&&d<c.s&&rideTime(rt,d,c.s,ftp*G.base)<=45)coachSay(k+'a','peak',`Anstieg in ${n0(c.s-d)} m`,`${n1(c.len/1000)} km mit ${n1(c.g)} % · ≈ ${fmtMin(c.t)} mit ${c.w} W`);
   }
   if(!ui){
-    const g=coachGrade(rt,d),pw=paceWatt(rt,d,G,C.boost),w=warm?Math.min(pw,ww):pw;
+    const g=coachGrade(rt,d),pw0=paceWatt(rt,d,G,C.boost),low=res<.4&&pw0>w5(ftp*.75);
+    /* Reserve fast leer (nach einem harten Stück): im Flachen kurz unter 75 % FTP, damit sie sich auffüllt */
+    const pw=low?w5(ftp*.75):pw0,w=warm?Math.min(pw,ww):pw;
     const nxt=c&&d<c.s&&c.s-d<=1500?`Anstieg in ${c.s-d<1000?n0(c.s-d)+' m':n1((c.s-d)/1000)+' km'} (${n1(c.g)} %): noch Kraft sammeln`:null;
     if(warm)ui={k:'Aufwärmen',w,t:`Noch ${fmtDur(WARM-el)} einrollen`,s:nxt||`Langsam steigern, damit Beine und Kreislauf mitkommen · dann ${w5(ftp*G.base)} W`,bar:el/WARM,warm:1};
     else ui={k:(g>=1.5?'Leicht bergauf':g<=-2.5?'Bergab':g<=-1?'Leicht bergab':'Flach')+(C.boost>1?` · +${n0((C.boost-1)*100)} %`:''),w,
       t:g>=1.5?'Etwas mehr drücken':g<=-2.5?'Rollen lassen':g<=-1?'Etwas rausnehmen':'Gleichmäßig treten',
-      s:g>=1.5?`${n1(g)} % voraus: am Hang bringt jedes Watt mehr Tempo als im Flachen`
+      s:low?`Reserve ${n0(res*100)} %: kurz erholen, dann wieder Tempo`
+        :g>=1.5?`${n1(g)} % voraus: am Hang bringt jedes Watt mehr Tempo als im Flachen`
         :g<=-2.5?`${n1(g)} % bergab: Watt bringen hier kaum Tempo, erholen`
         :g<=-1?'Leicht bergab: das rollt fast von selbst'
         :nxt||(rt?'Flach: gleichmäßiger Druck ist hier am schnellsten':`Frei fahren: gleichmäßig ${G.n.toLowerCase()} treten`)};
@@ -155,7 +188,8 @@ function renderCoach(){
   const C=S.coach,el=$('#fCoach');
   if(!C||!C.ui||S.rec.state==='idle'){el.hidden=true;return;}
   const u=C.ui,off=S.erg.on?C.ergOff:0,w=Math.max(0,u.w+off);el.hidden=false;
-  setT('fCoachK',u.k+(off?` · ${off>0?'+':'−'}${Math.abs(off)} W von dir`:''));setT('fCoachW',String(w));setT('fCoachT',u.t);setT('fCoachS',u.s);
+  const res=C.wbal/C.W;  /* Reserve über der FTP nur zeigen, wenn sie angebrochen ist */
+  setT('fCoachK',u.k+(off?` · ${off>0?'+':'−'}${Math.abs(off)} W von dir`:'')+(res<.9?` · Reserve ${n0(res*100)} %`:''));setT('fCoachW',String(w));setT('fCoachT',u.t);setT('fCoachS',u.s);
   const now=lastAvg(3),st=now==null||S.rec.p.length<3?'':now<w*.93?'lo':now>w*1.07?'hi':'ok';
   if(el.dataset.st!==st)el.dataset.st=st;
   setT('fCoachI',S.erg.on?'Rolle hält die Leistung':st==='lo'?`▲ ${n0(w-now)} W mehr`:st==='hi'?`▼ ${n0(now-w)} W weniger`:st==='ok'?'✓ passt':'');

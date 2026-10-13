@@ -138,6 +138,7 @@ function disconnectTrainer(){
   S.tr.cp=null;S.tr.ctrl=false;setTr('off','');
 }
 function setTr(state,name,sub){
+  if(state==='wait'&&S.tr.state!=='wait')S.tr.waitSince=Date.now();
   S.tr.state=state;S.tr.name=name||S.tr.name;
   $('#trDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
   $('#trSub').textContent=state==='on'?`${S.tr.name} · ${S.tr.via}`:state==='wait'?(sub||'Verbinde …'):'Nicht verbunden';
@@ -166,6 +167,7 @@ async function setupHR(){
   }catch(e){setHr('off');toast('Pulsgurt nicht erreichbar');}
 }
 function setHr(state){
+  if(state==='wait'&&S.hrm.state!=='wait')S.hrm.waitSince=Date.now();
   S.hrm.state=state;
   $('#hrDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
   $('#hrSub').textContent=state==='on'?S.hrm.name:state==='wait'?'Verbinde …':'Nicht verbunden';
@@ -212,6 +214,7 @@ function onCPMcad(e,src='cd'){
 }
 const onCSCtr=e=>onCSC(e,'tr'),onCPMtr=e=>onCPMcad(e,'tr');
 function setCd(state){
+  if(state==='wait'&&S.cd.state!=='wait')S.cd.waitSince=Date.now();
   S.cd.state=state;
   $('#cdDot').className='dot'+(state==='on'?' on':state==='wait'?' wait':'');
   $('#cdSub').textContent=state==='on'?S.cd.name:state==='wait'?'Verbinde …':'Nicht verbunden';
