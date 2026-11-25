@@ -10,6 +10,8 @@ import { grundleistung, zielEinfach } from '../kern/coach';
 import { Aufnahme, schnitt } from '../kern/aufnahme';
 import { TrittStart, CountAbbruch } from '../kern/start';
 import { Rivale } from '../kern/rivale';
+import { segmente, versuche, zeitAuf, type Segment } from '../kern/segmente';
+import { zeit as fmtZeit } from '../kern/format';
 import { fmt, tag } from '../kern/format';
 import { Geraete } from './geraete';
 
@@ -26,6 +28,7 @@ const F = {
   rec: new Aufnahme(), startISO: '', t: 0, s: 0, v: 0, up: 0, lastAlt: null as number | null,
   coach: true, basis: 140, hand: 140,
   rivale: null as Rivale | null, vorn: false,
+  segs: [] as { seg: Segment; best: number | null; n: number }[], bestzeiten: 0,
   gesagt: {} as Record<string, number>, ergebnis: null as Ergebnis | null
 };
 const tritt = new TrittStart(); let abbruch = new CountAbbruch();
@@ -54,7 +57,10 @@ function start(streckeId: string, rev: boolean, durchTritt: boolean) {
   if (!st || F.phase !== 'lobby') return;
   F.rt = bahn(st, rev); F.climbs = anstiege(F.rt);
   F.haupt = F.climbs.slice().sort((a, b) => b.gain - a.gain)[0] || null;
-  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: grundleistung(werte.ftp), rivale: null, vorn: false, gesagt: {}, ergebnis: null });
+  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: grundleistung(werte.ftp), rivale: null, vorn: false, gesagt: {}, ergebnis: null, segs: [], bestzeiten: 0 });
+  /* Segmente der Runde mit der bisherigen Bestzeit aus allen früheren Versuchen */
+  const rt = F.rt;
+  W.laeufe(streckeId, rev).then(l => { if (F.rt === rt) F.segs = segmente(rt).filter(s => s.art === 'anstieg').map(seg => { const v = versuche(seg, l); return { seg, best: v.length ? v[0].zeit : null, n: v.length }; }); });
   F.hand = F.basis; abbruch = new CountAbbruch();
   W.rivale(streckeId, rev).then(r => { if (r && F.rt && F.rt.id === streckeId) F.rivale = new Rivale(r.start, r.dist); });
 }
@@ -75,7 +81,7 @@ async function ende(ganz: boolean) {
     route: rt.name + (rt.rev ? ' (umgekehrt)' : ''), routeId: rt.id, rev: rt.rev, ganz, gain: Math.round(F.up), trainer: G.stand.rolle === 'an', ftp: werte.ftp, weight: werte.weight, app: 'neu'
   };
   const rv = F.rivale;
-  F.ergebnis = { zeit: n, ganz, km: F.s / 1000, hm: Math.round(F.up), avgW: Math.round(schnitt(R.p)), rivale: rv ? { start: rv.start, dauer: rv.dauer } : null, abstand: rv && ganz ? n - rv.dauer : null };
+  F.ergebnis = { zeit: n, ganz, km: F.s / 1000, hm: Math.round(F.up), avgW: Math.round(schnitt(R.p)), rivale: rv ? { start: rv.start, dauer: rv.dauer } : null, abstand: rv && ganz ? n - rv.dauer : null, bestzeiten: F.bestzeiten };
   const f = await W.fahrtFertig(r);
   if (F.ergebnis) F.ergebnis = { ...F.ergebnis, id: f.id, strava: f.strava };
 }
@@ -87,10 +93,18 @@ function meldungen() {
     const d = c.s - s;
     if (d > 0 && d < 300 && !g['a' + i]) { g['a' + i] = 1; sag({ art: 'hinweis', kopf: 'Anstieg voraus', text: `${fmt(c.len / 1000, 1)} km · ${fmt(c.g, 1)} % im Schnitt` }); }
   }
-  const h = F.haupt;
-  if (h) {
-    if (!g.fuss && s >= h.s && s < h.top) { g.fuss = 1; sag({ art: 'gross', text: 'Anstieg' }); }
-    if (g.fuss && !g.kuppe && s >= h.top) { g.kuppe = 1; sag({ art: 'gross', text: 'Kuppe' }); sag({ art: 'hinweis', kopf: 'Geschafft', text: `${fmt(h.gain)} Höhenmeter am Stück` }); }
+  /* Segmente: am Fuß die Bestzeit ansagen, oben die eigene Zeit dagegenhalten */
+  for (const x of F.segs) {
+    const k = x.seg.id;
+    if (!g['f' + k] && s >= x.seg.von && s < x.seg.bis) { g['f' + k] = 1; sag({ art: 'gross', text: 'Segment' }); sag({ art: 'hinweis', kopf: `Anstieg · ${fmt(x.seg.len / 1000, 1)} km`, text: x.best != null ? 'Bestzeit ' + fmtZeit(x.best) : 'Erste Zeit zählt', ms: 4200 }); }
+    if (g['f' + k] && !g['k' + k] && s >= x.seg.bis) {
+      g['k' + k] = 1; const z = zeitAuf(x.seg, F.rec.dist.concat([s])); sag({ art: 'gross', text: 'Kuppe' });
+      if (z != null) {
+        const d = x.best != null ? z - x.best : null;
+        if (d == null || d < 0) F.bestzeiten++;
+        sag({ art: 'hinweis', kopf: 'Segment geschafft', text: d == null ? 'Erste Zeit ' + fmtZeit(z) : Math.abs(d) < .5 ? 'Genau deine Bestzeit' : `${fmt(Math.abs(d))} s ${d < 0 ? 'schneller als je zuvor' : 'über deiner Bestzeit'}`, ms: 4200 });
+      }
+    }
   }
   const rv = F.rivale;
   if (rv && F.t > 20) {

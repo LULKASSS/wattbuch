@@ -142,6 +142,7 @@ app.whenReady().then(() => {
   ipcMain.handle('daten:fahrten', () => daten.fahrten());
   ipcMain.handle('daten:werte', () => daten.werte());
   ipcMain.handle('daten:rivale', (_e, id, rev) => daten.rivale(id, rev));
+  ipcMain.handle('daten:laeufe', (_e, id, rev) => daten.laeufe(id, rev));
   ipcMain.handle('daten:laufend', () => faehrt ? daten.journalLesen() : null);
   /* Konto, Werte, Geräte */
   konto = createKonto({ daten, melde: st => anBuehne('konto', st), log: m => console.log(m) });
@@ -169,6 +170,9 @@ app.whenReady().then(() => {
   ipcMain.handle('strava:verbinden', heil(() => { if (SV_AUS) throw new Error('Kein Strava in der Simulation'); return sv.verbinden(); }));
   ipcMain.handle('strava:trennen', heil(() => sv.trennen()));
   ipcMain.handle('strava:abbrechen', (_e, id) => sv.abbrechen(String(id)));
+  ipcMain.handle('strava:alsStrecke', heil(async id => ({ strecke: await sv.alsStrecke(String(id)) })));
+  /* Strecke entfernen: nur hier auf dem Gerät und in der eigenen Sicherung; eine Runde aus Strava kommt nicht wieder */
+  ipcMain.handle('daten:streckeWeg', (_e, id) => { id = String(id); daten.streckeLoeschen(id); if (id.startsWith('sf')) sv.rundeWeg(id); try { fs.rmSync(path.join(sicherung.dir, 'strecken', id.replace(/[^\w.~-]/g, '_') + '.json')); } catch {} return true; });
   if (!SV_AUS) setTimeout(() => sv.start(), 3000);
   ipcMain.handle('geraete:liste', () => daten.geraete());
   ipcMain.handle('geraete:vergessen', (_e, a) => { const g = daten.geraete(); delete g[a]; daten.geraeteSpeichern(g); anMaschine('befehl', { was: 'trenne', art: a }); return g; });

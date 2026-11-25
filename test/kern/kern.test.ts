@@ -9,6 +9,7 @@ import { CountAbbruch, TrittStart } from '../../src/kern/start';
 import { Rivale } from '../../src/kern/rivale';
 import { kurve, naehe, stelle } from '../../src/kern/kurve';
 import { zeit } from '../../src/kern/format';
+import { segmente, versuche, zeitAuf } from '../../src/kern/segmente';
 import { Guete } from '../../src/buehne/welt/guete';
 
 /* Erfundene Strecke: 6 km nach Osten mit einem Berg in der Mitte und einer Ecke, Höhen verrauscht */
@@ -137,6 +138,23 @@ describe('Straße der Welt', () => {
     expect(d0).toBeLessThan(.5); expect(y0).toBeCloseTo(k.y[i], 0);
     const [d1] = nh.nah(k.x[i] - k.tz[i] * 60, k.z[i] + k.tx[i] * 60); expect(d1).toBeGreaterThan(58); expect(d1).toBeLessThan(62);
     const [d2] = nh.fern(k.x[i], k.z[i] + 3000); expect(d2).toBeGreaterThan(2500);
+  });
+});
+
+describe('Segmente', () => {
+  const rt = bahn(ausPunkten('Test', punkte())), segs = segmente(rt);
+  const lauf = (id: string, v: number, bis = rt.dist + 400) => ({ id, start: '2026-01-0' + id + 'T10:00:00Z', dist: Array.from({ length: Math.ceil(bis / v) }, (_, i) => Math.min(bis, (i + 1) * v)) });
+  it('ganze Runde und der Anstieg, mit fester Kennung je Richtung', () => {
+    expect(segs.map(s => s.art)).toEqual(['runde', 'anstieg']);
+    expect(segs[1].gain).toBeGreaterThan(70); expect(segs[1].id).toMatch(/:h:\d+$/);
+    expect(segmente(bahn(ausPunkten('Test', punkte()), true))[0].id).toMatch(/:r:runde$/);
+  });
+  it('Versuche: Zeit aus den Metern pro Sekunde, schnellster zuerst, abgebrochene zählen nur so weit sie kamen', () => {
+    const l = [lauf('1', 5), lauf('2', 8), lauf('3', 6, 3600)];   // der dritte hört nach dem Anstieg auf
+    const runde = versuche(segs[0], l), berg = versuche(segs[1], l);
+    expect(runde.map(v => v.fahrt)).toEqual(['2', '1']); expect(runde[0].zeit).toBeCloseTo(rt.dist / 8, 0);
+    expect(berg.map(v => v.fahrt)).toEqual(['2', '3', '1']); expect(berg[1].zeit).toBeCloseTo(segs[1].len / 6, 0);
+    expect(zeitAuf(segs[1], lauf('4', 6, 1000).dist)).toBeNull();
   });
 });
 

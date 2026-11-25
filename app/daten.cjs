@@ -36,7 +36,9 @@ function createDaten(dir) {
   const rolle = r => r.src !== 'strava' && r.trainer !== false && !r.noW;
   function kurz(r) {
     const { st, rev } = zuordnung(r), rz = rolle(r) ? rundenzeit(r, st) : 0;
-    return { id: r.id, start: r.start, name: r.name, routeId: st ? st.id : null, rev, ganz: rz > 0, rolle: rolle(r), dauer: rz || (r.noW ? r.dur || 0 : r.p.length), km: r.dist && r.dist.length ? r.dist[r.dist.length - 1] / 1000 : 0 };
+    const n = r.noW ? r.dur || 0 : r.p.length, avgW = r.noW ? r.estW || null : n ? Math.round(r.p.reduce((a, v) => a + v, 0) / n) : null;
+    return { id: r.id, start: r.start, name: r.name, routeId: st ? st.id : null, rev, ganz: rz > 0, rolle: rolle(r), dauer: rz || n, zeit: n, km: r.dist && r.dist.length ? r.dist[r.dist.length - 1] / 1000 : 0, hm: Math.round(r.gain || 0), avgW,
+      stravaId: r.strava && r.strava.id ? String(r.strava.id) : null, draussen: r.src === 'strava' && !r.trainer };
   }
   let liste = null;
   const fahrten = () => liste || (liste = alle(D.fahrten).map(kurz).sort((a, b) => a.start.localeCompare(b.start)));
@@ -46,6 +48,12 @@ function createDaten(dir) {
   function fahrtSpeichern(r) { schreib(path.join(D.fahrten, safe(r.id) + '.json'), r); liste = null; melde(); return r.id; }
   function fahrtLoeschen(id) { try { fs.rmSync(path.join(D.fahrten, safe(id) + '.json')); } catch {} liste = null; melde(); }
   const fahrt = id => lies(path.join(D.fahrten, safe(id) + '.json'), null);
+  /* Alle Rollenfahrten auf einer Strecke in einer Richtung, mit ihren Metern pro Sekunde bis zum Ende der ersten Runde */
+  function laeufe(streckeId, rev) {
+    const st = streckenKurz().find(s => s.id === streckeId); if (!st) return [];
+    return fahrten().filter(f => f.routeId === streckeId && f.rev === !!rev && f.rolle).map(f => { const r = fahrt(f.id); if (!r || !r.dist) return null; const n = f.ganz ? f.dauer : r.dist.length; return { id: r.id, start: r.start, dist: r.dist.slice(0, n) }; }).filter(Boolean);
+  }
+  function streckeLoeschen(id) { try { fs.rmSync(path.join(D.strecken, safe(id) + '.json')); } catch {} sk = null; liste = null; melde(); }
   /* Rivale: schnellste ganze Runde auf dieser Strecke in dieser Richtung, nur Rollenfahrten */
   function rivale(streckeId, rev) {
     const best = fahrten().filter(f => f.routeId === streckeId && f.rev === !!rev && f.ganz && f.rolle).sort((a, b) => a.dauer - b.dauer)[0];
@@ -88,7 +96,7 @@ function createDaten(dir) {
     dir,
     strecken: () => alle(D.strecken),
     streckeSpeichern: s => { schreib(path.join(D.strecken, safe(s.id) + '.json'), s); sk = null; liste = null; melde(); },
-    fahrten, fahrt, fahrtSpeichern, fahrtLoeschen, rivale,
+    fahrten, fahrt, fahrtSpeichern, fahrtLoeschen, rivale, laeufe, streckeLoeschen,
     fahrtIds: () => fs.readdirSync(D.fahrten).filter(f => f.endsWith('.json')).map(f => lies(path.join(D.fahrten, f), null)).filter(Boolean).map(r => ({ id: r.id, neu: r.app === 'neu' })),
     aufAenderung: f => hoerer.push(f), lies, schreib,
     werte: () => lies(path.join(dir, 'werte.json'), null),

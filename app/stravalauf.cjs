@@ -173,12 +173,21 @@ function createStravaLauf({ strava, daten, konto, melde = () => {}, strecke = ()
     } catch (e) { log('Strava: ' + e.message); }
     finally { S.holt = false; }
   }
+  /* Eine draußen gefahrene Strava-Fahrt als Strecke sr<Strava-ID> anlegen */
+  async function alsStrecke(fahrtId) {
+    const r = daten.fahrt(fahrtId); if (!r || !r.strava || !r.strava.id) throw new Error('Keine Strava-Fahrt');
+    if (!S.st.connected || !S.st.canRead) throw new Error('Erst mit Strava verbinden');
+    const sm = (await ruf(() => strava.streams(r.strava.id, 'route'))).streams || {}, L = sm.latlng && sm.latlng.data, A = sm.altitude && sm.altitude.data;
+    if (!L || !A || L.length !== A.length) throw new Error('Strava liefert keine Linie mit Höhe');
+    const id = 'sr' + r.strava.id; strecke({ id, name: (r.name || 'Strecke').slice(0, 60), pts: L.map((p, i) => [p[0], p[1], A[i]]) });
+    return id;
+  }
   function rundeWeg(id) { const st = stand(); setze({ rundenWeg: [...new Set([...(st.rundenWeg || []), id])] }); }
 
   async function start() { try { await status(); } catch {} if (S.st.connected) { offeneSuchen(); lauf(); hole(); } }
   const takt = setInterval(() => { if (S.st.connected) { lauf(); hole(); } }, 30 * 60000);
   return {
-    status, start, vormerken, abbrechen, hole, rundeWeg,
+    status, start, vormerken, abbrechen, hole, rundeWeg, alsStrecke,
     verbinden: async () => { await strava.connect(); const s = await status(); offeneSuchen(); lauf(); hole(true); return s; },
     trennen: async () => { await strava.disconnect(); return status(); },
     stop: () => { clearInterval(takt); clearTimeout(S.t); }

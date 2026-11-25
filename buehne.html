@@ -6,14 +6,14 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:">
 <title>Wattbuch Neu</title>
 </head>
-<body data-stage="lobby">
+<body data-stage="lobby" data-sicht="lobby">
 <canvas id="gl"></canvas>
 <div class="layer" id="shade"></div>
 <div id="zieh"></div>
 
 <div class="layer" id="lobby">
   <div class="top">
-    <nav><button class="on">Lobby</button><button disabled>Saison</button><button disabled>Rivalen</button><button disabled>Fahrten</button></nav>
+    <nav><button class="on" data-s="lobby">Lobby</button><button disabled data-s="saison">Saison</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
     <div style="display:flex;gap:26px;align-items:center">
       <button class="dev" id="devB" aria-label="Geräte"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></button>
       <button class="lvl" id="lvlB" aria-label="Profil"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div></button>
@@ -28,6 +28,17 @@
   </div>
   <div class="dock"><div id="cards" style="display:contents"></div></div>
 </div>
+
+<div class="layer" id="rivalen"><div class="sicht">
+  <div class="lbl">Rivalen</div>
+  <h2 class="dsp" id="rvName"></h2>
+  <div class="rolle" id="rvListe"></div>
+  <button class="klein" id="rvWeg" type="button">Runde entfernen</button>
+</div></div>
+<div class="layer" id="fahrten"><div class="sicht breit">
+  <div class="lbl">Fahrten</div>
+  <div class="rolle" id="fhListe"></div>
+</div></div>
 
 <div class="layer" id="count"><div class="ringbox">
   <i class="wave"></i><i class="wave"></i>
@@ -88,7 +99,7 @@
   <div class="lbl" id="resL"></div>
   <b class="dsp big" id="resT">0:00</b>
   <p id="resP"></p>
-  <div class="tags"><span id="resW"></span><span id="resK"></span><span id="resH"></span><button id="resS" type="button" hidden></button></div>
+  <div class="tags"><span id="resW"></span><span id="resK"></span><span id="resH"></span><span id="resB"></span><button id="resS" type="button" hidden></button></div>
   <button id="home">Zur Lobby</button>
 </div></div>
 <div class="layer on" id="flash" style="transition-duration:1.4s"></div>

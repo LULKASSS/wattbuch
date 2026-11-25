@@ -16,7 +16,7 @@ export interface Fahrt {
   routeId?: string | null; rev?: boolean; ganz?: boolean; app?: 'neu';
   src?: string; noW?: boolean; dur?: number;
 }
-export interface FahrtKurz { id: string; start: string; name: string; routeId: string | null; rev: boolean; ganz: boolean; rolle: boolean; dauer: number; km: number }
+export interface FahrtKurz { id: string; start: string; name: string; routeId: string | null; rev: boolean; ganz: boolean; rolle: boolean; dauer: number; zeit: number; km: number; hm: number; avgW: number | null; stravaId: string | null; draussen: boolean }
 export interface Werte { ftp: number; weight: number; bike: number; diff: number }
 export const WERTE_START: Werte = { ftp: 200, weight: 75, bike: 9, diff: 0.5 };
 
@@ -24,6 +24,7 @@ export type Phase = 'lobby' | 'count' | 'ride' | 'done';
 export type GeraetStand = 'aus' | 'sucht' | 'an';
 export interface Ergebnis {
   zeit: number; ganz: boolean; km: number; hm: number; avgW: number;
+  bestzeiten?: number;   // wie viele Segment-Bestzeiten in dieser Fahrt gefallen sind (ohne die Runde selbst)
   id?: string; strava?: string | null;   // nach dem Speichern: Kennung der Fahrt und ob sie zu Strava geht
   rivale: { start: string; dauer: number } | null;
   abstand: number | null;  // Sekunden zum Rivalen, negativ = schneller

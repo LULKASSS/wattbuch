@@ -443,6 +443,63 @@ test('Strava mit eigener App: Draußen-Fahrten werden übernommen, mit und ohne 
   expect(sv.seen.uploads).toEqual([]);   // übernommene Fahrten werden nie wieder hochgeladen
   /* Draußen-Fahrten sind keine Rivalen */
   await buehne.keyboard.press('Escape'); await expect(buehne.locator('#hRival')).toBeHidden();
+  /* aber jede lässt sich als Strecke anlegen */
+  await buehne.click('nav button[data-s=fahrten]');
+  await expect(buehne.locator('.fh')).toHaveCount(2);
+  await buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button').click();
+  await expect(buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button')).toHaveText('ist Strecke', { timeout: 10_000 });
+  await expect.poll(() => fs.existsSync(path.join(dir, 'daten', 'strecken', 'sr402.json'))).toBe(true);
+  await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('.card')).toHaveCount(2);
   expect(probleme).toEqual([]);
   await app.close(); sv.zu(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/* ---------- Schritt 4: Segmente, Rivalen, Fahrten ---------- */
+test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit in der Fahrt, Runde entfernen', async () => {
+  const dir = ordner(); fs.mkdirSync(path.join(dir, 'daten', 'fahrten'), { recursive: true });
+  /* zwei erfundene frühere Versuche: einer mit 6 m/s über die ganze Runde, einer mit 5 m/s, der nach 2,5 km aufhörte */
+  const alt = (id, tag, v, bis) => ({ id, start: `2026-10-${tag}T17:00:00.000Z`, name: 'Testrunde', p: Array(Math.ceil(bis / v)).fill(180), hr: null, cad: null, spd: null, dist: Array.from({ length: Math.ceil(bis / v) }, (_, i) => Math.min(bis, (i + 1) * v)), alt: null, route: 'Testrunde', gain: 45, trainer: true, ftp: 200, weight: 75 });
+  for (const r of [alt('ra', 12, 6, 3300), alt('rb', 20, 5, 2500)]) fs.writeFileSync(path.join(dir, 'daten', 'fahrten', r.id + '.json'), JSON.stringify(r));
+  fs.writeFileSync(path.join(dir, 'daten', 'strecken', 'zwei.json'), JSON.stringify({ ...kurzeStrecke(), id: 'zwei', name: 'Zweite Runde' }));
+  const { app, buehne, maschine, probleme } = await starte(dir, 20);
+  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.click('nav button[data-s=rivalen]');
+  await expect(buehne.locator('#rvName')).toHaveText('Testrunde');
+  await expect(buehne.locator('.rv')).toHaveCount(2);
+  await expect(buehne.locator('.rv').first()).toContainText('Ganze Runde'); await expect(buehne.locator('.rv .z').first()).toHaveText('8:20'); await expect(buehne.locator('.rv .n').first()).toHaveText('1×');
+  await expect(buehne.locator('.rv').nth(1)).toContainText('Anstieg km'); await expect(buehne.locator('.rv .n').nth(1)).toHaveText('2×');   // der abgebrochene zählt am Anstieg mit
+  await buehne.locator('.rv').nth(1).click();
+  await expect(buehne.locator('.vs div')).toHaveCount(2);
+  await expect(buehne.locator('.vs div').first()).toContainText('Bestzeit'); await expect(buehne.locator('.vs div').nth(1)).toContainText('+');
+  /* andere Runde: keine Versuche */
+  await buehne.keyboard.press(await buehne.locator('.card').first().innerText().then(t => t.includes('Testrunde') ? 'ArrowRight' : 'ArrowLeft'));
+  await expect(buehne.locator('#rvName')).toHaveText('Zweite Runde'); await expect(buehne.locator('.rv .z').first()).toHaveText('–');
+  /* Fahrten: beide alten Fahrten, neueste zuerst */
+  await buehne.click('nav button[data-s=fahrten]');
+  await expect(buehne.locator('.fh')).toHaveCount(2); await expect(buehne.locator('.fh').first()).toContainText('20. Okt'); await expect(buehne.locator('.mon')).toHaveText('Oktober 2026');
+  expect(await buehne.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await buehne.keyboard.press('Escape');
+  await expect(buehne.locator('body')).toHaveAttribute('data-sicht', 'lobby');
+  /* Fahrt mit viel Druck: am Fuß wird die Bestzeit angesagt, oben fällt sie, im Ergebnis steht es */
+  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await maschine.evaluate(() => { window.__simFahrer.faktor = 3; });
+  const gesagt = []; await buehne.exposeFunction('__merk', t => gesagt.push(t));
+  await buehne.evaluate(() => new MutationObserver(m => m.forEach(x => x.addedNodes.forEach(n => window.__merk(n.textContent)))).observe(document.getElementById('toasts'), { childList: true }));
+  await buehne.click('#start');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
+  expect(gesagt.some(t => /Anstieg · 0,\d km.*Bestzeit \d:\d\d/.test(t))).toBe(true);
+  expect(gesagt.some(t => /Segment geschafft.*schneller als je zuvor/.test(t))).toBe(true);
+  await expect(buehne.locator('#resL')).toHaveText('Neue Bestzeit');
+  await expect(buehne.locator('#resB')).toHaveText('1 Segment-Bestzeit');
+  await buehne.click('#home');
+  await expect(buehne.locator('#hName')).toHaveText('Zweite Runde');   // heute ist die andere Runde dran
+  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.click('nav button[data-s=rivalen]');
+  await expect(buehne.locator('.rv .n').first()).toHaveText('2×'); await expect(buehne.locator('.rv .n').nth(1)).toHaveText('3×');
+  /* Runde entfernen: erst nachfragen, dann weg (Fahrten bleiben) */
+  await buehne.click('#rvWeg'); await expect(buehne.locator('#rvWeg')).toHaveText('Wirklich entfernen'); await buehne.click('#rvWeg');
+  await expect(buehne.locator('.card')).toHaveCount(1);
+  expect(fs.existsSync(path.join(dir, 'daten', 'strecken', 'test-kurz.json'))).toBe(false); expect(fahrten(dir)).toHaveLength(3);
+  expect(probleme).toEqual([]);
+  await app.close(); fs.rmSync(dir, { recursive: true, force: true });
 });

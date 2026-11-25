@@ -58,7 +58,7 @@ export class Gelaende {
       const x = n.x + ia * cell, z = n.z + ib * cell, y = this.hoehe(x, z, cell);
       pos[o] = x; pos[o + 1] = rand ? y - cell * .9 - 2 : y; pos[o + 2] = z;
       const t = Math.min(1, Math.max(0, (y - this.y0) / (this.y1 - this.y0)));
-      c.copy(cLow).lerp(cMid, smooth(0, .35, t)).lerp(cHi, smooth(.3, .75, t)).lerp(cTop, smooth(.8, 1, t));
+      c.copy(cLow).lerp(cMid, smooth(0, .35, t)).lerp(cHi, smooth(.3, .75, t)).lerp(cTop, smooth(.88, 1.08, t));
       const j = (1 + (hash(x * .37, z * .37) - .5) * .16) * (1 - .32 * smooth(.5, .62, this.wald(x, z)));
       col[o] = c.r * j; col[o + 1] = c.g * j; col[o + 2] = c.b * j;
       sum += y; o += 3;

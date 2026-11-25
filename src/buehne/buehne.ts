@@ -5,6 +5,7 @@ import type { Strecke, FahrtKurz, Zustand, Ereignis } from '../kern/typen';
 import { bahn, anstiege, fahrzeit, type Bahn } from '../kern/strecke';
 import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
+import { segmente, versuche } from '../kern/segmente';
 import { Welt, type Akt } from './welt/welt';
 import type { KontoStand, Gemerkt, StravaStand } from '../bruecke';
 
@@ -14,7 +15,7 @@ const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 interface Runde { st: Strecke; rt: Bahn; best: FahrtKurz | null; zuletzt: string | null; tag: string; min: number; seed: number }
-let runden: Runde[] = [], pick = 0, ftp = 200, gewicht = 84;
+let runden: Runde[] = [], alleFahrten: FahrtKurz[] = [], pick = 0, ftp = 200, gewicht = 84;
 let z: Zustand | null = null, zZeit = 0, akt: Akt = 'lobby', aktRt: Bahn | null = null, haupt: { s: number; top: number } | null = null;
 const welt = new Welt($<HTMLCanvasElement>('gl'));
 const maus: [number, number] = [0, 0];
@@ -27,6 +28,7 @@ async function ladeRunden() {
   /* beim allerersten Start legt der Maschinenraum die ersten Runden gerade erst an */
   for (let i = 0; !strecken.length && i < 40; i++) { await new Promise(r => setTimeout(r, 250)); strecken = await W.strecken(); }
   if (werte) { ftp = werte.ftp || ftp; gewicht = (werte.weight || 75) + (werte.bike || 9); }
+  alleFahrten = fahrten;
   const P = grundleistung(ftp);
   runden = strecken.map(st => {
     const rt = bahn(st), eigene = fahrten.filter(f => f.routeId === st.id && !f.rev && f.rolle);
@@ -80,7 +82,7 @@ function zeige(i: number) { const r = runden[i]; welt.strecke(r.rt, r.seed); W.b
 function waehle(i: number) {
   const n = runden.length; i = (i + n) % n;
   if (i === pick || akt !== 'lobby') return;
-  pick = i; baueKarten(); fuelleLobby(); $('flash').classList.add('on');
+  pick = i; baueKarten(); fuelleLobby(); if (sicht === 'rivalen') { rvAuf = ''; zeigeRivalen(); } $('flash').classList.add('on');
   setTimeout(() => { zeige(pick); $('flash').classList.remove('on'); }, 360);
 }
 const start = () => { const r = runden[pick]; if (r && akt === 'lobby') W.befehl({ was: 'start', streckeId: r.st.id, rev: false }); };
@@ -102,6 +104,7 @@ function setzeAkt(a: Akt) {
   }
   if (a !== 'lobby') blatt(null);
   if (a === 'done') ergebnis();
+  if (a !== 'lobby' && sicht !== 'lobby') setzeSicht('lobby');
   if (a === 'lobby' && vor === 'done') ladeRunden().then(i => { pick = i; baueKarten(); fuelleLobby(); zeige(pick); });
 }
 let cntVor = 0;
@@ -137,6 +140,7 @@ function ergebnis() {
   $('resP').textContent = !e.ganz ? `${fmt(e.km, 1)} km gefahren` : a == null || !e.rivale ? 'Ab jetzt dein Rivale auf dieser Runde' : gleich ? 'Kopf an Kopf mit dir vom ' + tag(e.rivale.start) : sek(a) + (a < 0 ? ' vor dir vom ' : ' hinter dir vom ') + tag(e.rivale.start);
   if (e.id && e.id !== resId) { resId = e.id; stravaMarke(e.strava); } else if (!e.id) { resId = null; stravaMarke(null); }
   $('resW').textContent = 'Ø ' + fmt(e.avgW) + ' W'; $('resK').textContent = e.ganz ? fmt(e.km, 1) + ' km' : ''; $('resH').textContent = e.hm ? fmt(e.hm) + ' Höhenmeter' : '';
+  $('resB').textContent = e.bestzeiten ? (e.bestzeiten === 1 ? '1 Segment-Bestzeit' : e.bestzeiten + ' Segment-Bestzeiten') : '';
 }
 
 /* ---------- Anzeige während der Fahrt ---------- */
@@ -257,9 +261,69 @@ function neuLaden() {
     const vor = runden[pick] ? runden[pick].st.id : null, n = runden.length, heute = await ladeRunden(), i = runden.findIndex(r => r.st.id === vor);
     pick = i >= 0 ? i : heute; baueKarten(); fuelleLobby();
     if (i < 0 || !n) zeige(pick);
+    if (sicht === 'rivalen') zeigeRivalen(); if (sicht === 'fahrten') zeigeFahrten();
   }, 300);
 }
 W.aufDaten(neuLaden);
+
+/* ---------- Bereiche: Rivalen und Fahrten ---------- */
+type Sicht = 'lobby' | 'rivalen' | 'fahrten';
+let sicht: Sicht = 'lobby';
+function setzeSicht(x: Sicht) {
+  sicht = x; document.body.dataset.sicht = x; blatt(null);
+  document.querySelectorAll<HTMLElement>('nav button').forEach(b => b.classList.toggle('on', b.dataset.s === x));
+  if (x === 'rivalen') zeigeRivalen(); if (x === 'fahrten') zeigeFahrten();
+}
+document.querySelectorAll<HTMLElement>('nav button').forEach(b => { b.onclick = () => { if (akt === 'lobby') setzeSicht(b.dataset.s as Sicht); }; });
+const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: '2-digit' });
+/* Rivalen: die Segmente der gewählten Runde (ganze Runde und Anstiege) mit Bestzeit; ein Klick zeigt die Versuche */
+let rvFuer = '', rvAuf = '';
+async function zeigeRivalen() {
+  const r = runden[pick]; if (!r) return;
+  $('rvName').textContent = r.st.name; ($('rvWeg') as HTMLButtonElement).textContent = 'Runde entfernen'; $('rvWeg').dataset.sicher = '';
+  const fuer = r.st.id; rvFuer = fuer;
+  const laeufe = await W.laeufe(r.st.id, false); if (rvFuer !== fuer || sicht !== 'rivalen') return;
+  const box = $('rvListe'); box.innerHTML = '';
+  for (const seg of segmente(r.rt)) {
+    const v = versuche(seg, laeufe), b = document.createElement('button'); b.className = 'rv' + (rvAuf === seg.id ? ' auf' : ''); b.type = 'button';
+    b.innerHTML = '<b></b><span class="z"></span><span class="d"></span><span class="n"></span>';
+    const titel = b.children[0] as HTMLElement; titel.textContent = seg.art === 'runde' ? 'Ganze Runde' : `Anstieg km ${fmt(seg.von / 1000, 1)}`;
+    if (seg.art === 'anstieg') { const k = document.createElement('small'); k.textContent = `${fmt(seg.len / 1000, 1)} km · ${fmt(seg.g, 1)} %`; titel.appendChild(k); }
+    b.children[1].textContent = v.length ? zeit(v[0].zeit) : '–'; b.children[2].textContent = v.length ? datum(v[0].start) : ''; b.children[3].textContent = v.length ? v.length + '×' : '';
+    b.onclick = () => { rvAuf = rvAuf === seg.id ? '' : seg.id; zeigeRivalen(); };
+    box.appendChild(b);
+    if (rvAuf === seg.id && v.length) {
+      const l = document.createElement('div'); l.className = 'vs';
+      for (const x of v.slice(0, 8)) { const z = document.createElement('div'); z.innerHTML = '<span></span><span></span><span></span><span></span>'; z.children[0].textContent = datum(x.start); z.children[1].textContent = zeit(x.zeit); z.children[2].textContent = x === v[0] ? 'Bestzeit' : '+' + zeit(x.zeit - v[0].zeit); l.appendChild(z); }
+      box.appendChild(l);
+    }
+  }
+}
+/* Runde entfernen: erster Klick fragt, zweiter entfernt (nur hier auf dem Gerät) */
+$('rvWeg').onclick = async () => {
+  const b = $('rvWeg'), r = runden[pick]; if (!r) return;
+  if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = 'Wirklich entfernen'; setTimeout(() => { if (b.dataset.sicher) { b.dataset.sicher = ''; b.textContent = 'Runde entfernen'; } }, 3000); return; }
+  b.dataset.sicher = ''; await W.streckeWeg(r.st.id);
+};
+/* Fahrten: alle Fahrten, neueste zuerst, nach Monat. Draußen-Fahrten aus Strava lassen sich als Strecke anlegen. */
+function zeigeFahrten() {
+  const box = $('fhListe'); box.innerHTML = ''; let mon = '';
+  const liste = alleFahrten.slice().sort((a, b) => b.start.localeCompare(a.start));
+  if (!liste.length) { const p = document.createElement('p'); p.className = 'leer'; p.textContent = 'Noch keine Fahrt'; box.appendChild(p); return; }
+  for (const f of liste) {
+    const m = new Date(f.start).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+    if (m !== mon) { mon = m; const h = document.createElement('div'); h.className = 'mon'; h.textContent = m; box.appendChild(h); }
+    const row = document.createElement('div'); row.className = 'fh'; row.innerHTML = '<span></span><b></b><span></span><span></span><span></span>';
+    row.children[0].textContent = new Date(f.start).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }); row.children[1].textContent = f.name;
+    row.children[2].textContent = f.km ? fmt(f.km, 1) + ' km' : ''; row.children[3].textContent = zeit(f.zeit); row.children[4].textContent = f.avgW ? fmt(f.avgW) + ' W' : '';
+    if (f.draussen && f.stravaId) {
+      const da = runden.some(r => r.st.id === 'sr' + f.stravaId), b = document.createElement('button'); b.type = 'button'; b.textContent = da ? 'ist Strecke' : 'Als Strecke'; b.disabled = da;
+      b.onclick = async () => { b.disabled = true; b.textContent = 'holt'; const r = await W.alsStrecke(f.id); b.textContent = r.ok ? 'ist Strecke' : 'geht nicht'; };
+      row.appendChild(b);
+    } else { const e = document.createElement('em'); e.textContent = f.draussen ? 'draußen' : f.rolle ? '' : 'Strava'; row.appendChild(e); }
+    box.appendChild(row);
+  }
+}
 
 /* ---------- Bedienung ---------- */
 $('start').onclick = start; $('end').onclick = () => W.befehl({ was: 'ende' }); $('home').onclick = () => W.befehl({ was: 'lobby' });
@@ -270,10 +334,11 @@ addEventListener('keydown', e => {
   if (document.body.dataset.blatt) { if (e.key === 'Escape') blatt(null); return; }   // im Blatt gehören die Tasten den Feldern
   if (e.key === 'ArrowUp' && akt === 'ride') { W.befehl({ was: 'stufe', d: 10 }); e.preventDefault(); }
   else if (e.key === 'ArrowDown' && akt === 'ride') { W.befehl({ was: 'stufe', d: -10 }); e.preventDefault(); }
-  else if (e.key === 'Enter' && akt === 'lobby') start();
+  else if (e.key === 'Enter' && akt === 'lobby' && sicht === 'lobby') start();
   else if (e.key === 'Enter' && akt === 'done') W.befehl({ was: 'lobby' });
-  else if (e.key === 'ArrowRight' && akt === 'lobby') waehle(pick + 1);
-  else if (e.key === 'ArrowLeft' && akt === 'lobby') waehle(pick - 1);
+  else if (e.key === 'ArrowRight' && akt === 'lobby' && sicht !== 'fahrten') waehle(pick + 1);
+  else if (e.key === 'ArrowLeft' && akt === 'lobby' && sicht !== 'fahrten') waehle(pick - 1);
+  else if (e.key === 'Escape' && akt === 'lobby' && sicht !== 'lobby') setzeSicht('lobby');
   else if (e.key === ' ' && akt === 'ride') { W.befehl({ was: 'pause' }); e.preventDefault(); }
   else if (e.key === 'c' && akt === 'ride') W.befehl({ was: 'coach' });
   else if (e.key === 'Escape' && akt === 'count') W.befehl({ was: 'abbruch' });

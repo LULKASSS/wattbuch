@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('wattbuch', {
   stravaTrennen: () => ipcRenderer.invoke('strava:trennen'),
   stravaAbbrechen: id => ipcRenderer.invoke('strava:abbrechen', id),
   aufStrava: auf('strava'),
+  laeufe: (id, rev) => ipcRenderer.invoke('daten:laeufe', id, rev),
+  alsStrecke: id => ipcRenderer.invoke('strava:alsStrecke', id),
+  streckeWeg: id => ipcRenderer.invoke('daten:streckeWeg', id),
   /* Bühne */
   befehl: b => ipcRenderer.send('b:befehl', b),
   aufZustand: auf('zustand'),
