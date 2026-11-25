@@ -82,25 +82,40 @@ export class Geraete {
   private onCP = (e: any) => { const dv: DataView = e.target.value; try { if (dv.getUint8(0) === 0x80 && dv.getUint8(1) === 0x00 && dv.getUint8(2) !== 1) { this.ctrl = false; this.denied = true; } } catch { /* überspringen */ } };
 
   /* ---------- Verbinden ---------- */
-  async verbinden() {
+  /* Sucht und verbindet die genannten Arten, soweit sie nicht schon verbunden sind. Läuft gerade eine Suche,
+     kommt der Wunsch danach dran. */
+  private wunsch: Art[] | null = null;
+  async verbinden(arten: Art[]) {
     const bt = navigator.bluetooth;
-    if (this.sucht || !bt || !bt.requestDevice) return;
+    if (!bt || !bt.requestDevice) return;
+    if (this.sucht) { this.wunsch = [...new Set([...(this.wunsch || []), ...arten])]; return; }
     this.sucht = true;
     try {
-      for (const art of ['rolle', 'puls', 'kadenz'] as Art[]) {
+      for (const art of arten) {
         if (this.stand[art] !== 'aus') continue;
         if (this.dev[art]) { await this.aufbau(art); continue; }   // bekanntes Gerät: ohne Suche neu verbinden
         this.stand[art] = 'sucht';
         try {
           window.wattbuch.suche(art);
           const dev = await bt.requestDevice(art === 'rolle' ? { filters: [{ services: [0x1826] }, { services: [0x1818] }], optionalServices: [0x1826, 0x1818, 0x1816] }
-            : art === 'puls' ? { filters: [{ services: ['heart_rate'] }] } : { filters: [{ services: [0x1816] }], optionalServices: [0x1816, 0x1818] });
+            : art === 'puls' ? { filters: [{ services: ['heart_rate'] }] } : { filters: [{ services: [0x1816] }, { services: [0x1818] }], optionalServices: [0x1816, 0x1818] });
           this.dev[art] = dev;
-          dev.addEventListener('gattserverdisconnected', () => { this.stand[art] = 'aus'; if (art === 'rolle') { this.ctrl = false; this.cp = null; this.raw = []; } setTimeout(() => this.verbinden(), 2000); });
+          dev.addEventListener('gattserverdisconnected', () => {
+            if (this.dev[art] !== dev) return;   // vergessenes Gerät
+            this.stand[art] = 'aus'; if (art === 'rolle') { this.ctrl = false; this.cp = null; this.raw = []; }
+            setTimeout(() => this.verbinden([art]), 2000);
+          });
           await this.aufbau(art);
         } catch { this.stand[art] = 'aus'; }
       }
     } finally { this.sucht = false; }
+    if (this.wunsch) { const w = this.wunsch; this.wunsch = null; this.verbinden(w); }
+  }
+  /* Gerät vergessen: trennen und nicht wieder verbinden */
+  trenne(art: Art) {
+    const dev = this.dev[art]; delete this.dev[art]; this.stand[art] = 'aus'; delete this.name[art];
+    if (art === 'rolle') { this.ctrl = false; this.cp = null; this.raw = []; }
+    try { if (dev && dev.gatt.connected) dev.gatt.disconnect(); } catch { /* schon weg */ }
   }
   private async aufbau(art: Art) {
     const dev = this.dev[art]; this.stand[art] = 'sucht';

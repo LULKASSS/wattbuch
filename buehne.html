@@ -15,8 +15,8 @@
   <div class="top">
     <nav><button class="on">Lobby</button><button disabled>Saison</button><button disabled>Rivalen</button><button disabled>Fahrten</button></nav>
     <div style="display:flex;gap:26px;align-items:center">
-      <div class="dev"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></div>
-      <div class="lvl"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div></div>
+      <button class="dev" id="devB" aria-label="Geräte"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></button>
+      <button class="lvl" id="lvlB" aria-label="Profil"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div></button>
     </div>
   </div>
   <div class="hero">
@@ -64,6 +64,20 @@
   </div>
   <canvas id="prof" class="in bm"></canvas>
 </div>
+<div class="layer" id="blatt"><div class="glass bl" id="blIn">
+  <div id="blGeraete">
+    <div class="lbl">Geräte</div>
+    <div id="gRows"></div>
+    <div id="gWahl" hidden><div class="lbl" id="gWahlT"></div><div id="gListe"></div></div>
+  </div>
+  <div id="blProfil">
+    <div class="lbl">Profil</div>
+    <div class="fz"><label>FTP<span><input id="pFtp" type="number" min="50" max="600" step="1" inputmode="numeric"><em>W</em></span></label><label>Gewicht<span><input id="pKg" type="number" min="30" max="200" step="0.5" inputmode="decimal"><em>kg</em></span></label><label>Steigung<span><input id="pDiff" type="number" min="10" max="100" step="5" inputmode="numeric"><em>%</em></span></label></div>
+    <div class="lbl" style="margin-top:22px">Konto</div>
+    <form id="kForm"><input id="kMail" type="email" autocomplete="username" placeholder="E-Mail" aria-label="E-Mail"><input id="kPw" type="password" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort"><button class="bbtn" type="submit">Anmelden</button><p id="kMsg"></p></form>
+    <div id="kAn" hidden><b id="kWer"></b><small id="kSt"></small><button class="bbtn leer" id="kAus" type="button">Abmelden</button></div>
+  </div>
+</div></div>
 <div id="toasts"></div>
 <div class="layer" id="big"><span class="dsp" id="bigT"></span></div>
 

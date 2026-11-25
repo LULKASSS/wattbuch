@@ -2,17 +2,21 @@
  * Zwei Fenster: die Bühne (sichtbar: 3D-Welt und Anzeige) und der Maschinenraum (unsichtbar: Bluetooth, Fahrphysik,
  * Aufnahme). Stürzt die Bühne ab oder ruckelt sie, läuft die Aufnahme im Maschinenraum weiter; jede Sekunde landet
  * zusätzlich sofort im Journal auf der Platte. Die App lädt nichts aus dem Netz nach. */
-const { app, BrowserWindow, Menu, ipcMain, net, protocol, session, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, session, powerSaveBlocker, shell } = require('electron');
+const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createDaten } = require('./daten.cjs');
+const { createKonto } = require('./konto.cjs');
+const { uebernehmeAlt, createSicherung } = require('./alt.cjs');
+const ICLOUD = path.join(os.homedir(), 'Library/Mobile Documents/com~apple~CloudDocs');
 
 const BAU = path.join(__dirname, '..', 'bau');
 /* Tests und Simulation (WATTBUCH_DATA=Ordner): eigener Speicher, nie die echten Daten */
 const TEST_DATA = process.env.WATTBUCH_DATA && path.resolve(process.env.WATTBUCH_DATA);
 /* Simulierte Rolle (nur aus dem Quellcode, test/ ist nicht Teil der gebauten App) */
-const SIM = process.env.WATTBUCH_SIM === '1';
+const SIM = !!process.env.WATTBUCH_SIM, SIM_ALLE = process.env.WATTBUCH_SIM === '1';   // 'wahl': simulierte Geräte, aber nichts von selbst verbinden
 const TEMPO = Math.max(1, +process.env.WATTBUCH_TEMPO || 1);
 
 app.setName('Wattbuch Neu');
@@ -20,7 +24,9 @@ if (TEST_DATA) app.setPath('userData', path.join(TEST_DATA, 'profil'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 if (!TEST_DATA && !app.requestSingleInstanceLock()) app.quit();
 
-let buehne = null, maschine = null, daten = null, wach = null, letzter = null, faehrt = false;
+let offen = null;   // Art, für die das Geräte-Blatt gerade sucht
+let buehne = null, maschine = null, daten = null, konto = null, sicherung = null, wach = null, letzter = null, faehrt = false;
+const ARTEN = ['rolle', 'puls', 'kadenz'];
 const lebt = w => w && !w.isDestroyed() && !w.webContents.isDestroyed();
 const anBuehne = (kanal, x) => { if (lebt(buehne)) buehne.webContents.send(kanal, x); };
 const anMaschine = (kanal, x) => { if (lebt(maschine)) maschine.webContents.send(kanal, x); };
@@ -30,22 +36,29 @@ const prefs = () => ({ preload: path.join(__dirname, 'preload.cjs'), contextIsol
 function baueMaschine() {
   maschine = new BrowserWindow({ show: false, width: 400, height: 300, webPreferences: prefs() });
   const wc = maschine.webContents;
-  /* Bluetooth ohne Auswahldialog: Der Maschinenraum sagt vorher, welche Art Gerät er sucht. Taucht das gemerkte
-     Gerät in der Suche auf, wird es genommen. Ist noch keins gemerkt, das erste gefundene (und gemerkt). */
-  let art = null, wahl = null, frist = null;
-  ipcMain.removeAllListeners('bt:suche');
+  /* Bluetooth ohne Auswahldialog: Der Maschinenraum sagt vorher, welche Art Gerät er sucht. Ist dafür ein Gerät
+     gemerkt (geraete.json), wird es genommen, sobald es in der Suche auftaucht. Ist keins gemerkt, wird nur gesucht,
+     wenn das Geräte-Blatt der Bühne offen ist: Dann gehen die gefundenen Geräte dorthin, die Wahl wird gemerkt. */
+  let art = null, wahl = null, frist = null, kandidaten = [];
+  for (const k of ['bt:suche', 'geraete:suche', 'geraete:wahl', 'geraete:abbruch']) ipcMain.removeAllListeners(k);
   ipcMain.on('bt:suche', (_e, a) => { art = a; });
   const schluss = id => { clearTimeout(frist); if (wahl) { const cb = wahl; wahl = null; try { cb(id || ''); } catch {} } };
   wc.on('select-bluetooth-device', (event, list, callback) => {
     event.preventDefault();
-    if (!wahl) frist = setTimeout(() => schluss(''), 12000);
+    if (!wahl) frist = setTimeout(() => { if (offen === art) { offen = null; anBuehne('geraete', { art, liste: null }); } schluss(''); }, offen === art ? 60000 : 12000);
     wahl = callback;
-    const gemerkt = daten.geraete(), id = gemerkt[art] && gemerkt[art].id;
-    const d = id ? list.find(x => x.deviceId === id) : list[0];
-    if (!d) return;
-    if (!id) daten.geraeteSpeichern({ ...gemerkt, [art]: { id: d.deviceId, name: d.deviceName || '' } });
-    schluss(d.deviceId);
+    const id = (daten.geraete()[art] || {}).id;
+    if (id) { const d = list.find(x => x.deviceId === id); if (d) schluss(d.deviceId); return; }
+    if (offen !== art) { schluss(''); return; }
+    kandidaten = list.map(d => ({ id: d.deviceId, name: d.deviceName || 'Unbekanntes Gerät' }));
+    anBuehne('geraete', { art, liste: kandidaten });
   });
+  ipcMain.on('geraete:suche', (_e, a) => { if (!ARTEN.includes(a)) return; schluss(''); offen = a; kandidaten = []; verbinde([a]); });
+  ipcMain.on('geraete:wahl', (_e, id) => {
+    const d = kandidaten.find(x => x.id === id); if (!d || !offen) return;
+    daten.geraeteSpeichern({ ...daten.geraete(), [offen]: d }); offen = null; schluss(d.id);
+  });
+  ipcMain.on('geraete:abbruch', () => { offen = null; schluss(''); });
   wc.on('did-start-navigation', (_e, _u, _i, haupt) => { if (haupt) schluss(''); });
   wc.on('dom-ready', async () => {
     if (SIM) for (const f of ['fake-ble.js', 'sim-fahrer.js']) {
@@ -60,8 +73,12 @@ function baueMaschine() {
   maschine.loadURL(`app://wattbuch-neu/maschine.html?tempo=${TEMPO}`);
 }
 /* Geräte suchen: requestDevice braucht eine Nutzergeste, die gibt der Hauptprozess mit. Alle 15 s erneut,
-   solange etwas fehlt (der Maschinenraum sucht nur, was nicht verbunden ist). */
-function verbinde() { if (lebt(maschine)) maschine.webContents.executeJavaScript('window.__verbinden&&window.__verbinden()', true).catch(() => {}); }
+   solange etwas fehlt (der Maschinenraum sucht nur, was nicht verbunden ist). Ohne Angabe: alle gemerkten Geräte. */
+function verbinde(nur) {
+  if (!lebt(maschine)) return;
+  const gemerkt = daten.geraete(), arten = nur || (SIM_ALLE ? ARTEN : ARTEN.filter(a => gemerkt[a]));
+  if (arten.length) maschine.webContents.executeJavaScript(`window.__verbinden&&window.__verbinden(${JSON.stringify(arten)})`, true).catch(() => {});
+}
 
 function baueBuehne() {
   buehne = new BrowserWindow({
@@ -76,6 +93,12 @@ function baueBuehne() {
   wc.on('render-process-gone', () => setTimeout(() => { if (lebt(buehne)) wc.reload(); }, 300));
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
   wc.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) e.preventDefault(); });
+  /* Fenster schließen während einer Fahrt: nachfragen. Beim Beenden wird die Fahrt bis hierhin gesichert. */
+  buehne.on('close', e => {
+    if (!faehrt || TEST_DATA) return;   // in Tests und in der Simulation ohne Rückfrage
+    const r = dialog.showMessageBoxSync(buehne, { type: 'question', buttons: ['Weiterfahren', 'Beenden'], defaultId: 0, cancelId: 0, message: 'Es läuft eine Fahrt.', detail: 'Beim Beenden wird sie bis hierhin gespeichert.' });
+    if (r === 0) e.preventDefault();
+  });
   buehne.on('closed', () => { buehne = null; app.quit(); });
   buehne.loadURL('app://wattbuch-neu/buehne.html');
 }
@@ -91,8 +114,15 @@ function menue() {
 app.whenReady().then(() => {
   const dir = TEST_DATA ? path.join(TEST_DATA, 'daten') : path.join(app.getPath('userData'), 'daten');
   daten = createDaten(dir);
+  /* Eigene Sicherung in iCloud Drive/Wattbuch Neu (ohne iCloud: Dokumente). Leerer Datenordner: von dort zurückholen. */
+  let basis = path.join(os.homedir(), 'Documents'); try { fs.accessSync(ICLOUD); basis = ICLOUD; } catch {}
+  sicherung = createSicherung(daten, TEST_DATA ? path.join(TEST_DATA, 'Sicherung') : path.join(basis, 'Wattbuch Neu'));
+  const zurueck = sicherung.zurueck(); if (zurueck) console.log(`Sicherung zurückgeholt: ${zurueck} Dateien`);
+  /* Einmalig Strecken und Werte aus der Sicherung der alten App lesen (nur lesen). In Tests nur mit WATTBUCH_ALT. */
+  const alt = uebernehmeAlt(daten, process.env.WATTBUCH_ALT || (TEST_DATA ? null : path.join(ICLOUD, 'Wattbuch', 'wattbuch-sicherung.json')));
+  if (alt) console.log(`Aus der alten App übernommen: ${alt.strecken} Strecken`);
   /* Fahrt vom letzten Mal liegen geblieben (Absturz, Strom weg): als Fahrt sichern */
-  if (daten.journalRetten()) console.log('Fahrt aus dem Journal wiederhergestellt');
+  const gerettet = daten.journalRetten(); if (gerettet) console.log('Fahrt aus dem Journal wiederhergestellt');
 
   protocol.handle('app', async req => {
     let rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '');
@@ -111,6 +141,26 @@ app.whenReady().then(() => {
   ipcMain.handle('daten:werte', () => daten.werte());
   ipcMain.handle('daten:rivale', (_e, id, rev) => daten.rivale(id, rev));
   ipcMain.handle('daten:laufend', () => faehrt ? daten.journalLesen() : null);
+  /* Konto, Werte, Geräte */
+  konto = createKonto({ daten, melde: st => anBuehne('konto', st), log: m => console.log(m) });
+  let dT = null;
+  daten.aufAenderung(() => { sicherung.bald(); clearTimeout(dT); dT = setTimeout(() => { anBuehne('daten'); anMaschine('befehl', { was: 'werte' }); }, 400); });
+  const heil = fn => async (_e, ...a) => { try { return { ok: true, ...(await fn(...a)) }; } catch (e) { return { ok: false, error: e.message }; } };
+  ipcMain.handle('konto:status', () => konto.status());
+  /* Mit simulierter Rolle nie ins echte Konto: erfundene Fahrten sollen dort nicht landen */
+  const KONTO_AUS = SIM && !process.env.WATTBUCH_SUPABASE_URL;
+  ipcMain.handle('konto:anmelden', heil((email, pw) => { if (KONTO_AUS) throw new Error('Kein Konto in der Simulation'); return konto.anmelden(String(email || '').trim(), String(pw || '')); }));
+  ipcMain.handle('konto:abmelden', () => konto.abmelden());
+  ipcMain.handle('werte:setzen', (_e, w) => {
+    const fin = (x, a, b) => typeof x === 'number' && isFinite(x) && x >= a && x <= b, neu = { ...(daten.werte() || {}) };
+    if (fin(w.ftp, 50, 600)) neu.ftp = Math.round(w.ftp); if (fin(w.weight, 30, 200)) neu.weight = Math.round(w.weight * 10) / 10; if (fin(w.diff, .1, 1)) neu.diff = w.diff;
+    daten.werteSpeichern(neu); konto.merkeWerte(); return neu;
+  });
+  ipcMain.handle('geraete:liste', () => daten.geraete());
+  ipcMain.handle('geraete:vergessen', (_e, a) => { const g = daten.geraete(); delete g[a]; daten.geraeteSpeichern(g); anMaschine('befehl', { was: 'trenne', art: a }); return g; });
+  ipcMain.on('ordner', () => shell.openPath(sicherung.dir));
+  if (gerettet) konto.merke(gerettet);
+  setTimeout(() => konto.abgleich(), 2500);
   /* Maschinenraum → Bühne */
   ipcMain.on('m:zustand', (_e, z) => { letzter = z; anBuehne('zustand', z); });
   ipcMain.on('m:ereignis', (_e, x) => anBuehne('ereignis', x));
@@ -121,14 +171,14 @@ app.whenReady().then(() => {
   const schlafAus = () => { if (wach != null) { powerSaveBlocker.stop(wach); wach = null; } };
   ipcMain.on('m:start', (_e, kopf) => { daten.journalStart(kopf); faehrt = true; if (wach == null) wach = powerSaveBlocker.start('prevent-display-sleep'); });
   ipcMain.on('m:sekunde', (_e, z) => daten.journalZeile(z));
-  ipcMain.handle('m:fertig', (_e, r) => { const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); return id; });
+  ipcMain.handle('m:fertig', (_e, r) => { const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); konto.merke(id); return id; });
   ipcMain.on('m:weg', () => { daten.journalEnde(); faehrt = false; schlafAus(); });
 
   menue();
   baueMaschine();
   baueBuehne();
-  setInterval(verbinde, 15000);
+  setInterval(() => verbinde(), 15000);
   /* App wird während einer Fahrt beendet: was im Journal steht, wird zur Fahrt */
-  app.on('will-quit', () => { if (faehrt) daten.journalRetten(); });
+  app.on('will-quit', () => { if (faehrt) { const id = daten.journalRetten(); if (id) konto.merke(id); } sicherung.sichern(); });
 });
 app.on('window-all-closed', () => app.quit());

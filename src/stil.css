@@ -179,3 +179,45 @@ nav button:disabled:hover{color:var(--fg2)}
 #pause span:empty{display:none}
 .lvl{min-width:0}
 .lvl div:first-child{gap:14px}
+
+/* ---------- Blätter in der Lobby: Geräte und Profil ---------- */
+button.dev,button.lvl{text-align:left;border-radius:12px;padding:6px 10px;margin:-6px -10px;transition:background .2s}
+button.dev:hover,button.lvl:hover{background:rgba(246,240,230,.08)}
+#blatt{display:flex;justify-content:flex-end;align-items:flex-start;padding:76px 44px 0;opacity:0;transition:opacity .3s;pointer-events:none}
+#blatt>*{pointer-events:none}
+body[data-blatt] #blatt{opacity:1;pointer-events:auto}
+body[data-blatt] #blatt>*{pointer-events:auto}
+.bl{width:340px;padding:22px 24px 24px;background:rgba(16,11,26,.86);transform:translateY(-10px);transition:transform .4s var(--ease);-webkit-app-region:no-drag}
+body[data-blatt] .bl{transform:none}
+body:not([data-blatt=geraete]) #blGeraete,body:not([data-blatt=profil]) #blProfil{display:none}
+.gz{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:center;height:52px;border-bottom:1px solid var(--line)}
+.gz:first-child{margin-top:8px}
+.gz i{width:8px;height:8px;border-radius:8px;background:rgba(246,240,230,.25)}
+.gz i.an{background:var(--ok)}.gz i.sucht{background:var(--a);animation:blink 1.2s ease-in-out infinite}
+.gz b{font-family:"Sora",sans-serif;font-weight:600;font-size:15px;display:block}
+.gz small{display:block;font-size:12.5px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.gz button,.bbtn{height:32px;padding:0 14px;border-radius:999px;border:1px solid rgba(246,240,230,.3);font-size:13px;font-weight:600;white-space:nowrap;transition:background .2s}
+.gz button:hover,.bbtn:hover{background:rgba(246,240,230,.12)}
+#gWahl{margin-top:18px}
+#gListe{display:grid;gap:6px;margin-top:10px;max-height:200px;overflow:auto}
+#gListe button{text-align:left;height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gListe button:hover{border-color:var(--a)}
+#gListe:empty::after{content:"Gerät wecken";font-size:13px;color:var(--fg2)}
+.fz{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.fz label{font-size:12.5px;color:var(--fg2)}
+.fz span{display:flex;align-items:baseline;gap:5px;margin-top:4px;border-bottom:1px solid var(--line)}
+.fz input{width:100%;min-width:0;background:none;border:0;outline:0;color:var(--fg);font:600 24px "Sora",sans-serif;letter-spacing:-.03em;padding:2px 0;-moz-appearance:textfield}
+.fz input::-webkit-inner-spin-button{display:none}
+.fz span:focus-within{border-color:var(--a)}
+.fz em{font-style:normal;font-size:13px;color:var(--fg2)}
+#kForm{display:grid;gap:8px;margin-top:12px}
+#kForm[hidden],#kAn[hidden]{display:none}
+#kForm input{height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:rgba(246,240,230,.05);color:var(--fg);font:inherit;font-size:14px;outline:0}
+#kForm input:focus{border-color:var(--a)}
+.bbtn{justify-self:start;height:38px;background:var(--fg);color:var(--ink);border-color:transparent;font-family:"Sora",sans-serif}
+.bbtn:hover{background:#fff}
+.bbtn.leer{background:none;color:var(--fg);border-color:rgba(246,240,230,.3)}
+#kMsg{margin:0;font-size:13px;color:var(--bad)}#kMsg:empty{display:none}
+#kAn{display:grid;gap:4px;margin-top:12px}
+#kAn b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#kAn small{font-size:12.5px;color:var(--fg2)}#kAn button{margin-top:10px}
+.gz:last-child{border-bottom:0}

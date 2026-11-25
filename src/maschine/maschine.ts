@@ -42,6 +42,13 @@ async function laden() {
   F.basis = F.hand = grundleistung(werte.ftp);
 }
 
+/* Werte oder Strecken haben sich geändert (Konto, Profil): neu lesen, aber nicht mitten in einer Fahrt */
+async function neuLaden() {
+  if (F.phase === 'ride' || F.phase === 'count') return;
+  werte = { ...WERTE_START, ...(await W.werte() || {}) }; strecken = await W.strecken();
+  F.basis = F.hand = grundleistung(werte.ftp);
+}
+
 function start(streckeId: string, rev: boolean, durchTritt: boolean) {
   const st = strecken.find(x => x.id === streckeId);
   if (!st || F.phase !== 'lobby') return;
@@ -151,8 +158,10 @@ function sende() {
 
 /* Welche Runde die Lobby gerade zeigt (für den Start beim ersten Tritt) */
 let wahl: { id: string; rev: boolean } | null = null;
-W.aufBefehl((b: Befehl | { was: 'wahl'; streckeId: string; rev: boolean }) => {
+W.aufBefehl((b: Befehl) => {
   if (b.was === 'wahl') wahl = { id: b.streckeId, rev: b.rev };
+  else if (b.was === 'werte') neuLaden();
+  else if (b.was === 'trenne') G.trenne(b.art);
   else if (b.was === 'start') start(b.streckeId, b.rev, false);
   else if (b.was === 'abbruch') { if (F.phase === 'count') { F.phase = 'lobby'; tritt.entschaerfen(); } }
   else if (b.was === 'pause') { if (F.phase === 'ride') F.rec.vonHand(b.an == null ? !F.rec.pause : b.an); }
@@ -179,5 +188,5 @@ async function fortsetzen() {
   for (let i = 1; i < R.n; i++) { const a = R.alt[i - 1], b = R.alt[i]; if (a != null && b != null && b > a) F.up += b - a; }
 }
 
-window.__verbinden = () => { G.verbinden(); };
+window.__verbinden = arten => { G.verbinden(arten as any); };
 laden().then(fortsetzen).then(() => { setInterval(takt, 100); });

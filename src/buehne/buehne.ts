@@ -6,6 +6,7 @@ import { bahn, anstiege, fahrzeit, type Bahn } from '../kern/strecke';
 import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
 import { Welt, type Akt } from './welt/welt';
+import type { KontoStand, Gemerkt } from '../bruecke';
 
 const W = window.wattbuch;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -28,13 +29,15 @@ async function ladeRunden() {
   if (werte) { ftp = werte.ftp || ftp; gewicht = (werte.weight || 75) + (werte.bike || 9); }
   const P = grundleistung(ftp);
   runden = strecken.map(st => {
-    const rt = bahn(st), eigene = fahrten.filter(f => f.routeId === st.id && !f.rev);
+    const rt = bahn(st), eigene = fahrten.filter(f => f.routeId === st.id && !f.rev && f.rolle);
     const best = eigene.filter(f => f.ganz).sort((a, b) => a.dauer - b.dauer)[0] || null;
     const zuletzt = eigene.length ? eigene[eigene.length - 1].start : null;
     return { st, rt, best, zuletzt, tag: '', min: Math.round(fahrzeit(rt, 0, rt.dist, P, gewicht) / 60), seed: seedOf(st.id) };
   });
-  /* Heute für dich (vorläufig, bis es die Saison gibt): die Runde, die am längsten nicht gefahren wurde */
-  const heute = runden.slice().sort((a, b) => (a.zuletzt || '').localeCompare(b.zuletzt || ''))[0];
+  /* Heute für dich (vorläufig, bis es die Saison gibt): unter den Runden bis 90 Minuten die, die am längsten nicht
+     gefahren wurde; gibt es keine so kurze, die kürzeste */
+  const kurz = runden.filter(r => r.min <= 90), wahl = kurz.length ? kurz : runden.slice().sort((a, b) => a.min - b.min).slice(0, 1);
+  const heute = wahl.slice().sort((a, b) => (a.zuletzt || '').localeCompare(b.zuletzt || '') || a.min - b.min)[0];
   for (const r of runden) r.tag = r === heute ? 'Heute für dich' : r.best ? 'Rivale wartet' : '';
   runden.sort((a, b) => (a === heute ? -1 : b === heute ? 1 : 0));
   return heute ? runden.indexOf(heute) : 0;
@@ -60,22 +63,24 @@ function fuelleLobby() {
   $('hKm').textContent = fmt(r.rt.dist / 1000, 1); $('hHm').textContent = fmt(r.st.gain); $('hMin').textContent = String(r.min);
   $('hRival').hidden = !r.best;
   if (r.best) { $('hWhen').textContent = tag(r.best.start); $('hBest').textContent = zeit(r.best.dauer); }
-  document.querySelectorAll('.card').forEach((e, i) => e.classList.toggle('on', i === pick));
   $('stufe').textContent = fmt(ftp) + ' W';
 }
+/* Unten stehen höchstens vier Runden: ein Fenster um die gewählte, die Pfeiltasten gehen durch alle */
+let kAb = 0;
 function baueKarten() {
-  const box = $('cards'); box.innerHTML = '';
-  runden.slice(0, 4).forEach((r, i) => {
-    const b = document.createElement('button'); b.className = 'glass card'; b.innerHTML = '<b></b><small></small><canvas width="480" height="88"></canvas>';
+  const box = $('cards'), n = runden.length; box.innerHTML = '';
+  kAb = Math.max(0, Math.min(n - 4, pick < kAb ? pick : pick > kAb + 3 ? pick - 3 : kAb));
+  runden.slice(kAb, kAb + 4).forEach((r, k) => {
+    const i = kAb + k, b = document.createElement('button'); b.className = 'glass card' + (i === pick ? ' on' : ''); b.innerHTML = '<b></b><small></small><canvas width="480" height="88"></canvas>';
     b.children[0].textContent = r.st.name; b.children[1].textContent = `${fmt(r.rt.dist / 1000, 1)} km · ${fmt(r.st.gain)} Hm${r.tag ? ' · ' + r.tag : ''}`;
     profil(b.children[2] as HTMLCanvasElement, r.rt, null, null); b.onclick = () => waehle(i); box.appendChild(b);
   });
 }
-function zeige(i: number) { const r = runden[i]; welt.strecke(r.rt, r.seed); W.befehl({ was: 'wahl', streckeId: r.st.id, rev: false } as any); }
+function zeige(i: number) { const r = runden[i]; welt.strecke(r.rt, r.seed); W.befehl({ was: 'wahl', streckeId: r.st.id, rev: false }); }
 function waehle(i: number) {
-  const n = Math.min(runden.length, 4); i = (i + n) % n;
+  const n = runden.length; i = (i + n) % n;
   if (i === pick || akt !== 'lobby') return;
-  pick = i; fuelleLobby(); $('flash').classList.add('on');
+  pick = i; baueKarten(); fuelleLobby(); $('flash').classList.add('on');
   setTimeout(() => { zeige(pick); $('flash').classList.remove('on'); }, 360);
 }
 const start = () => { const r = runden[pick]; if (r && akt === 'lobby') W.befehl({ was: 'start', streckeId: r.st.id, rev: false }); };
@@ -95,6 +100,7 @@ function setzeAkt(a: Akt) {
   if (a === 'count') {
     const ring = $('ring'); ring.style.transition = 'none'; ring.style.strokeDashoffset = '817'; void ring.getBoundingClientRect(); ring.style.transition = 'stroke-dashoffset 3s linear'; ring.style.strokeDashoffset = '0';
   }
+  if (a !== 'lobby') blatt(null);
   if (a === 'done') ergebnis();
   if (a === 'lobby' && vor === 'done') ladeRunden().then(i => { pick = i; baueKarten(); fuelleLobby(); zeige(pick); });
 }
@@ -104,7 +110,7 @@ W.aufZustand((n: Zustand) => {
   /* Runde, die gerade läuft (auch nach einem Neustart der Bühne mitten in der Fahrt) */
   if (n.streckeId && (!aktRt || aktRt.id !== n.streckeId)) {
     const i = runden.findIndex(r => r.st.id === n.streckeId);
-    if (i >= 0) { if (i !== pick || !aktRt) { pick = i; fuelleLobby(); welt.strecke(runden[i].rt, runden[i].seed); } aktRt = runden[i].rt; const a = anstiege(aktRt).sort((x, y) => y.gain - x.gain)[0]; haupt = a ? { s: a.s, top: a.top } : null; $('rName').textContent = aktRt.name; }
+    if (i >= 0) { if (i !== pick || !aktRt) { pick = i; baueKarten(); fuelleLobby(); welt.strecke(runden[i].rt, runden[i].seed); } aktRt = runden[i].rt; const a = anstiege(aktRt).sort((x, y) => y.gain - x.gain)[0]; haupt = a ? { s: a.s, top: a.top } : null; $('rName').textContent = aktRt.name; }
   }
   if (!n.streckeId) aktRt = null;
   setzeAkt(n.phase === 'done' && !n.ergebnis ? 'lobby' : n.phase);
@@ -117,7 +123,8 @@ function geraete(n: Zustand) {
   const g = n.geraete, namen: [keyof typeof g, string, string][] = [['rolle', 'dRolle', 'Rolle'], ['puls', 'dPuls', 'Puls'], ['kadenz', 'dKadenz', 'Kadenz']];
   for (const [k, id] of namen) $(id).className = g[k] === 'an' ? 'an' : g[k] === 'sucht' ? 'sucht' : '';
   const an = namen.filter(x => g[x[0]] === 'an').map(x => x[2]);
-  $('devT').textContent = g.rolle !== 'an' ? 'Rolle wecken' : an.join(', ') + ' bereit';
+  $('devT').textContent = g.rolle !== 'an' ? (gemerkt.rolle || g.rolle === 'sucht' ? 'Rolle wecken' : 'Rolle verbinden') : an.join(', ') + ' bereit';
+  if (document.body.dataset.blatt === 'geraete') zeigeGeraete();
 }
 function ergebnis() {
   const e = z && z.ergebnis; if (!e) return;
@@ -163,12 +170,83 @@ function anzeige() {
   profil($<HTMLCanvasElement>('prof'), rt, z.s / rt.dist, haupt);
 }
 
+/* ---------- Blätter: Geräte und Profil ---------- */
+let gemerkt: Gemerkt = {}, sucheArt: string | null = null;
+const ARTEN: ['rolle' | 'puls' | 'kadenz', string][] = [['rolle', 'Rolle'], ['puls', 'Puls'], ['kadenz', 'Kadenz']];
+function zeigeGeraete() {
+  const box = $('gRows'), g = z ? z.geraete : { rolle: 'aus', puls: 'aus', kadenz: 'aus' };
+  box.innerHTML = '';
+  for (const [art, name] of ARTEN) {
+    const m = gemerkt[art], st = g[art], row = document.createElement('div'); row.className = 'gz';
+    row.innerHTML = '<i></i><div><b></b><small></small></div><button type="button"></button>';
+    row.children[0].className = st === 'an' ? 'an' : st === 'sucht' || sucheArt === art ? 'sucht' : '';
+    row.querySelector('b')!.textContent = name;
+    row.querySelector('small')!.textContent = st === 'an' ? (m && m.name) || 'verbunden' : sucheArt === art ? 'sucht' : m ? (m.name || 'gemerkt') + ' · aus' : '';
+    const b = row.querySelector('button')!; b.textContent = m ? 'Vergessen' : sucheArt === art ? 'Abbrechen' : 'Verbinden'; b.dataset.art = art;
+    b.hidden = !m && st === 'an';   // simulierte Geräte: nichts zu vergessen
+    b.onclick = async () => {
+      if (m) { gemerkt = await W.geraetVergessen(art); }
+      else if (sucheArt === art) { sucheArt = null; W.geraetAbbruch(); $('gWahl').hidden = true; }
+      else { sucheArt = art; $('gWahlT').textContent = name + ' wählen'; $('gListe').innerHTML = ''; $('gWahl').hidden = false; W.geraetSuche(art); }
+      zeigeGeraete();
+    };
+    box.appendChild(row);
+  }
+}
+W.aufGeraete(async g => {
+  if (g.art !== sucheArt) return;
+  if (!g.liste) { sucheArt = null; $('gWahl').hidden = true; zeigeGeraete(); return; }
+  const box = $('gListe'); box.innerHTML = '';
+  for (const d of g.liste) { const b = document.createElement('button'); b.type = 'button'; b.textContent = d.name; b.onclick = async () => { W.geraetWahl(d.id); sucheArt = null; $('gWahl').hidden = true; gemerkt = { ...gemerkt, [g.art]: d }; zeigeGeraete(); }; box.appendChild(b); }
+});
+function zeigeKonto(k: KontoStand) {
+  $('kForm').hidden = k.an; $('kAn').hidden = !k.an;
+  if (k.an) { $('kWer').textContent = k.email || ''; $('kSt').textContent = k.busy ? 'gleicht ab' : k.err ? 'Abgleich wartet' : k.wartet ? `${k.wartet} wartet` : k.last ? 'abgeglichen ' + new Date(k.last).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''; }
+}
+W.aufKonto(zeigeKonto);
+async function blatt(was: 'geraete' | 'profil' | null) {
+  if (akt !== 'lobby') was = null;
+  if (sucheArt && was !== 'geraete') { sucheArt = null; W.geraetAbbruch(); $('gWahl').hidden = true; }
+  if (!was) { delete document.body.dataset.blatt; return; }
+  if (was === 'geraete') { gemerkt = await W.geraete(); zeigeGeraete(); }
+  else {
+    const w = await W.werte() || {} as any;
+    $<HTMLInputElement>('pFtp').value = String(w.ftp ?? ftp); $<HTMLInputElement>('pKg').value = String(w.weight ?? 75); $<HTMLInputElement>('pDiff').value = String(Math.round((w.diff ?? .5) * 100));
+    zeigeKonto(await W.konto());
+  }
+  document.body.dataset.blatt = was;
+}
+$('devB').onclick = () => blatt(document.body.dataset.blatt === 'geraete' ? null : 'geraete');
+$('lvlB').onclick = () => blatt(document.body.dataset.blatt === 'profil' ? null : 'profil');
+$('blatt').addEventListener('pointerdown', e => { if (e.target === $('blatt')) blatt(null); });
+for (const [id, feld, mal] of [['pFtp', 'ftp', 1], ['pKg', 'weight', 1], ['pDiff', 'diff', .01]] as [string, string, number][])
+  $<HTMLInputElement>(id).addEventListener('change', async e => { const v = +(e.target as HTMLInputElement).value; if (isFinite(v)) { await W.werteSetzen({ [feld]: v * mal } as any); neuLaden(); } });
+$('kForm').addEventListener('submit', async e => {
+  e.preventDefault(); const b = $('kForm').querySelector('button')!; b.disabled = true; $('kMsg').textContent = '';
+  const r = await W.anmelden($<HTMLInputElement>('kMail').value, $<HTMLInputElement>('kPw').value); b.disabled = false;
+  if (r.ok) { $<HTMLInputElement>('kPw').value = ''; zeigeKonto(r); } else $('kMsg').textContent = r.error || 'Anmeldung hat nicht geklappt';
+});
+$('kAus').onclick = async () => zeigeKonto(await W.abmelden());
+/* Daten haben sich geändert (Konto hat Fahrten gebracht, Werte geändert): Lobby neu aufbauen, gewählte Runde bleibt */
+let ladeT: ReturnType<typeof setTimeout> | null = null;
+function neuLaden() {
+  if (ladeT) clearTimeout(ladeT);
+  ladeT = setTimeout(async () => {
+    if (akt !== 'lobby') return;
+    const vor = runden[pick] ? runden[pick].st.id : null, n = runden.length, heute = await ladeRunden(), i = runden.findIndex(r => r.st.id === vor);
+    pick = i >= 0 ? i : heute; baueKarten(); fuelleLobby();
+    if (i < 0 || !n) zeige(pick);
+  }, 300);
+}
+W.aufDaten(neuLaden);
+
 /* ---------- Bedienung ---------- */
 $('start').onclick = start; $('end').onclick = () => W.befehl({ was: 'ende' }); $('home').onclick = () => W.befehl({ was: 'lobby' });
 $('coach').onclick = $('wbtn').onclick = () => W.befehl({ was: 'coach' });
 $('less').onclick = () => W.befehl({ was: 'stufe', d: -10 }); $('more').onclick = () => W.befehl({ was: 'stufe', d: 10 });
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey) return;
+  if (document.body.dataset.blatt) { if (e.key === 'Escape') blatt(null); return; }   // im Blatt gehören die Tasten den Feldern
   if (e.key === 'ArrowUp' && akt === 'ride') { W.befehl({ was: 'stufe', d: 10 }); e.preventDefault(); }
   else if (e.key === 'ArrowDown' && akt === 'ride') { W.befehl({ was: 'stufe', d: -10 }); e.preventDefault(); }
   else if (e.key === 'Enter' && akt === 'lobby') start();
@@ -182,6 +260,7 @@ addEventListener('keydown', e => {
 function groesse() { const pc = $<HTMLCanvasElement>('prof'), pr = Math.min(devicePixelRatio || 1, 2); pc.width = Math.max(200, Math.round((innerWidth - 80) * pr)); pc.height = Math.round(44 * pr); welt.groesse(); }
 addEventListener('resize', groesse);
 W.aufVollbild(v => document.body.classList.toggle('voll', v));
+W.geraete().then(g => { gemerkt = g; });
 
 /* ---------- Schleife ---------- */
 let vor = performance.now(), hudT = 0, sZeig = 0, sVor = 0, vZeig = 0, ruck = 0, gZeig = 0, gv = 0, gvRoh = 0, gLetzt = 0, gT = 0;
