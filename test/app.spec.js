@@ -327,3 +327,122 @@ test('Geräte: ohne gemerktes Gerät sucht nichts von selbst; Erstwahl im Blatt,
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
 });
+
+/* ---------- Schritt 3: Strava ---------- */
+/* Nachgebautes Strava samt Token-Tausch (Supabase-Funktion). Tests laufen nie gegen das echte Strava. */
+function polyline(pts) {
+  let out = '', pa = 0, po = 0;
+  const enc = v => { v = v < 0 ? ~(v << 1) : v << 1; let s = ''; while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; } return s + String.fromCharCode(v + 63); };
+  for (const [la, lo] of pts) { const a = Math.round(la * 1e5), o = Math.round(lo * 1e5); out += enc(a - pa) + enc(o - po); pa = a; po = o; }
+  return out;
+}
+async function strava(aktivitaeten = []) {
+  const seen = { central: [], tokens: [], uploads: [], sports: [], lists: 0, streams: [] };
+  /* Runde: 12 km Ring bei erfundenen Koordinaten */
+  const ring = Array.from({ length: 240 }, (_, i) => { const t = i / 239 * 2 * Math.PI; return [48.2 + Math.cos(t) * 0.0172, 11.3 + Math.sin(t) * 0.0258]; });
+  const srv = http.createServer((req, res) => {
+    const teile = []; req.on('data', d => teile.push(d)); req.on('end', () => {
+      const body = Buffer.concat(teile).toString('latin1'), u = new URL(req.url, 'http://x'), send = (c, o) => { res.writeHead(c, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
+      const tok = { access_token: 'testzugang', refresh_token: 'testerneuern', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { id: 7, firstname: 'Test', lastname: 'F.' } };
+      if (u.pathname === '/functions/v1/strava-token') { seen.central.push({ apikey: req.headers.apikey, body: JSON.parse(body) }); return send(200, tok); }
+      if (u.pathname === '/oauth/token') { seen.tokens.push(body); return send(200, tok); }
+      if (u.pathname === '/oauth/deauthorize') return send(200, {});
+      if (req.headers.authorization !== 'Bearer testzugang') return send(401, { message: 'nicht angemeldet' });
+      if (u.pathname === '/api/v3/athlete/activities') { seen.lists++; return send(200, u.searchParams.get('page') === '1' ? aktivitaeten : []); }
+      let m = /^\/api\/v3\/activities\/(\d+)\/streams$/.exec(u.pathname);
+      if (m) {
+        seen.streams.push(m[1] + ':' + u.searchParams.get('keys'));
+        if (u.searchParams.get('keys').startsWith('latlng')) return send(200, { latlng: { data: ring }, altitude: { data: ring.map((_, i) => 400 + 60 * Math.sin(i / 239 * Math.PI) + (i % 2 ? 2 : -2)) }, distance: { data: ring.map((_, i) => i * 50) } });
+        const n = 400, a = aktivitaeten.find(x => String(x.id) === m[1]);
+        return send(200, { time: { data: Array.from({ length: n }, (_, i) => i) }, distance: { data: Array.from({ length: n }, (_, i) => i * 7) }, altitude: { data: Array(n).fill(410) }, heartrate: { data: Array(n).fill(141) }, moving: { data: Array(n).fill(true) }, ...(a && a.device_watts ? { watts: { data: Array(n).fill(205) } } : {}) });
+      }
+      if (u.pathname === '/api/v3/uploads' && req.method === 'POST') { seen.uploads.push({ auth: req.headers.authorization, body }); return send(201, { id: 55, id_str: '55', activity_id: 987654321 }); }
+      m = /^\/api\/v3\/activities\/(\d+)$/.exec(u.pathname);
+      if (m && req.method === 'PUT') { seen.sports.push({ id: m[1], body: JSON.parse(body) }); return send(200, {}); }
+      send(404, {});
+    });
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  return { url: 'http://127.0.0.1:' + srv.address().port, seen, ring, zu: () => srv.close() };
+}
+/* Strava fragt im Browser nach: Die App meldet die Adresse, der Test folgt der Rückleitung wie der Browser */
+async function bestaetigen(app, scope = 'read,activity:write,activity:read_all') {
+  await expect.poll(() => app.evaluate(() => global.__stravaAuth || null), { timeout: 10_000 }).not.toBeNull();
+  const q = new URL(await app.evaluate(() => global.__stravaAuth)).searchParams;
+  const back = await fetch(`${q.get('redirect_uri')}?state=${q.get('state')}&code=testcode&scope=${scope}`);
+  expect(await back.text()).toContain('Mit Strava verbunden');
+  return q;
+}
+const draussen = (id, tag, name, poly, mehr = {}) => ({ id, name, sport_type: 'Ride', trainer: false, distance: 12100, moving_time: 2400, total_elevation_gain: 120, start_date: `2026-0${tag}-11T08:00:00Z`, map: { summary_polyline: poly }, ...mehr });
+
+test('Strava: verbinden, meistgefahrene Runde wird Strecke, Fahrt geht von selbst hoch', async () => {
+  const dummy = await strava(), poly = polyline(dummy.ring); dummy.zu();
+  /* dreimal dieselbe Runde draußen (zweimal gleich benannt), dazu eine einzelne andere Fahrt ohne Linie */
+  const sv = await strava([draussen(301, 6, 'Seerunde', poly), draussen(302, 7, 'Seerunde', poly), draussen(303, 8, 'Morning Ride', poly), draussen(304, 9, 'Irgendwo', '')]);
+  const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 20, { WATTBUCH_STRAVA_URL: sv.url, WATTBUCH_STRAVA_WARTEN: '1500' });
+  await expect(buehne.locator('.card')).toHaveCount(1);
+  await buehne.click('#lvlB');
+  await expect(buehne.locator('#svB')).toHaveText('Verbinden');
+  await buehne.click('#svB');
+  const q = await bestaetigen(app);
+  expect(q.get('client_id')).toBe('286463');   // gemeinsame Strava-App, nichts einzutragen
+  await expect(buehne.locator('#svWer')).toHaveText('Test F.');
+  await expect(buehne.locator('#svB')).toHaveText('Trennen');
+  /* Token-Tausch über die Supabase-Funktion, kein Secret in der App */
+  expect(sv.seen.central).toEqual([{ apikey: expect.stringMatching(/^sb_publishable_/), body: { code: 'testcode' } }]);
+  expect(sv.seen.tokens).toEqual([]);
+  const cf = path.join(dir, 'daten', 'strava.json');
+  expect(fs.readFileSync(cf, 'utf8')).not.toContain('clientSecret'); expect(fs.statSync(cf).mode & 0o077).toBe(0);
+  /* die dreimal gefahrene Runde ist jetzt eine Strecke mit geglätteter Höhe; ganze Fahrten übernimmt die gemeinsame App nicht */
+  await buehne.keyboard.press('Escape');
+  await expect(buehne.locator('.card')).toHaveCount(2, { timeout: 15_000 });
+  await expect(buehne.locator('.card', { hasText: 'Seerunde' })).toBeVisible();
+  const st = JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'strecken', 'sf303.json'), 'utf8'));
+  expect(st.fav).toEqual({ n: 3 }); expect(st.dist).toBeGreaterThan(11000); expect(st.dist).toBeLessThan(13000);
+  let sprung = 0; for (let i = 1; i < st.ele.length; i++) sprung = Math.max(sprung, Math.abs(st.ele[i] - st.ele[i - 1])); expect(sprung).toBeLessThan(1.5);
+  expect(sv.seen.streams).toEqual(['303:latlng,altitude,distance']);
+  expect(fahrten(dir)).toHaveLength(0);
+  /* Runde fahren: geht nach der Wartezeit von selbst hoch und wird zum Virtual Ride */
+  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.click('#start');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
+  await expect(buehne.locator('#resS')).toHaveText('geht gleich zu Strava');
+  await expect(buehne.locator('#resS')).toHaveText('liegt bei Strava', { timeout: 15_000 });
+  const [r] = fahrten(dir), up = sv.seen.uploads[0];
+  expect(r.strava.state).toBe('ok'); expect(r.strava.vr).toBe(true); expect(r.strava.url).toBe('https://www.strava.com/activities/987654321');
+  for (const s of ['name="data_type"', 'tcx', 'name="trainer"', 'Testrunde', '<ns3:Watts>', 'wattbuch-' + r.id, 'Normalized Power']) expect(up.body).toContain(s);
+  expect(sv.seen.sports).toEqual([{ id: '987654321', body: { sport_type: 'VirtualRide', trainer: true } }]);
+  expect(sv.seen.uploads).toHaveLength(1);
+  /* zweite Fahrt: Hochladen im Ergebnisbild abbrechen */
+  await buehne.click('#home'); await maschine.evaluate(() => { window.__simFahrer.faktor = 1.3; });
+  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.click('#start');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
+  await buehne.click('#resS');
+  await expect(buehne.locator('#resS')).toHaveText('nicht bei Strava');
+  await warte(2500); expect(sv.seen.uploads).toHaveLength(1);
+  expect(probleme).toEqual([]);
+  await app.close(); sv.zu(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Strava mit eigener App: Draußen-Fahrten werden übernommen, mit und ohne Wattmesser', async () => {
+  const sv = await strava([draussen(401, 6, 'Ausfahrt ohne Watt', '', { average_watts: 150 }), draussen(402, 7, 'Mit Wattmesser', '', { device_watts: true }), { id: 403, name: 'Lauf', sport_type: 'Run', distance: 8000, moving_time: 2400, start_date: '2026-08-11T08:00:00Z' }]);
+  const dir = ordner();
+  /* eigene Strava-App: erfundene Kennung im eigenen Datenordner */
+  fs.writeFileSync(path.join(dir, 'daten', 'strava.json'), JSON.stringify({ clientId: 'test-id', clientSecret: 'test-geheim' }));
+  const { app, buehne, probleme } = await starte(dir, 1, { WATTBUCH_STRAVA_URL: sv.url });
+  await buehne.click('#lvlB'); await buehne.click('#svB');
+  const q = await bestaetigen(app);
+  expect(q.get('client_id')).toBe('test-id');
+  await expect(buehne.locator('#svWer')).toHaveText('Test F.');
+  expect(sv.seen.central).toEqual([]); expect(sv.seen.tokens).toHaveLength(1);   // direkt bei Strava, nicht über die gemeinsame App
+  await expect.poll(() => fahrten(dir).length, { timeout: 15_000 }).toBe(2);
+  const f = Object.fromEntries(fahrten(dir).map(r => [r.id, r]));
+  expect(f.sv401.noW).toBe(true); expect(f.sv401.dur).toBe(399); expect(f.sv401.estW).toBe(150); expect(f.sv401.p).toEqual([]); expect(f.sv401.src).toBe('strava');
+  expect(f.sv402.p).toHaveLength(399); expect(f.sv402.p[0]).toBe(205); expect(f.sv402.noW).toBeUndefined(); expect(f.sv402.strava.state).toBe('ok');
+  expect(sv.seen.uploads).toEqual([]);   // übernommene Fahrten werden nie wieder hochgeladen
+  /* Draußen-Fahrten sind keine Rivalen */
+  await buehne.keyboard.press('Escape'); await expect(buehne.locator('#hRival')).toBeHidden();
+  expect(probleme).toEqual([]);
+  await app.close(); sv.zu(); fs.rmSync(dir, { recursive: true, force: true });
+});

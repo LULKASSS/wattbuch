@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('wattbuch', {
   geraetAbbruch: () => ipcRenderer.send('geraete:abbruch'),
   geraetVergessen: art => ipcRenderer.invoke('geraete:vergessen', art),
   aufGeraete: auf('geraete'),
+  strava: () => ipcRenderer.invoke('strava:status'),
+  stravaVerbinden: () => ipcRenderer.invoke('strava:verbinden'),
+  stravaTrennen: () => ipcRenderer.invoke('strava:trennen'),
+  stravaAbbrechen: id => ipcRenderer.invoke('strava:abbrechen', id),
+  aufStrava: auf('strava'),
   /* Bühne */
   befehl: b => ipcRenderer.send('b:befehl', b),
   aufZustand: auf('zustand'),

@@ -76,6 +76,8 @@
     <div class="lbl" style="margin-top:22px">Konto</div>
     <form id="kForm"><input id="kMail" type="email" autocomplete="username" placeholder="E-Mail" aria-label="E-Mail"><input id="kPw" type="password" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort"><button class="bbtn" type="submit">Anmelden</button><p id="kMsg"></p></form>
     <div id="kAn" hidden><b id="kWer"></b><small id="kSt"></small><button class="bbtn leer" id="kAus" type="button">Abmelden</button></div>
+    <div class="lbl" style="margin-top:22px">Strava</div>
+    <div id="svBox"><b id="svWer"></b><button class="bbtn" id="svB" type="button">Verbinden</button><p id="svMsg"></p></div>
   </div>
 </div></div>
 <div id="toasts"></div>
@@ -86,7 +88,7 @@
   <div class="lbl" id="resL"></div>
   <b class="dsp big" id="resT">0:00</b>
   <p id="resP"></p>
-  <div class="tags"><span id="resW"></span><span id="resK"></span><span id="resH"></span></div>
+  <div class="tags"><span id="resW"></span><span id="resK"></span><span id="resH"></span><button id="resS" type="button" hidden></button></div>
   <button id="home">Zur Lobby</button>
 </div></div>
 <div class="layer on" id="flash" style="transition-duration:1.4s"></div>

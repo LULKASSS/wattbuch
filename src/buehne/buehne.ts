@@ -6,7 +6,7 @@ import { bahn, anstiege, fahrzeit, type Bahn } from '../kern/strecke';
 import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
 import { Welt, type Akt } from './welt/welt';
-import type { KontoStand, Gemerkt } from '../bruecke';
+import type { KontoStand, Gemerkt, StravaStand } from '../bruecke';
 
 const W = window.wattbuch;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -114,6 +114,7 @@ W.aufZustand((n: Zustand) => {
   }
   if (!n.streckeId) aktRt = null;
   setzeAkt(n.phase === 'done' && !n.ergebnis ? 'lobby' : n.phase);
+  if (n.phase === 'done' && n.ergebnis && n.ergebnis.id && n.ergebnis.id !== resId) { resId = n.ergebnis.id; stravaMarke(n.ergebnis.strava); }
   if (n.phase === 'count') { const c = Math.max(1, Math.ceil(n.count)); if (c !== cntVor) { cntVor = c; const e = $('cnt'); e.textContent = String(c); e.classList.remove('t'); void e.offsetWidth; e.classList.add('t'); } } else cntVor = 0;
   document.body.classList.toggle('paused', n.phase === 'ride' && n.pause);
   $('pauseT').textContent = n.auto ? 'Lostreten oder Leertaste' : 'Leertaste';
@@ -134,6 +135,7 @@ function ergebnis() {
   (function up() { const k = Math.min(1, (performance.now() - t0) / 1100); el.textContent = zeit(e.zeit * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(up); })();
   const sek = (n: number) => fmt(Math.abs(n)) + (Math.abs(Math.round(n)) === 1 ? ' Sekunde' : ' Sekunden');
   $('resP').textContent = !e.ganz ? `${fmt(e.km, 1)} km gefahren` : a == null || !e.rivale ? 'Ab jetzt dein Rivale auf dieser Runde' : gleich ? 'Kopf an Kopf mit dir vom ' + tag(e.rivale.start) : sek(a) + (a < 0 ? ' vor dir vom ' : ' hinter dir vom ') + tag(e.rivale.start);
+  if (e.id && e.id !== resId) { resId = e.id; stravaMarke(e.strava); } else if (!e.id) { resId = null; stravaMarke(null); }
   $('resW').textContent = 'Ø ' + fmt(e.avgW) + ' W'; $('resK').textContent = e.ganz ? fmt(e.km, 1) + ' km' : ''; $('resH').textContent = e.hm ? fmt(e.hm) + ' Höhenmeter' : '';
 }
 
@@ -204,6 +206,25 @@ function zeigeKonto(k: KontoStand) {
   if (k.an) { $('kWer').textContent = k.email || ''; $('kSt').textContent = k.busy ? 'gleicht ab' : k.err ? 'Abgleich wartet' : k.wartet ? `${k.wartet} wartet` : k.last ? 'abgeglichen ' + new Date(k.last).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''; }
 }
 W.aufKonto(zeigeKonto);
+function zeigeStrava(s: StravaStand) {
+  const an = !!s.connected; $('svWer').textContent = an ? (s.athlete && s.athlete.name) || 'verbunden' : '';
+  const b = $<HTMLButtonElement>('svB'); b.textContent = an ? 'Trennen' : 'Verbinden'; b.classList.toggle('leer', an); b.disabled = false; b.dataset.an = an ? '1' : '';
+  $('svMsg').textContent = s.ok === false ? s.error || '' : '';
+}
+$('svB').onclick = async () => {
+  const b = $<HTMLButtonElement>('svB');
+  if (b.dataset.an) { zeigeStrava(await W.stravaTrennen()); return; }
+  b.disabled = true; b.textContent = 'Im Browser bestätigen'; $('svMsg').textContent = '';
+  const r = await W.stravaVerbinden(); zeigeStrava(r.ok ? r : { ...(await W.strava()), ok: false, error: r.error });
+};
+/* Ergebnisbild: ob die Fahrt zu Strava geht. Solange sie wartet, bricht ein Klick das Hochladen ab. */
+let resId: string | null = null;
+function stravaMarke(state: string | null | undefined) {
+  const b = $<HTMLButtonElement>('resS'); b.hidden = !state; b.className = state === 'wartet' ? 'wartet' : ''; b.disabled = state !== 'wartet';
+  b.textContent = state === 'wartet' ? 'geht gleich zu Strava' : state === 'ok' ? 'liegt bei Strava' : state === 'aus' ? 'nicht bei Strava' : state === 'laeuft' ? 'geht zu Strava' : 'Strava später';
+}
+$('resS').onclick = () => { if (resId) W.stravaAbbrechen(resId); };
+W.aufStrava(x => { if (x.id === resId) stravaMarke(x.state); });
 async function blatt(was: 'geraete' | 'profil' | null) {
   if (akt !== 'lobby') was = null;
   if (sucheArt && was !== 'geraete') { sucheArt = null; W.geraetAbbruch(); $('gWahl').hidden = true; }
@@ -212,7 +233,7 @@ async function blatt(was: 'geraete' | 'profil' | null) {
   else {
     const w = await W.werte() || {} as any;
     $<HTMLInputElement>('pFtp').value = String(w.ftp ?? ftp); $<HTMLInputElement>('pKg').value = String(w.weight ?? 75); $<HTMLInputElement>('pDiff').value = String(Math.round((w.diff ?? .5) * 100));
-    zeigeKonto(await W.konto());
+    zeigeKonto(await W.konto()); zeigeStrava(await W.strava());
   }
   document.body.dataset.blatt = was;
 }

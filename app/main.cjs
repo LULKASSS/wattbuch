@@ -10,6 +10,8 @@ const { pathToFileURL } = require('node:url');
 const { createDaten } = require('./daten.cjs');
 const { createKonto } = require('./konto.cjs');
 const { uebernehmeAlt, createSicherung } = require('./alt.cjs');
+const { createStrava } = require('./strava.cjs');
+const { createStravaLauf } = require('./stravalauf.cjs');
 const ICLOUD = path.join(os.homedir(), 'Library/Mobile Documents/com~apple~CloudDocs');
 
 const BAU = path.join(__dirname, '..', 'bau');
@@ -25,7 +27,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: t
 if (!TEST_DATA && !app.requestSingleInstanceLock()) app.quit();
 
 let offen = null;   // Art, für die das Geräte-Blatt gerade sucht
-let buehne = null, maschine = null, daten = null, konto = null, sicherung = null, wach = null, letzter = null, faehrt = false;
+let buehne = null, maschine = null, daten = null, konto = null, sv = null, sicherung = null, wach = null, letzter = null, faehrt = false;
 const ARTEN = ['rolle', 'puls', 'kadenz'];
 const lebt = w => w && !w.isDestroyed() && !w.webContents.isDestroyed();
 const anBuehne = (kanal, x) => { if (lebt(buehne)) buehne.webContents.send(kanal, x); };
@@ -156,6 +158,18 @@ app.whenReady().then(() => {
     if (fin(w.ftp, 50, 600)) neu.ftp = Math.round(w.ftp); if (fin(w.weight, 30, 200)) neu.weight = Math.round(w.weight * 10) / 10; if (fin(w.diff, .1, 1)) neu.diff = w.diff;
     daten.werteSpeichern(neu); konto.merkeWerte(); return neu;
   });
+  /* Strava: in Tests per WATTBUCH_STRAVA_URL auf einen nachgebauten Server (auch für den Token-Tausch), der Aufruf
+     des Browsers landet dann in global.__stravaAuth. Mit simulierter Rolle sonst gesperrt. */
+  const SV_URL = process.env.WATTBUCH_STRAVA_URL, SV_AUS = SIM && !SV_URL;
+  const strava = createStrava({ dataDir: daten.dir, baseUrl: SV_URL || 'https://www.strava.com', log: m => console.log(m),
+    ...(SV_URL ? { tokenUrl: SV_URL + '/functions/v1/strava-token', openBrowser: url => { global.__stravaAuth = url; } } : {}) });
+  sv = createStravaLauf({ strava, daten, konto, log: m => console.log(m), wartezeit: +process.env.WATTBUCH_STRAVA_WARTEN || 15000,
+    melde: x => anBuehne('strava', x), strecke: x => anMaschine('befehl', { was: 'strecke', ...x }) });
+  ipcMain.handle('strava:status', heil(() => sv.status()));
+  ipcMain.handle('strava:verbinden', heil(() => { if (SV_AUS) throw new Error('Kein Strava in der Simulation'); return sv.verbinden(); }));
+  ipcMain.handle('strava:trennen', heil(() => sv.trennen()));
+  ipcMain.handle('strava:abbrechen', (_e, id) => sv.abbrechen(String(id)));
+  if (!SV_AUS) setTimeout(() => sv.start(), 3000);
   ipcMain.handle('geraete:liste', () => daten.geraete());
   ipcMain.handle('geraete:vergessen', (_e, a) => { const g = daten.geraete(); delete g[a]; daten.geraeteSpeichern(g); anMaschine('befehl', { was: 'trenne', art: a }); return g; });
   ipcMain.on('ordner', () => shell.openPath(sicherung.dir));
@@ -171,7 +185,7 @@ app.whenReady().then(() => {
   const schlafAus = () => { if (wach != null) { powerSaveBlocker.stop(wach); wach = null; } };
   ipcMain.on('m:start', (_e, kopf) => { daten.journalStart(kopf); faehrt = true; if (wach == null) wach = powerSaveBlocker.start('prevent-display-sleep'); });
   ipcMain.on('m:sekunde', (_e, z) => daten.journalZeile(z));
-  ipcMain.handle('m:fertig', (_e, r) => { const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); konto.merke(id); return id; });
+  ipcMain.handle('m:fertig', (_e, r) => { sv.vormerken(r); const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); konto.merke(id); return { id, strava: r.strava ? r.strava.state : null }; });
   ipcMain.on('m:weg', () => { daten.journalEnde(); faehrt = false; schlafAus(); });
 
   menue();

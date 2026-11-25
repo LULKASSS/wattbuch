@@ -126,6 +126,6 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
     return lauf;
   }
   const takt = setInterval(() => bald(0), 5 * 60000);
-  return { status, anmelden, abmelden, abgleich, merke, merkeWerte, stop: () => { clearInterval(takt); clearTimeout(timer); } };
+  return { status, anmelden, abmelden, abgleich, merke, merkeWerte, weg: () => K.weg, stop: () => { clearInterval(takt); clearTimeout(timer); } };
 }
 module.exports = { createKonto };

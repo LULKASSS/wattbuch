@@ -221,3 +221,13 @@ body:not([data-blatt=geraete]) #blGeraete,body:not([data-blatt=profil]) #blProfi
 #kAn{display:grid;gap:4px;margin-top:12px}
 #kAn b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#kAn small{font-size:12.5px;color:var(--fg2)}#kAn button{margin-top:10px}
 .gz:last-child{border-bottom:0}
+#svBox{display:grid;gap:4px;margin-top:12px}
+#svWer{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#svWer:empty{display:none}
+#svBox .bbtn{margin-top:6px}
+#svMsg{margin:0;font-size:13px;color:var(--bad)}#svMsg:empty{display:none}
+.tags button{margin:0;height:34px;padding:0 14px;border-radius:999px;background:rgba(246,240,230,.1);color:var(--fg);font:inherit;font-size:13px;font-weight:400;opacity:0;transition:opacity .5s ease 1.3s,background .2s}
+body[data-stage=done] .tags button{opacity:1}
+.tags button[hidden]{display:none}
+.tags button.wartet{border:1px solid rgba(243,181,107,.6)}
+.tags button.wartet:hover{background:rgba(242,160,147,.22)}
+.tags button:disabled{cursor:default}

@@ -24,6 +24,7 @@ export type Phase = 'lobby' | 'count' | 'ride' | 'done';
 export type GeraetStand = 'aus' | 'sucht' | 'an';
 export interface Ergebnis {
   zeit: number; ganz: boolean; km: number; hm: number; avgW: number;
+  id?: string; strava?: string | null;   // nach dem Speichern: Kennung der Fahrt und ob sie zu Strava geht
   rivale: { start: string; dauer: number } | null;
   abstand: number | null;  // Sekunden zum Rivalen, negativ = schneller
 }
@@ -44,4 +45,4 @@ export type Befehl =
   | { was: 'start'; streckeId: string; rev: boolean }
   | { was: 'abbruch' } | { was: 'pause'; an?: boolean } | { was: 'ende' } | { was: 'lobby' }
   | { was: 'coach' } | { was: 'stufe'; d: number }
-  | { was: 'wahl'; streckeId: string; rev: boolean } | { was: 'werte' } | { was: 'trenne'; art: 'rolle' | 'puls' | 'kadenz' };
+  | { was: 'wahl'; streckeId: string; rev: boolean } | { was: 'werte' } | { was: 'strecke'; id: string; name: string; fav?: { n: number }; pts: number[][] } | { was: 'trenne'; art: 'rolle' | 'puls' | 'kadenz' };

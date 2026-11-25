@@ -4,7 +4,7 @@
 import type { Befehl, Ereignis, Ergebnis, Fahrt, Phase, Strecke, Werte, Zustand } from '../kern/typen';
 import { WERTE_START } from '../kern/typen';
 import { schritt, clamp } from '../kern/physik';
-import { bahn, eleAt, gradeAt, anstiege, type Bahn, type Anstieg } from '../kern/strecke';
+import { bahn, eleAt, gradeAt, anstiege, ausPunkten, type Bahn, type Anstieg } from '../kern/strecke';
 import { erzeuge, GEN_START } from '../kern/erzeugen';
 import { grundleistung, zielEinfach } from '../kern/coach';
 import { Aufnahme, schnitt } from '../kern/aufnahme';
@@ -76,7 +76,8 @@ async function ende(ganz: boolean) {
   };
   const rv = F.rivale;
   F.ergebnis = { zeit: n, ganz, km: F.s / 1000, hm: Math.round(F.up), avgW: Math.round(schnitt(R.p)), rivale: rv ? { start: rv.start, dauer: rv.dauer } : null, abstand: rv && ganz ? n - rv.dauer : null };
-  await W.fahrtFertig(r);
+  const f = await W.fahrtFertig(r);
+  if (F.ergebnis) F.ergebnis = { ...F.ergebnis, id: f.id, strava: f.strava };
 }
 
 /* Meldungen während der Fahrt: Anstieg voraus, größter Anstieg als Abschnitt, Kuppe, Rivale überholt */
@@ -162,6 +163,9 @@ W.aufBefehl((b: Befehl) => {
   if (b.was === 'wahl') wahl = { id: b.streckeId, rev: b.rev };
   else if (b.was === 'werte') neuLaden();
   else if (b.was === 'trenne') G.trenne(b.art);
+  else if (b.was === 'strecke') {   // Runde aus Strava: Punkte mit Höhe → geglättete Strecke
+    try { const st = ausPunkten(b.name, b.pts); st.id = b.id; if (b.fav) st.fav = b.fav; W.streckeSpeichern(st); } catch { /* zu kurz oder kaputt */ }
+  }
   else if (b.was === 'start') start(b.streckeId, b.rev, false);
   else if (b.was === 'abbruch') { if (F.phase === 'count') { F.phase = 'lobby'; tritt.entschaerfen(); } }
   else if (b.was === 'pause') { if (F.phase === 'ride') F.rec.vonHand(b.an == null ? !F.rec.pause : b.an); }
