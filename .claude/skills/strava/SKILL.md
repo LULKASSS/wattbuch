@@ -1,32 +1,14 @@
 ---
 name: strava
-description: Touren aus Lukas' Strava-Konto als Wattbuch-Strecken übernehmen oder Strava-Daten für Wattbuch nutzen (FTP, Zonen, typische Profile). Nutzen bei "Strava", "hol meine Touren", "die Runde von gestern als Strecke", "fahr meine TDE nach", "neue Strecken aus Strava".
+description: Strava im Neubau von Wattbuch – verbinden, Fahrten hochladen, draußen gefahrene Runden als Strecken und Welten. Nutzen bei "Strava", "hol meine Runden", "die Runde von gestern als Strecke".
 ---
 
-# Strava → Wattbuch
+# Strava (kommt in Schritt 3, noch nicht gebaut)
 
-Strava ist über den Strava-Connector verbunden (Tools `list_activities`, `get_activity_streams`, `get_athlete_zones`).
+Nachschlagen im alten Code: `git show main:desktop/strava.js`, `main:js/strava.js`, `main:js/stravaholen.js`.
 
-**Fahrten übernehmen (läuft von selbst)**
-- Die Mac-App holt alle Radfahrten selbst (`js/stravaholen.js`, Einstellungen → Strava → „Alle Fahrten aus Strava übernehmen“), danach alle 30 min Neues; übers Konto landen sie auf dem Handy. Nie über den Connector Streams massenhaft ziehen (zu groß).
-- Braucht die Strava-Erlaubnis `activity:read_all`; alte Verbindungen zeigen „Neu verbinden“ – das klickt Lukas.
-- Draußen-Fahrten haben meist keinen Wattmesser (`noW`): Leistung/TSS nur aus Stravas Schätzung.
-
-**Strecken übernehmen**
-1. `list_activities` (nur `sport_type` Ride, nicht VirtualRide/Hike), mit Lukas die Touren auswählen. Gut geeignet: viel Höhe pro km, Lieblingsrunden, Touren mit Geschichte.
-2. Pro Tour `get_activity_streams` mit `["location","altitude"]` und `resolution: 250` (reicht für ein Rollenprofil, spart Kontingent).
-3. Streams als `[{name, location, altitude}]` in eine Datei im Scratchpad/`/private/tmp` schreiben – **nie ins Repo** (verrät Wohnort und Wege).
-4. `node scripts/strecke-aus-punkten.mjs <eingabe.json> "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Wattbuch/Import/strava-<datum>.json"`
-5. Die Mac-App übernimmt alles aus `Import/` beim nächsten Start und verschiebt die Datei nach `Import/Erledigt/`. Im Browser: bei der Strecke „Laden“.
-
-**Zahlen abgleichen**
-- `get_athlete_zones` liefert FTP und Leistungszonen. Weicht die FTP von Wattbuch ab, Lukas fragen, ob sie übernommen werden soll (Einstellungen → FTP).
-
-**Fahrten zu Strava (Upload)**
-- Mac-App lädt direkt hoch (`desktop/strava.js`, Oberfläche `js/strava.js`): alle nutzen die gemeinsame Strava-App (Client-ID 286463, Callback-Domain `localhost`), nur „Mit Strava verbinden“. Den Token-Tausch macht die Edge Function `strava-token` im Supabase-Projekt „Apps“ (Quelle `supabase/functions/strava-token`, ohne JWT-Prüfung bereitstellen); das Secret liegt dort nur als Supabase-Secret `STRAVA_CLIENT_SECRET`. Gemeinsam nur Hochladen (Stravas Regeln verbieten dauerhaftes Speichern von Strava-Daten); Übernehmen der Strava-Fahrten nur mit eigener App (Lukas' `strava.json` mit `clientSecret`). Mehr als 10 Nutzer braucht Stravas Prüfung. **Nie selbst Zugangsdaten eintippen oder anzeigen**, das macht Lukas.
-- Zugang liegt in `~/Library/Application Support/Wattbuch/strava.json` (0600), Token werden automatisch erneuert. Upload als TCX mit `trainer=1`, Name = Fahrtname, Beschreibung mit Ø/NP/kJ/TSS, `external_id` = `wattbuch-<id>` (doppelte Uploads erkennt Strava).
-- Option „Nach jeder Fahrt automatisch hochladen“ (`S.set.stravaAuto`). Stand je Fahrt in `r.strava`.
-- Browser/Webseite: „Für Strava exportieren“ (TCX speichern + strava.com/upload/select).
-- Test: `test/desktop.spec.js` „Strava: verbinden und Fahrt hochladen“ gegen nachgebauten Server (`WATTBUCH_STRAVA_URL`).
-
-Bereits übernommen (Okt. 2026): Göttinger Hausrunde, TDE 2026, Ischgl-Bergtour.
+- **Zwei Zugänge.** Gemeinsame Strava-App (Client-ID 286463, Token-Tausch über die Supabase-Funktion `strava-token`, Secret nur dort): hochladen, Aktivitätenliste, Linie und Höhe einzelner Fahrten für die meistgefahrenen Runden. Eigene Strava-App von Lukas (Client-ID und Secret in `strava.json`): zusätzlich alle Fahrten übernehmen.
+- **Neubau meldet sich neu an** und führt eine eigene `strava.json` im eigenen Datenordner; die der alten App nicht anfassen und nichts daraus kopieren, bevor Lukas zugestimmt hat. Zugangsdaten nie anzeigen oder eintippen.
+- **Grenzen:** höchstens 90 Abrufe pro 15 min, Streams nur für Neues. Die 128 Strava-Fahrten liegen schon im Konto.
+- **Hochladen:** TCX mit `trainer=1`, `external_id` = `wattbuch-<id>` (doppelte erkennt Strava), danach per PUT zum `VirtualRide`.
+- **Strecken:** Höhen aus Strava rauschen, `ausPunkten()` in `src/kern/strecke.ts` glättet (25 m, zweimal über 7 Punkte). Eigene Strecken von Lukas nie ins Repo.

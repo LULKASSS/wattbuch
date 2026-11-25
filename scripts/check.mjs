@@ -1,74 +1,29 @@
-/* Schneller Fehlercheck ohne Browser:
- * 1. JavaScript in index.html ist syntaktisch gültig
- * 2. HTML-Grundgerüst stimmt, jede per $('#id') angesprochene ID existiert
- * 3. Keine persönlichen Daten im Repo (Sicherungen, GPX, Fahrten, Schlüssel)
- * Exit-Code 1 bei Fehlern. */
-import { readFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
+/* Fehlercheck ohne App: keine persönlichen Daten oder Schlüssel im Repo, die simulierte Rolle kommt nicht in die App,
+ * die App lädt nichts aus dem Netz nach, alle IDs der Bühne gibt es. Aufruf: node scripts/check.mjs */
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
-const errors = [], warns = [];
-const html = await readFile(root + 'index.html', 'utf8');
+const fehler = [];
+const dateien = execSync('git ls-files -co --exclude-standard', { encoding: 'utf8' }).split('\n').filter(f => f && fs.existsSync(f) && !f.startsWith('entwurf/three'));
+const text = f => /\.(ts|js|cjs|mjs|json|html|css|md|yml)$/.test(f) ? fs.readFileSync(f, 'utf8') : '';
 
-/* 1. Syntax: jede eingebundene Datei einzeln, dann alle zusammen (gemeinsamer globaler Gültigkeitsbereich,
-   findet doppelt deklarierte const/let über Dateigrenzen) */
-const srcs = [...html.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map(m => m[1]).filter(s => !/^https?:/.test(s));
-const scripts = [];
-for (const src of srcs) {
-  const code = await readFile(root + src, 'utf8').catch(() => null);
-  if (code == null) { errors.push(`index.html bindet ${src} ein, Datei fehlt`); continue; }
-  scripts.push(code);
-  try { new vm.Script(code, { filename: src }); }
-  catch (e) { errors.push(`Syntaxfehler in ${src}: ${e.message}`); }
-}
-for (const m of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) scripts.push(m[1]);
-if (!scripts.length) errors.push('index.html: kein Script gefunden');
-try { new vm.Script(scripts.join('\n;\n').replace(/'use strict';/g, ''), { filename: 'alle Scripts' }); }
-catch (e) { errors.push(`Scripts passen nicht zusammen: ${e.message}`); }
-for (const l of html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g))
-  if (!/^https?:/.test(l[1])) await readFile(root + l[1]).catch(() => errors.push(`index.html bindet ${l[1]} ein, Datei fehlt`));
+/* 1. Persönliche Daten: keine Fahrten, Sicherungen, GPX/TCX/FIT */
+for (const f of dateien) if (/\.(gpx|tcx|fit)$/i.test(f) || /sicherung.*\.json$/i.test(f) || /^(daten|\.sim)\//.test(f) || /strava\.json$/.test(f)) fehler.push(`persönliche Datei im Repo: ${f}`);
+/* 2. Schlüssel: nur der öffentliche Supabase-Schlüssel (sb_publishable_…) ist erlaubt */
+const geheim = [/sb_secret_[A-Za-z0-9_-]{8,}/, /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\./, /client_secret["'\s:=]+[0-9a-f]{20,}/i, /clientSecret["'\s:=]+["'][0-9a-f]{20,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /gh[pousr]_[A-Za-z0-9]{30,}/];
+for (const f of dateien) { const t = text(f); for (const re of geheim) if (re.test(t)) fehler.push(`möglicher Schlüssel in ${f}: ${re}`); }
+/* 3. Simulierte Rolle und Fahrer nur in test/, nie in der App */
+for (const f of dateien.filter(f => /^(src\/|buehne\.html|maschine\.html)/.test(f))) if (/fake-ble|sim-fahrer/.test(text(f))) fehler.push(`simulierte Rolle in der App: ${f}`);
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+if (pkg.build.files.some(x => /test/.test(x))) fehler.push('test/ darf nicht in die gebaute App');
+if (pkg.build.appId === 'de.rueckborn.wattbuch') fehler.push('App-Kennung der alten App: der Neubau muss eine eigene haben');
+/* 4. Nichts aus dem Netz nachladen: keine Seiten-, Schrift- oder Skriptadressen in der Oberfläche */
+for (const f of dateien.filter(f => /^(src\/(buehne|kern|stil)|buehne\.html|maschine\.html)/.test(f))) { const m = text(f).match(/https?:\/\/[^\s"')]+/g); if (m) fehler.push(`Netzadresse in der Oberfläche ${f}: ${m[0]}`); }
+if (/github\.io|releases\/latest|manifest\.json/.test(text('app/main.cjs'))) fehler.push('app/main.cjs lädt etwas von Pages oder aus Releases');
+/* 5. IDs: jede in buehne.ts benutzte ID steht in buehne.html, keine doppelt */
+const html = text('buehne.html'), ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
+for (const id of new Set(ids)) if (ids.filter(x => x === id).length > 1) fehler.push(`doppelte ID: ${id}`);
+for (const m of text('src/buehne/buehne.ts').matchAll(/\$(?:<[^>]+>)?\('([^']+)'\)/g)) if (!ids.includes(m[1])) fehler.push(`ID fehlt in buehne.html: ${m[1]}`);
 
-/* 2. HTML und IDs */
-for (const need of ['<!doctype html>', '<meta charset', 'name="viewport"', '<title>'])
-  if (!html.toLowerCase().includes(need.toLowerCase())) errors.push(`index.html: ${need} fehlt`);
-/* IDs aus dem HTML und aus den Vorlagen in den Scripts (Ansichten werden per innerHTML gebaut) */
-const ids = new Set([...(html + scripts.join('\n')).matchAll(/\bid="([^"$]+)"/g)].map(m => m[1]));
-const dynamicIds = new Set(['zpTxt', 'sumStrava', 'btnStrava']); /* werden zur Laufzeit gesetzt */
-const used = new Set([...scripts.join('\n').matchAll(/\$\(\s*'#([\w-]+)'(?!\s*\+)/g)].map(m => m[1])); /* nur feste IDs, keine zusammengesetzten */
-for (const id of used) if (!ids.has(id) && !dynamicIds.has(id)) errors.push(`#${id} wird im Script benutzt, steht aber nicht im HTML`);
-const dupes = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]).filter((v, i, a) => a.indexOf(v) !== i);
-for (const d of new Set(dupes)) errors.push(`ID doppelt vergeben: #${d}`);
-if (/<script[^>]+src="\/?test\//.test(html)) errors.push('index.html lädt Testcode (test/…) – darf nie veröffentlicht werden');
-
-/* Manifest für das automatische Update der Mac-App muss zu den Dateien passen */
-{
-  const { build } = await import('./manifest.mjs');
-  const want = await build();
-  const have = JSON.parse(await readFile(root + 'manifest.json', 'utf8').catch(() => '{}'));
-  if (have.version !== want.version) errors.push('manifest.json ist veraltet → node scripts/manifest.mjs');
-}
-
-/* 3. Persönliche Daten */
-let files = [];
-try { files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean); }
-catch { warns.push('git nicht verfügbar, Datencheck übersprungen'); }
-const allowed = /^test\/fixtures\//;
-for (const f of files) {
-  if (allowed.test(f)) continue;
-  if (/\.(gpx|tcx|fit)$/i.test(f)) errors.push(`Streckendatei/Fahrt im Repo: ${f} (gehört nach daten/ oder test/fixtures/)`);
-  if (/sicherung|backup/i.test(f) && /\.json$/i.test(f)) errors.push(`Sicherung im Repo: ${f}`);
-  if (/\.json$/i.test(f) && !/^(package(-lock)?\.json|\.claude\/)/.test(f)) {
-    const t = await readFile(root + f, 'utf8').catch(() => '');
-    if (/"app"\s*:\s*"wattbuch"/.test(t) || /"rides"\s*:\s*\[/.test(t)) errors.push(`Datei sieht nach Wattbuch-Sicherung aus: ${f}`);
-  }
-  if (!/node_modules/.test(f) && /\.(js|mjs|css|html|md|json|yml)$/.test(f)) {
-    const t = await readFile(root + f, 'utf8').catch(() => '');
-    if (/gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-ant-[A-Za-z0-9-]{20,}/.test(t)) errors.push(`Möglicher Zugangsschlüssel in ${f}`);
-  }
-}
-
-for (const w of warns) console.log('⚠️  ' + w);
-if (errors.length) { console.log('❌ Fehlercheck fehlgeschlagen:'); for (const e of errors) console.log('   • ' + e); process.exit(1); }
-console.log(`✅ Fehlercheck ok (${scripts.length} Scripts, ${ids.size} IDs, ${files.length} Dateien geprüft)`);
+if (fehler.length) { console.error('Fehlercheck:\n- ' + fehler.join('\n- ')); process.exit(1); }
+console.log(`Fehlercheck in Ordnung (${dateien.length} Dateien)`);

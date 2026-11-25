@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:">
+<title>Wattbuch Neu</title>
+</head>
+<body data-stage="lobby">
+<canvas id="gl"></canvas>
+<div class="layer" id="shade"></div>
+<div id="zieh"></div>
+
+<div class="layer" id="lobby">
+  <div class="top">
+    <nav><button class="on">Lobby</button><button disabled>Saison</button><button disabled>Rivalen</button><button disabled>Fahrten</button></nav>
+    <div style="display:flex;gap:26px;align-items:center">
+      <div class="dev"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></div>
+      <div class="lvl"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div></div>
+    </div>
+  </div>
+  <div class="hero">
+    <div class="lbl" id="hTag"></div>
+    <h1 class="dsp" id="hName"></h1>
+    <div class="stats"><span><b id="hKm"></b>km</span><span><b id="hHm"></b>Höhenmeter</span><span><b id="hMin"></b>Minuten</span></div>
+    <div class="rival" id="hRival" hidden>Dein Rivale: <b>du, <span id="hWhen"></span></b> · <b id="hBest"></b></div>
+    <div class="go"><button class="gobtn" id="start"><span>Losfahren</span></button><small>oder einfach lostreten</small></div>
+  </div>
+  <div class="dock"><div id="cards" style="display:contents"></div></div>
+</div>
+
+<div class="layer" id="count"><div class="ringbox">
+  <i class="wave"></i><i class="wave"></i>
+  <svg viewBox="0 0 300 300" aria-hidden="true"><circle cx="150" cy="150" r="138" fill="rgba(14,11,22,.8)" stroke="rgba(246,240,230,.16)" stroke-width="6"/><circle id="ring" cx="150" cy="150" r="130" fill="none" stroke="#F3B56B" stroke-width="8" stroke-linecap="round" stroke-dasharray="817" stroke-dashoffset="817" transform="rotate(-90 150 150)"/></svg>
+  <span class="lbl" style="position:relative">Runde bereit</span>
+  <b class="dsp n" id="cnt" style="position:relative">3</b>
+</div></div>
+
+<div id="fade"></div>
+<div class="layer" id="hud">
+  <div class="hrow in t">
+    <div><b class="dsp" id="rName" style="font-size:22px;font-weight:700"></b><div id="rProg" style="font-size:14px;color:#E7DCE6;margin-top:4px"></div></div>
+    <div class="glass duel" id="duel"><div class="h"><span>du, <span id="rWhen"></span></span><b class="dsp" id="gap">0:00</b><span>du heute</span></div><div class="track"><i id="dGhost" style="left:50%"></i><i id="dMe" style="left:50%"></i></div></div>
+    <div class="tr"><b class="dsp" id="clock" style="font-size:36px;font-weight:700">0:00</b><button class="endb" id="end"><i></i>Runde beenden</button></div>
+  </div>
+  <div class="deck">
+    <div class="grp gl in l">
+      <div class="stat"><b id="kmh">0,0</b><small>km/h</small></div>
+      <div class="stat"><b id="hr">–</b><small>Puls</small></div>
+      <div class="stat"><b id="rpm">–</b><small>Kadenz</small></div>
+    </div>
+    <div class="in bm mid">
+      <div class="gauge">
+        <svg viewBox="0 0 330 330" aria-hidden="true"><g transform="rotate(135 165 165)"><circle cx="165" cy="165" r="146" fill="rgba(7,6,13,.5)" stroke="rgba(246,240,230,.18)" stroke-width="5" stroke-linecap="round" stroke-dasharray="688 917"/><circle id="arc" cx="165" cy="165" r="146" fill="none" stroke="#F3B56B" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 917"/></g><line id="tick" x1="297" y1="165" x2="325" y2="165" stroke="#F6F0E6" stroke-width="4" stroke-linecap="round"/></svg>
+        <button class="v" id="wbtn" aria-label="Coach an oder aus"><span class="lbl" id="zone"></span><b class="dsp" id="watt">0</b><span class="unit">Watt</span></button>
+      </div>
+      <div class="pm auto" id="pm"><button id="less" aria-label="10 Watt weniger">−</button><button class="coach on" id="coach"><i></i><span id="coachT">Coach</span></button><button id="more" aria-label="10 Watt mehr">+</button></div>
+    </div>
+    <div class="grp gr in r">
+      <div class="stat"><b id="grade">0,0 %</b><small id="gWord">flach</small></div>
+      <div class="stat"><b id="left">0,0</b><small>km übrig</small></div>
+      <div class="stat"><b id="up">0</b><small>Höhenmeter</small></div>
+    </div>
+  </div>
+  <canvas id="prof" class="in bm"></canvas>
+</div>
+<div id="toasts"></div>
+<div class="layer" id="big"><span class="dsp" id="bigT"></span></div>
+
+<div class="layer" id="pause"><div><b class="dsp">Pause</b><span id="pauseT"></span></div></div>
+<div class="layer" id="done"><div class="res">
+  <div class="lbl" id="resL"></div>
+  <b class="dsp big" id="resT">0:00</b>
+  <p id="resP"></p>
+  <div class="tags"><span id="resW"></span><span id="resK"></span><span id="resH"></span></div>
+  <button id="home">Zur Lobby</button>
+</div></div>
+<div class="layer on" id="flash" style="transition-duration:1.4s"></div>
+<script type="module" src="/src/buehne/buehne.ts"></script>
+</body>
+</html>

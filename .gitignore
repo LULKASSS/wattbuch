@@ -10,3 +10,8 @@ daten/
 *.gpx
 *.tcx
 *.fit
+
+# Neubau: Build, Simulationsdaten, Auftrag (bleibt lokal)
+bau/
+.sim/
+wattbuch-neubau/

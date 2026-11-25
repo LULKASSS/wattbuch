@@ -1,0 +1,183 @@
+/* Maschinenraum: unsichtbares Fenster mit allem, was eine Fahrt ausmacht: Geräte, Fahrphysik, Aufnahme, Coach.
+   Schickt der Bühne zehnmal pro Sekunde den Zustand und nimmt Befehle entgegen. Hängt nicht an der Grafik:
+   Stürzt die Bühne ab, läuft hier alles weiter. Jede aufgenommene Sekunde geht sofort ins Journal. */
+import type { Befehl, Ereignis, Ergebnis, Fahrt, Phase, Strecke, Werte, Zustand } from '../kern/typen';
+import { WERTE_START } from '../kern/typen';
+import { schritt, clamp } from '../kern/physik';
+import { bahn, eleAt, gradeAt, anstiege, type Bahn, type Anstieg } from '../kern/strecke';
+import { erzeuge, GEN_START } from '../kern/erzeugen';
+import { grundleistung, zielEinfach } from '../kern/coach';
+import { Aufnahme, schnitt } from '../kern/aufnahme';
+import { TrittStart, CountAbbruch } from '../kern/start';
+import { Rivale } from '../kern/rivale';
+import { fmt, tag } from '../kern/format';
+import { Geraete } from './geraete';
+
+const W = window.wattbuch;
+/* Tests lassen die Uhr schneller laufen (WATTBUCH_TEMPO), sonst 1 */
+const TEMPO = Math.max(1, +(new URLSearchParams(location.search).get('tempo') || 1));
+const G = new Geraete();
+let werte: Werte = { ...WERTE_START };
+let strecken: Strecke[] = [];
+
+const F = {
+  phase: 'lobby' as Phase, count: 0, durchTritt: false,
+  rt: null as Bahn | null, climbs: [] as Anstieg[], haupt: null as Anstieg | null,
+  rec: new Aufnahme(), startISO: '', t: 0, s: 0, v: 0, up: 0, lastAlt: null as number | null,
+  coach: true, basis: 140, hand: 140,
+  rivale: null as Rivale | null, vorn: false,
+  gesagt: {} as Record<string, number>, ergebnis: null as Ergebnis | null
+};
+const tritt = new TrittStart(); let abbruch = new CountAbbruch();
+const sag = (e: Ereignis) => W.ereignis(e);
+const ziel = () => F.coach ? zielEinfach(F.basis, F.rt ? gradeAt(F.rt, F.s + 25) : 0) : F.hand;
+
+async function laden() {
+  werte = { ...WERTE_START, ...(await W.werte() || {}) };
+  strecken = await W.strecken();
+  if (!strecken.length) {   // erster Start: drei erzeugte Runden, keine persönlichen
+    strecken = GEN_START.map(([t, s]) => erzeuge(t, s));
+    for (const s of strecken) await W.streckeSpeichern(s);
+  }
+  F.basis = F.hand = grundleistung(werte.ftp);
+}
+
+function start(streckeId: string, rev: boolean, durchTritt: boolean) {
+  const st = strecken.find(x => x.id === streckeId);
+  if (!st || F.phase !== 'lobby') return;
+  F.rt = bahn(st, rev); F.climbs = anstiege(F.rt);
+  F.haupt = F.climbs.slice().sort((a, b) => b.gain - a.gain)[0] || null;
+  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: grundleistung(werte.ftp), rivale: null, vorn: false, gesagt: {}, ergebnis: null });
+  F.hand = F.basis; abbruch = new CountAbbruch();
+  W.rivale(streckeId, rev).then(r => { if (r && F.rt && F.rt.id === streckeId) F.rivale = new Rivale(r.start, r.dist); });
+}
+function los() {
+  F.phase = 'ride'; F.startISO = new Date().toISOString();
+  W.fahrtStart({ start: F.startISO, streckeId: F.rt!.id, rev: F.rt!.rev, route: F.rt!.name, ftp: werte.ftp, weight: werte.weight, trainer: true });
+  sag({ art: 'gross', text: 'Los' });
+}
+async function ende(ganz: boolean) {
+  if (F.phase !== 'ride') return;
+  const R = F.rec, rt = F.rt!, n = R.n;
+  F.phase = 'done'; tritt.entschaerfen();
+  if (n < 10) { W.fahrtWeg(); F.ergebnis = null; F.phase = 'lobby'; return; }
+  const any = (a: number[]) => a.some(v => v > 0);
+  const r: Fahrt = {
+    id: 'r' + Date.parse(F.startISO) + Math.random().toString(36).slice(2, 6), start: F.startISO, name: rt.name + (rt.rev ? ' (umgekehrt)' : ''),
+    p: R.p, hr: any(R.hr) ? R.hr : null, cad: any(R.cad) ? R.cad : null, spd: any(R.spd) ? R.spd : null, dist: any(R.dist) ? R.dist : null, alt: R.alt.some(v => v != null) ? R.alt : null,
+    route: rt.name + (rt.rev ? ' (umgekehrt)' : ''), routeId: rt.id, rev: rt.rev, ganz, gain: Math.round(F.up), trainer: G.stand.rolle === 'an', ftp: werte.ftp, weight: werte.weight, app: 'neu'
+  };
+  const rv = F.rivale;
+  F.ergebnis = { zeit: n, ganz, km: F.s / 1000, hm: Math.round(F.up), avgW: Math.round(schnitt(R.p)), rivale: rv ? { start: rv.start, dauer: rv.dauer } : null, abstand: rv && ganz ? n - rv.dauer : null };
+  await W.fahrtFertig(r);
+}
+
+/* Meldungen während der Fahrt: Anstieg voraus, größter Anstieg als Abschnitt, Kuppe, Rivale überholt */
+function meldungen() {
+  const s = F.s, g = F.gesagt;
+  for (const [i, c] of F.climbs.entries()) {
+    const d = c.s - s;
+    if (d > 0 && d < 300 && !g['a' + i]) { g['a' + i] = 1; sag({ art: 'hinweis', kopf: 'Anstieg voraus', text: `${fmt(c.len / 1000, 1)} km · ${fmt(c.g, 1)} % im Schnitt` }); }
+  }
+  const h = F.haupt;
+  if (h) {
+    if (!g.fuss && s >= h.s && s < h.top) { g.fuss = 1; sag({ art: 'gross', text: 'Anstieg' }); }
+    if (g.fuss && !g.kuppe && s >= h.top) { g.kuppe = 1; sag({ art: 'gross', text: 'Kuppe' }); sag({ art: 'hinweis', kopf: 'Geschafft', text: `${fmt(h.gain)} Höhenmeter am Stück` }); }
+  }
+  const rv = F.rivale;
+  if (rv && F.t > 20) {
+    const vorn = s > rv.ort(F.t) + 3;
+    if (vorn && !F.vorn && rv.ort(F.t) > 50) { sag({ art: 'gross', text: 'Vorbei' }); sag({ art: 'hinweis', kopf: 'Rivale überholt', text: 'Du liegst vor dir vom ' + tag(rv.start) }); }
+    if (vorn || s < rv.ort(F.t) - 3) F.vorn = vorn;
+  }
+}
+
+/* ---------- Takt ---------- */
+let zuletzt = performance.now(), sek = 0;
+function takt() {
+  const now = performance.now(), dt = Math.min((now - zuletzt) / 1000, 2) * TEMPO; zuletzt = now;
+  const pow = G.watt, m = werte.weight + werte.bike, R = F.rec;
+  const faehrt = F.phase === 'ride' && !R.pause;
+  const grade = F.rt && F.phase !== 'lobby' ? gradeAt(F.rt, F.s) : 0;
+  /* Physik in kleinen Schritten */
+  let rest = dt;
+  while (rest > 1e-6) {
+    const h = Math.min(0.25, rest); rest -= h;
+    F.v = pow == null ? 0 : schritt(F.v, pow, F.phase === 'lobby' ? 0 : F.rt ? gradeAt(F.rt, F.s) : 0, m, h);
+    if (faehrt && F.rt) {
+      F.s = Math.min(F.rt.dist, F.s + F.v * h); F.t += h;
+      const alt = eleAt(F.rt, F.s);
+      if (F.lastAlt != null && alt > F.lastAlt) F.up += alt - F.lastAlt;
+      F.lastAlt = alt;
+    }
+  }
+  if (F.phase === 'lobby') { if (G.stand.rolle === 'an' && tritt.tritt(pow, G.kadenz, dt) && wahl) start(wahl.id, wahl.rev, true); }
+  else if (F.phase === 'count') {
+    F.count -= dt;
+    if (F.durchTritt && abbruch.pruefe(G.wattJetzt, dt)) F.phase = 'lobby';
+    else if (F.count <= 0) los();
+  }
+  else if (F.phase === 'ride' && F.rt) {
+    /* eine Zeile pro gefahrener Sekunde */
+    while (!R.pause && R.n < Math.floor(F.t)) {
+      const x = { p: G.wattSekunde, hr: G.puls || 0, cad: G.kadenz || 0, spd: Math.round(F.v * 36) / 10, dist: Math.round(F.s * 10) / 10, alt: Math.round(eleAt(F.rt, F.s) * 10) / 10 };
+      const folge = R.sekunde(x);
+      W.sekunde([x.p, x.hr, x.cad, x.spd, x.dist, x.alt]);
+      if (folge && folge.was === 'pause') { W.sekunde({ kuerze: folge.kuerze }); F.t = R.n; }
+    }
+    /* automatisch pausiert: einmal pro Sekunde schauen, ob wieder getreten wird */
+    sek += dt;
+    if (sek >= 1) { sek = 0; R.warte(pow); }
+    if (!R.pause) meldungen();
+    if (F.s >= F.rt.dist) ende(true);
+  }
+  /* Steigung an die Rolle (mit Steigungsstärke), in der Lobby flach */
+  G.steuere(F.phase === 'ride' || F.phase === 'count' ? grade * werte.diff : 0);
+  sende();
+}
+function sende() {
+  const rv = F.rivale, ride = F.phase === 'ride';
+  const z: Zustand = {
+    phase: F.phase, pause: F.rec.pause, auto: F.rec.auto, geraete: { ...G.stand },
+    w: G.watt, hr: G.puls, cad: G.kadenz, v: F.v, s: F.s, t: F.t, grade: F.rt && F.phase !== 'lobby' ? gradeAt(F.rt, F.s) : 0, up: F.up,
+    ziel: ziel(), coach: F.coach, basis: F.basis, ftp: werte.ftp, count: Math.max(0, F.count),
+    streckeId: F.rt && F.phase !== 'lobby' ? F.rt.id : null, rev: !!(F.rt && F.rt.rev),
+    gs: rv && ride ? rv.ort(F.t) : null, gap: rv && ride ? F.t - rv.wann(F.s) : null, rivaleStart: rv ? rv.start : null,
+    ergebnis: F.ergebnis
+  };
+  W.zustand(z);
+  window.__wb = { z, tempo: TEMPO };
+}
+
+/* Welche Runde die Lobby gerade zeigt (für den Start beim ersten Tritt) */
+let wahl: { id: string; rev: boolean } | null = null;
+W.aufBefehl((b: Befehl | { was: 'wahl'; streckeId: string; rev: boolean }) => {
+  if (b.was === 'wahl') wahl = { id: b.streckeId, rev: b.rev };
+  else if (b.was === 'start') start(b.streckeId, b.rev, false);
+  else if (b.was === 'abbruch') { if (F.phase === 'count') { F.phase = 'lobby'; tritt.entschaerfen(); } }
+  else if (b.was === 'pause') { if (F.phase === 'ride') F.rec.vonHand(b.an == null ? !F.rec.pause : b.an); }
+  else if (b.was === 'ende') ende(false);
+  else if (b.was === 'lobby') { if (F.phase === 'done') { F.phase = 'lobby'; F.ergebnis = null; F.s = 0; F.t = 0; } }
+  else if (b.was === 'coach') {
+    if (F.phase !== 'ride') return;
+    if (F.coach) F.hand = ziel();
+    F.coach = !F.coach;
+    sag({ art: 'hinweis', kopf: 'Coach', text: F.coach ? 'An · Ziel folgt der Strecke' : 'Aus · du stellst das Ziel', ms: 2600 });
+  }
+  else if (b.was === 'stufe') { if (F.coach) F.basis = clamp(F.basis + b.d / 2, 60, 500); else F.hand = clamp(F.hand + b.d, 60, 600); }
+});
+
+/* Nach einem Absturz nur des Maschinenraums: laufende Fahrt aus dem Journal fortsetzen */
+async function fortsetzen() {
+  const j = await W.laufend();
+  if (!j || !j.sek.length) return;
+  const st = strecken.find(x => x.id === j.kopf.streckeId); if (!st) return;
+  F.rt = bahn(st, !!j.kopf.rev); F.climbs = anstiege(F.rt); F.haupt = F.climbs.slice().sort((a, b) => b.gain - a.gain)[0] || null;
+  const R = F.rec = new Aufnahme();
+  for (const s of j.sek) { R.p.push(s[0] || 0); R.hr.push(s[1] || 0); R.cad.push(s[2] || 0); R.spd.push(s[3] || 0); R.dist.push(s[4] || 0); R.alt.push(s[5]); }
+  F.startISO = j.kopf.start; F.t = R.n; F.s = R.dist[R.n - 1] || 0; F.v = (R.spd[R.n - 1] || 0) / 3.6; F.lastAlt = eleAt(F.rt, F.s); F.phase = 'ride';
+  for (let i = 1; i < R.n; i++) { const a = R.alt[i - 1], b = R.alt[i]; if (a != null && b != null && b > a) F.up += b - a; }
+}
+
+window.__verbinden = () => { G.verbinden(); };
+laden().then(fortsetzen).then(() => { setInterval(takt, 100); });
