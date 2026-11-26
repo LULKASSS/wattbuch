@@ -1,5 +1,5 @@
 -- Neue Tabelle für Strecken und die Saison des Neubaus (Sammlung, id, Daten).
--- Noch NICHT ausgeführt: erst nach Lukas' Go. Ändert keine bestehende Tabelle und löscht nichts.
+-- Am 26.11.2026 nach Lukas' Go ausgeführt (Migration „wattbuch_dokumente“). Ändert keine bestehende Tabelle und löscht nichts.
 -- Aufbau wie wattbuch_fahrten: jede Zeile gehört einem Nutzer, Zeilenschutz, „entfernt“ ist nur eine Markierung.
 create table public.wattbuch_dokumente (
   user_id   uuid        not null default auth.uid() references auth.users (id) on delete cascade,

@@ -9,7 +9,7 @@
 
 ## Stand
 Alle sechs Schritte sind gebaut: 1 Runde zum Anfassen, 2 echte Rolle und echte Daten, 3 Strava, 4 Segmente, Rivalen, Fahrten, 5 Saison und Fortschritt, 6 voller Coach, FTP-Test, „Watt halten“, Gegenrichtung. Schritt 2 bis 6 sind nur mit simulierter Rolle, nachgebautem Konto und nachgebautem Strava geprüft: Verbinden ohne Dialog, Anmelden im echten Konto, Übernahme der echten Strecken und „Mit Strava verbinden“ muss Lukas einmal selbst durchgehen.
-Strecken und Saison gleichen sich übers Konto ab, sobald es die Tabelle `wattbuch_dokumente` gibt (`supabase/wattbuch_dokumente.sql`, Lukas gezeigt, **nicht ausgeführt, erst nach seinem Go**). Ohne die Tabelle läuft alles, nur eben je Mac. Fahrten lassen sich im Neubau nicht löschen (im Konto wird nichts gelöscht).
+Strecken und Saison gleichen sich übers Konto ab: Tabelle `wattbuch_dokumente` (`supabase/wattbuch_dokumente.sql`, am 26.11.2026 nach Lukas' Go angelegt, mit echtem Konto noch nicht geprüft). Fehlt sie einem Konto, läuft alles, nur eben je Mac. Fahrten lassen sich im Neubau nicht löschen (im Konto wird nichts gelöscht).
 Noch nicht beantwortet von Lukas: ob Client-ID/Secret seiner Strava-App aus der alten `strava.json` kopiert werden dürfen (ohne sie läuft der Neubau über die gemeinsame Strava-App: hochladen und Runden ja, neue Draußen-Fahrten übernehmen nein; nichts kopieren, bevor er zustimmt).
 
 ## Aufbau
