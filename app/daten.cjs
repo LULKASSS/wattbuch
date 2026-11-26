@@ -3,6 +3,7 @@
  * nächsten Start eine Fahrt. Geschrieben wird nur hier im Hauptprozess, nie aus der Grafik heraus. */
 const fs = require('node:fs');
 const path = require('node:path');
+const { punkte, bestAvg } = require('./kennzahl.cjs');
 
 function createDaten(dir) {
   const D = { strecken: path.join(dir, 'strecken'), fahrten: path.join(dir, 'fahrten') };
@@ -38,7 +39,9 @@ function createDaten(dir) {
     const { st, rev } = zuordnung(r), rz = rolle(r) ? rundenzeit(r, st) : 0;
     const n = r.noW ? r.dur || 0 : r.p.length, avgW = r.noW ? r.estW || null : n ? Math.round(r.p.reduce((a, v) => a + v, 0) / n) : null;
     return { id: r.id, start: r.start, name: r.name, routeId: st ? st.id : null, rev, ganz: rz > 0, rolle: rolle(r), dauer: rz || n, zeit: n, km: r.dist && r.dist.length ? r.dist[r.dist.length - 1] / 1000 : 0, hm: Math.round(r.gain || 0), avgW,
-      stravaId: r.strava && r.strava.id ? String(r.strava.id) : null, draussen: r.src === 'strava' && !r.trainer };
+      stravaId: r.strava && r.strava.id ? String(r.strava.id) : null, draussen: r.src === 'strava' && !r.trainer,
+      /* für Saison und Fortschritt: Belastung in Punkten, bester 20-min-Schnitt, Ergebnis eines FTP-Tests */
+      tss: Math.round(punkte(r) * 10) / 10, b20: r.noW ? null : (b => b ? Math.round(b) : null)(bestAvg(r.p, 1200)), ftpTest: r.ftpTest ? r.ftpTest.ftp : null };
   }
   let liste = null;
   const fahrten = () => liste || (liste = alle(D.fahrten).map(kurz).sort((a, b) => a.start.localeCompare(b.start)));
@@ -99,6 +102,9 @@ function createDaten(dir) {
     fahrten, fahrt, fahrtSpeichern, fahrtLoeschen, rivale, laeufe, streckeLoeschen,
     fahrtIds: () => fs.readdirSync(D.fahrten).filter(f => f.endsWith('.json')).map(f => lies(path.join(D.fahrten, f), null)).filter(Boolean).map(r => ({ id: r.id, neu: r.app === 'neu' })),
     aufAenderung: f => hoerer.push(f), lies, schreib,
+    strecke: id => lies(path.join(D.strecken, safe(id) + '.json'), null),
+    saison: () => lies(path.join(dir, 'saison.json'), null),
+    saisonSpeichern: s => { if (s) schreib(path.join(dir, 'saison.json'), s); else try { fs.rmSync(path.join(dir, 'saison.json')); } catch {} melde(); },
     werte: () => lies(path.join(dir, 'werte.json'), null),
     werteSpeichern: w => { schreib(path.join(dir, 'werte.json'), w); melde(); },
     geraete: () => lies(path.join(dir, 'geraete.json'), {}),

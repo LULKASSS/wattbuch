@@ -34,7 +34,7 @@ function createSicherung(daten, dir) {
       if (t === 'fahrten' && f.startsWith('sv')) continue;   // aus Strava übernommene Fahrten bleiben im Konto
       kopie(path.join(daten.dir, t, f), path.join(dir, t, f));
     }
-    if (fs.existsSync(path.join(daten.dir, 'werte.json'))) kopie(path.join(daten.dir, 'werte.json'), path.join(dir, 'werte.json'));
+    for (const f of ['werte.json', 'saison.json']) if (fs.existsSync(path.join(daten.dir, f))) kopie(path.join(daten.dir, f), path.join(dir, f));
     return n;
   }
   /* Leerer Datenordner: aus der Sicherung zurückholen */
@@ -43,7 +43,7 @@ function createSicherung(daten, dir) {
     if (daten.strecken().length || daten.fahrten().length) return 0;
     let n = 0;
     for (const t of teile) { const d = path.join(dir, t); if (!fs.existsSync(d)) continue; for (const f of fs.readdirSync(d)) if (f.endsWith('.json')) { fs.copyFileSync(path.join(d, f), path.join(daten.dir, t, f)); n++; } }
-    if (fs.existsSync(path.join(dir, 'werte.json')) && !daten.werte()) fs.copyFileSync(path.join(dir, 'werte.json'), path.join(daten.dir, 'werte.json'));
+    for (const f of ['werte.json', 'saison.json']) if (fs.existsSync(path.join(dir, f)) && !fs.existsSync(path.join(daten.dir, f))) fs.copyFileSync(path.join(dir, f), path.join(daten.dir, f));
     return n;
   }
   let t = null;

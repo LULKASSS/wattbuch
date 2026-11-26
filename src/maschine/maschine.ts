@@ -52,12 +52,13 @@ async function neuLaden() {
   F.basis = F.hand = grundleistung(werte.ftp);
 }
 
-function start(streckeId: string, rev: boolean, durchTritt: boolean) {
+/* basis: Zielleistung des Tages aus der Saison; ohne Saison 70 % der FTP */
+function start(streckeId: string, rev: boolean, durchTritt: boolean, basis?: number) {
   const st = strecken.find(x => x.id === streckeId);
   if (!st || F.phase !== 'lobby') return;
   F.rt = bahn(st, rev); F.climbs = anstiege(F.rt);
   F.haupt = F.climbs.slice().sort((a, b) => b.gain - a.gain)[0] || null;
-  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: grundleistung(werte.ftp), rivale: null, vorn: false, gesagt: {}, ergebnis: null, segs: [], bestzeiten: 0 });
+  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: basis && basis >= 60 ? basis : grundleistung(werte.ftp), rivale: null, vorn: false, gesagt: {}, ergebnis: null, segs: [], bestzeiten: 0 });
   /* Segmente der Runde mit der bisherigen Bestzeit aus allen früheren Versuchen */
   const rt = F.rt;
   W.laeufe(streckeId, rev).then(l => { if (F.rt === rt) F.segs = segmente(rt).filter(s => s.art === 'anstieg').map(seg => { const v = versuche(seg, l); return { seg, best: v.length ? v[0].zeit : null, n: v.length }; }); });
@@ -133,7 +134,7 @@ function takt() {
       F.lastAlt = alt;
     }
   }
-  if (F.phase === 'lobby') { if (G.stand.rolle === 'an' && tritt.tritt(pow, G.kadenz, dt) && wahl) start(wahl.id, wahl.rev, true); }
+  if (F.phase === 'lobby') { if (G.stand.rolle === 'an' && tritt.tritt(pow, G.kadenz, dt) && wahl) start(wahl.id, wahl.rev, true, wahl.basis); }
   else if (F.phase === 'count') {
     F.count -= dt;
     if (F.durchTritt && abbruch.pruefe(G.wattJetzt, dt)) F.phase = 'lobby';
@@ -172,15 +173,15 @@ function sende() {
 }
 
 /* Welche Runde die Lobby gerade zeigt (für den Start beim ersten Tritt) */
-let wahl: { id: string; rev: boolean } | null = null;
+let wahl: { id: string; rev: boolean; basis?: number } | null = null;
 W.aufBefehl((b: Befehl) => {
-  if (b.was === 'wahl') wahl = { id: b.streckeId, rev: b.rev };
+  if (b.was === 'wahl') wahl = { id: b.streckeId, rev: b.rev, basis: b.basis };
   else if (b.was === 'werte') neuLaden();
   else if (b.was === 'trenne') G.trenne(b.art);
   else if (b.was === 'strecke') {   // Runde aus Strava: Punkte mit Höhe → geglättete Strecke
     try { const st = ausPunkten(b.name, b.pts); st.id = b.id; if (b.fav) st.fav = b.fav; W.streckeSpeichern(st); } catch { /* zu kurz oder kaputt */ }
   }
-  else if (b.was === 'start') start(b.streckeId, b.rev, false);
+  else if (b.was === 'start') start(b.streckeId, b.rev, false, b.basis);
   else if (b.was === 'abbruch') { if (F.phase === 'count') { F.phase = 'lobby'; tritt.entschaerfen(); } }
   else if (b.was === 'pause') { if (F.phase === 'ride') F.rec.vonHand(b.an == null ? !F.rec.pause : b.an); }
   else if (b.was === 'ende') ende(false);

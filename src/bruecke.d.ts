@@ -1,4 +1,5 @@
 import type { Strecke, FahrtKurz, Werte, Zustand, Ereignis, Befehl, Fahrt } from './kern/typen';
+import type { Saison } from './kern/saison';
 type Ab = () => void;
 export interface KontoStand { an: boolean; email: string | null; busy: boolean; err: string; last: string | null; wartet: number }
 export interface StravaStand { ok: boolean; error?: string; connected?: boolean; athlete?: { name: string } | null; eigen?: boolean }
@@ -6,7 +7,7 @@ export type Gemerkt = Partial<Record<'rolle' | 'puls' | 'kadenz', { id: string; 
 declare global {
   interface Window {
     wattbuch: {
-      strecken(): Promise<Strecke[]>; fahrten(): Promise<FahrtKurz[]>; werte(): Promise<Werte | null>;
+      strecken(): Promise<Strecke[]>; fahrten(): Promise<FahrtKurz[]>; werte(): Promise<Werte | null>; saison(): Promise<Saison | null>; saisonSetzen(s: Saison | null): Promise<Saison | null>;
       konto(): Promise<KontoStand>; anmelden(email: string, pw: string): Promise<KontoStand & { ok: boolean; error?: string }>; abmelden(): Promise<KontoStand>;
       aufKonto(cb: (k: KontoStand) => void): Ab; aufDaten(cb: () => void): Ab; werteSetzen(w: Partial<Werte>): Promise<Werte>;
       geraete(): Promise<Gemerkt>; geraetSuche(art: string): void; geraetWahl(id: string): void; geraetAbbruch(): void; geraetVergessen(art: string): Promise<Gemerkt>;

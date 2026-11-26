@@ -13,10 +13,10 @@
 
 <div class="layer" id="lobby">
   <div class="top">
-    <nav><button class="on" data-s="lobby">Lobby</button><button disabled data-s="saison">Saison</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
+    <nav><button class="on" data-s="lobby">Lobby</button><button data-s="saison">Saison</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
     <div style="display:flex;gap:26px;align-items:center">
       <button class="dev" id="devB" aria-label="Geräte"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></button>
-      <button class="lvl" id="lvlB" aria-label="Profil"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div></button>
+      <button class="lvl" id="lvlB" aria-label="Profil"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div><div class="weg" id="stufeW" hidden><i id="stufeB"></i></div></button>
     </div>
   </div>
   <div class="hero">
@@ -29,6 +29,28 @@
   <div class="dock"><div id="cards" style="display:contents"></div></div>
 </div>
 
+<div class="layer" id="saison"><div class="sicht breit">
+  <div class="lbl" id="saL">Saison</div>
+  <div class="rolle" id="saRolle">
+    <form id="saNeu" hidden>
+      <h2 class="dsp">Dein Ziel</h2>
+      <div class="wahl" id="saArt"><button type="button" class="on" data-art="ftp">FTP</button><button type="button" data-art="tour">Lange Tour</button></div>
+      <div class="fz"><label><span id="saZielL">FTP</span><span><input id="saZiel" type="number" min="1" max="600" step="1" inputmode="numeric" aria-label="Ziel"><em id="saEinh">W</em></span></label><label>bis<span><input id="saBis" type="date" aria-label="bis"></span></label></div>
+      <button class="bbtn" type="submit">Saison starten</button>
+    </form>
+    <div id="saLauf" hidden>
+      <h2 class="dsp" id="saZielT"></h2>
+      <canvas id="saWeg" width="1600" height="200"></canvas>
+      <div class="sz"><span>Heute</span><b id="saHeute"></b></div>
+      <div class="sz"><span>Woche</span><b id="saWoche"></b><i class="weg"><i id="saWocheB"></i></i></div>
+    </div>
+    <div class="sz"><span>Form</span><b id="saForm"></b><canvas id="saKurve" width="360" height="56"></canvas></div>
+    <div class="sz"><span>Serie</span><b id="saSerie"></b></div>
+    <div class="sz" id="saFtpZ" hidden><span>FTP</span><b id="saFtp"></b><button type="button" id="saFtpB"></button></div>
+    <div id="saGesch"></div>
+    <button class="klein" id="saEnde" type="button" hidden>Saison beenden</button>
+  </div>
+</div></div>
 <div class="layer" id="rivalen"><div class="sicht">
   <div class="lbl">Rivalen</div>
   <h2 class="dsp" id="rvName"></h2>
@@ -99,6 +121,7 @@
   <div class="lbl" id="resL"></div>
   <b class="dsp big" id="resT">0:00</b>
   <p id="resP"></p>
+  <p id="resSa"></p>
   <div class="tags"><span id="resW"></span><span id="resK"></span><span id="resH"></span><span id="resB"></span><button id="resS" type="button" hidden></button></div>
   <button id="home">Zur Lobby</button>
 </div></div>

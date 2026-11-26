@@ -11,17 +11,19 @@ const GEN: Record<string, { name: string; plan: (r: R) => number[][] }> = {
 };
 export const GEN_START: [string, number][] = [['huegel', 7], ['berg', 23], ['flach', 41]];
 
-export function erzeuge(type: string, seed: number): Strecke {
+/* km: gewünschte Länge (für die Runde zum Tag); ohne Angabe die übliche Länge der Art */
+export function erzeuge(type: string, seed: number, km?: number): Strecke {
   let x = seed >>> 0 || 1;
   const rnd = () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) / 4294967296; };
   const r: R = (a, b) => a + (b - a) * rnd(), g = GEN[type];
   const ele: number[] = []; let h = r(120, 450);
-  for (const [km, gr] of g.plan(r)) { const n = Math.round(km * 40); for (let i = 0; i < n; i++) { h += 25 * (gr + Math.sin(ele.length / 9) * .6) / 100; ele.push(h); } }
+  const plan = g.plan(r), mal = km ? km / plan.reduce((a, x) => a + x[0], 0) : 1;
+  for (const [len, gr] of plan) { const n = Math.max(1, Math.round(len * mal * 40)); for (let i = 0; i < n; i++) { h += 25 * (gr + Math.sin(ele.length / 9) * .6) / 100; ele.push(h); } }
   const n = ele.length, L = (n - 1) * 25;
   const Rk = L / (2 * Math.PI), k = [r(.08, .18), r(.05, .12)], ph = [r(0, 6), r(0, 6)], c = [50 + r(-1, 1), 10 + r(-1, 1)];
   const pts: number[][] = [];
   for (let i = 0; i < n; i += 4) { const t = i / (n - 1) * 2 * Math.PI, rr = Rk * (1 + k[0] * Math.sin(3 * t + ph[0]) + k[1] * Math.sin(5 * t + ph[1])); pts.push([c[0] + rr * Math.cos(t) / 111320, c[1] + rr * Math.sin(t) / (111320 * Math.cos(c[0] * Math.PI / 180)), ele[i]]); }
   const rt = ausPunkten(g.name, pts);
-  rt.id = 'z' + type + seed; rt.gen = type;
+  rt.id = 'z' + type + seed + (km ? 'k' + km : ''); rt.gen = type;
   return rt;
 }

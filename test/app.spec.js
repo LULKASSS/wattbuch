@@ -197,7 +197,8 @@ test('Kleines Fenster: nichts bricht um, nichts ragt hinaus', async () => {
 
 /* ---------- Schritt 2: Konto, alte Daten, Sicherung, Geräte ---------- */
 /* Nachgebautes Supabase: Anmeldung und die beiden Tabellen der alten App. Tests laufen nie gegen das echte Konto. */
-async function konto(zeilen, werte) {
+/* dok: Zeilen der neuen Tabelle wattbuch_dokumente; ohne Angabe gibt es die Tabelle nicht (404), wie vor der Migration */
+async function konto(zeilen, werte, dok = null) {
   const log = [], t = n => new Date(Date.UTC(2026, 10, 1, 12, 0, n)).toISOString(); let uhr = 100;
   const srv = http.createServer((req, res) => {
     let body = ''; req.on('data', d => body += d); req.on('end', () => {
@@ -209,7 +210,9 @@ async function konto(zeilen, werte) {
       if (u.pathname === '/rest/v1/wattbuch_fahrten' && req.method === 'POST') { const out = []; for (const r of JSON.parse(body)) { const z = { ...r, geaendert: t(uhr++) }, i = zeilen.findIndex(x => x.id === r.id); if (i >= 0) zeilen[i] = z; else zeilen.push(z); out.push({ id: z.id, geaendert: z.geaendert }); } return send(201, out); }
       if (u.pathname === '/rest/v1/wattbuch_werte' && req.method === 'GET') return send(200, werte.length ? werte : []);
       if (u.pathname === '/rest/v1/wattbuch_werte' && req.method === 'POST') { werte[0] = { werte: JSON.parse(body)[0].werte, geaendert: t(uhr++) }; return send(201, [{ geaendert: werte[0].geaendert }]); }
-      send(404, {});
+      if (dok && u.pathname === '/rest/v1/wattbuch_dokumente' && req.method === 'GET') { const gt = (u.searchParams.get('geaendert') || '').replace('gt.', ''); return send(200, dok.filter(z => !gt || z.geaendert > gt).sort((a, b) => a.geaendert.localeCompare(b.geaendert)).slice(0, 20)); }
+      if (dok && u.pathname === '/rest/v1/wattbuch_dokumente' && req.method === 'POST') { const out = []; for (const r of JSON.parse(body)) { const z = { ...r, geaendert: t(uhr++) }, i = dok.findIndex(x => x.id === r.id && x.sammlung === r.sammlung); if (i >= 0) dok[i] = z; else dok.push(z); out.push({ sammlung: z.sammlung, id: z.id, geaendert: z.geaendert }); } return send(201, out); }
+      send(404, { code: 'PGRST205' });
     });
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
@@ -254,6 +257,9 @@ test('Konto: alte Fahrten sind da und werden Rivale, neue Fahrt geht ins Konto u
   expect(zeilen.find(z => z.id === alt.id).data).toEqual(alt);   // alte Zeilen bleiben unberührt
   expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
   expect((await stand(maschine)).ftp).toBe(240);
+  /* die neue Tabelle gibt es in diesem Konto noch nicht: einmal gefragt, kein Fehler, der Abgleich läuft trotzdem durch */
+  expect(K.log.filter(l => l.includes('wattbuch_dokumente'))).toEqual(['GET /rest/v1/wattbuch_dokumente']);
+  await buehne.click('#home'); await buehne.click('#lvlB'); await expect(buehne.locator('#kSt')).toContainText('abgeglichen');
   await app.close();
   /* eigene Sicherung: Wattbuch-Fahrten ja, Strava-Fahrten nein, Strecke ja */
   const sich = path.join(dir, 'Sicherung');
@@ -502,4 +508,66 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
   expect(fs.existsSync(path.join(dir, 'daten', 'strecken', 'test-kurz.json'))).toBe(false); expect(fahrten(dir)).toHaveLength(3);
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/* ---------- Schritt 5: Saison und Fortschritt ---------- */
+test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zeigt die Woche; Strecken und Saison gleichen sich übers Konto ab', async () => {
+  const zeilen = [], werte = [], dok = [], K = await konto(zeilen, werte, dok);
+  const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 20, { WATTBUCH_SUPABASE_URL: K.url });
+  await buehne.click('#lvlB'); await buehne.fill('#kMail', 'test@example.com'); await buehne.fill('#kPw', 'geheim-im-test'); await buehne.click('#kForm button');
+  await expect(buehne.locator('#kWer')).toHaveText('test@example.com');
+  await expect.poll(() => dok.map(d => d.sammlung + '/' + d.id), { timeout: 10_000 }).toEqual(['strecken/test-kurz']);   // die eigene Strecke liegt jetzt im Konto
+  await buehne.keyboard.press('Escape');
+  /* ohne Saison: Fortschritt ohne Ziel, kein Weg an der Stufe */
+  await buehne.click('nav button[data-s=saison]');
+  await expect(buehne.locator('#saNeu')).toBeVisible(); await expect(buehne.locator('#saLauf')).toBeHidden(); await expect(buehne.locator('#stufeW')).toBeHidden();
+  await expect(buehne.locator('#saZiel')).toHaveValue('215');   // gut 8 % über der FTP von 200
+  await buehne.fill('#saZiel', '220'); await buehne.click('#saNeu button[type=submit]');
+  await expect(buehne.locator('#saZielT')).toContainText('220 W bis');
+  await expect(buehne.locator('#saL')).toHaveText('Saison · Woche 1 von 13');
+  await expect(buehne.locator('#saHeute')).toHaveText(/^(Zügig|Grundlage|Lang) · \d+ min · \d+ W$/);
+  await expect(buehne.locator('#saWoche')).toHaveText(/^0 von 3 Fahrten$/);
+  await expect(buehne.locator('#saFtp')).toHaveText('200 von 220 W');
+  await expect.poll(() => dok.find(d => d.sammlung === 'saison')?.data?.ziel, { timeout: 10_000 }).toBe(220);
+  expect(await buehne.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+  /* Lobby: Die Testrunde (6 Minuten) passt nicht zum Tag, also liegt eine erzeugte Runde in passender Länge da */
+  await buehne.keyboard.press('Escape');
+  await expect(buehne.locator('#hTag')).toHaveText(/^Heute · (Zügig|Grundlage|Lang) · \d+ W$/);
+  await expect(buehne.locator('#hName')).toHaveText(/Hügelrunde|Flachstück/);
+  await expect(buehne.locator('#stufeW')).toBeVisible();
+  const watt = +(await buehne.locator('#hTag').innerText()).match(/(\d+) W/)[1], min = +(await buehne.locator('#hMin').innerText()), soll = +(await buehne.locator('#saHeute').innerText()).match(/(\d+) min/)[1];
+  expect(Math.abs(min - soll)).toBeLessThanOrEqual(soll / 5);
+  const plan = fs.readdirSync(path.join(dir, 'daten', 'strecken')).map(f => JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'strecken', f), 'utf8'))).filter(s => s.plan);
+  expect(plan).toHaveLength(1);
+  /* kurze Runde fahren: Zielleistung des Tages gilt auch hier, das Ergebnis sagt, was es für die Woche gebracht hat */
+  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.click('#start');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
+  expect((await stand(maschine)).basis).toBe(watt);
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
+  await expect(buehne.locator('#resSa')).toHaveText(/^Woche 1 · Wochenziel zu \d+ %$/, { timeout: 10_000 });
+  await buehne.click('#home');
+  await expect(buehne.locator('#hTag')).toHaveText('Heute geschafft');
+  await buehne.click('nav button[data-s=saison]');
+  await expect(buehne.locator('#saHeute')).toHaveText('Geschafft'); await expect(buehne.locator('#saWoche')).toHaveText('1 von 3 Fahrten');
+  /* die nie gefahrene Runde des Plans war nie im Konto und ist wieder weg */
+  expect(dok.filter(d => d.sammlung === 'strecken').map(d => d.id)).toEqual(['test-kurz']);
+  await expect.poll(() => fs.readdirSync(path.join(dir, 'daten', 'strecken'))).toEqual(['test-kurz.json']);
+  expect(probleme).toEqual([]);
+  await app.close();
+
+  /* Zweiter Mac, leer: nach dem Anmelden sind Strecke, Fahrt und Saison da */
+  const dir2 = ordner(false), B = await starte(dir2, 1, { WATTBUCH_SUPABASE_URL: K.url });
+  await B.buehne.click('#lvlB'); await B.buehne.fill('#kMail', 'test@example.com'); await B.buehne.fill('#kPw', 'geheim-im-test'); await B.buehne.click('#kForm button');
+  await expect(B.buehne.locator('.card', { hasText: 'Testrunde' })).toHaveCount(1, { timeout: 15_000 });
+  await B.buehne.keyboard.press('Escape');
+  await B.buehne.click('nav button[data-s=saison]');
+  await expect(B.buehne.locator('#saZielT')).toContainText('220 W bis'); await expect(B.buehne.locator('#saHeute')).toHaveText('Geschafft');
+  /* Saison beenden: zwei Klicks, im Konto als entfernt markiert, nichts gelöscht */
+  await B.buehne.click('#saEnde'); await expect(B.buehne.locator('#saEnde')).toHaveText('Wirklich beenden'); await B.buehne.click('#saEnde');
+  await expect(B.buehne.locator('#saNeu')).toBeVisible();
+  await expect.poll(() => dok.find(d => d.sammlung === 'saison').geloescht, { timeout: 10_000 }).toBe(true);
+  expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
+  expect(B.probleme).toEqual([]);
+  await B.app.close(); K.zu(); fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir2, { recursive: true, force: true });
 });

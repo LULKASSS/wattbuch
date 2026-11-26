@@ -138,7 +138,7 @@ app.whenReady().then(() => {
   session.defaultSession.setDevicePermissionHandler(d => d.deviceType === 'bluetooth');
 
   ipcMain.handle('daten:strecken', () => daten.strecken());
-  ipcMain.handle('daten:strecke', (_e, s) => daten.streckeSpeichern(s));
+  ipcMain.handle('daten:strecke', (_e, s) => { daten.streckeSpeichern(s); if (konto.synct(s)) konto.merkeDok('strecken', s.id); });
   ipcMain.handle('daten:fahrten', () => daten.fahrten());
   ipcMain.handle('daten:werte', () => daten.werte());
   ipcMain.handle('daten:rivale', (_e, id, rev) => daten.rivale(id, rev));
@@ -172,8 +172,15 @@ app.whenReady().then(() => {
   ipcMain.handle('strava:abbrechen', (_e, id) => sv.abbrechen(String(id)));
   ipcMain.handle('strava:alsStrecke', heil(async id => ({ strecke: await sv.alsStrecke(String(id)) })));
   /* Strecke entfernen: nur hier auf dem Gerät und in der eigenen Sicherung; eine Runde aus Strava kommt nicht wieder */
-  ipcMain.handle('daten:streckeWeg', (_e, id) => { id = String(id); daten.streckeLoeschen(id); if (id.startsWith('sf')) sv.rundeWeg(id); try { fs.rmSync(path.join(sicherung.dir, 'strecken', id.replace(/[^\w.~-]/g, '_') + '.json')); } catch {} return true; });
+  ipcMain.handle('daten:streckeWeg', (_e, id) => { id = String(id); const war = daten.strecke(id); daten.streckeLoeschen(id); if (konto.synct(war)) konto.merkeDok('strecken', id, true); if (id.startsWith('sf')) sv.rundeWeg(id); try { fs.rmSync(path.join(sicherung.dir, 'strecken', id.replace(/[^\w.~-]/g, '_') + '.json')); } catch {} return true; });
   if (!SV_AUS) setTimeout(() => sv.start(), 3000);
+  /* Saison: das Ziel (FTP oder Tour bis zu einem Tag). null beendet sie. */
+  ipcMain.handle('saison:lesen', () => daten.saison());
+  ipcMain.handle('saison:setzen', (_e, s) => {
+    const ok = s && (s.art === 'ftp' || s.art === 'tour') && isFinite(s.ziel) && s.ziel > 0 && /^\d{4}-\d\d-\d\d$/.test(s.bis) && /^\d{4}-\d\d-\d\d$/.test(s.von);
+    daten.saisonSpeichern(ok ? { art: s.art, ziel: Math.round(s.ziel), bis: s.bis, von: s.von, ftp0: Math.round(+s.ftp0 || 200), last0: Math.round(+s.last0 || 0) } : null);
+    konto.merkeDok('saison', 'ziel', !ok); return daten.saison();
+  });
   ipcMain.handle('geraete:liste', () => daten.geraete());
   ipcMain.handle('geraete:vergessen', (_e, a) => { const g = daten.geraete(); delete g[a]; daten.geraeteSpeichern(g); anMaschine('befehl', { was: 'trenne', art: a }); return g; });
   ipcMain.on('ordner', () => shell.openPath(sicherung.dir));
@@ -189,7 +196,14 @@ app.whenReady().then(() => {
   const schlafAus = () => { if (wach != null) { powerSaveBlocker.stop(wach); wach = null; } };
   ipcMain.on('m:start', (_e, kopf) => { daten.journalStart(kopf); faehrt = true; if (wach == null) wach = powerSaveBlocker.start('prevent-display-sleep'); });
   ipcMain.on('m:sekunde', (_e, z) => daten.journalZeile(z));
-  ipcMain.handle('m:fertig', (_e, r) => { sv.vormerken(r); const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); konto.merke(id); return { id, strava: r.strava ? r.strava.state : null }; });
+  ipcMain.handle('m:fertig', (_e, r) => {
+    /* eine Runde des Plans ist ab der ersten Fahrt eine eigene Strecke und gleicht sich mit ab */
+    const st = r.routeId ? daten.strecke(r.routeId) : null;
+    if (st && st.plan) { delete st.plan; daten.streckeSpeichern(st); konto.merkeDok('strecken', st.id); }
+    /* FTP-Test: das Ergebnis gilt gleich als neue FTP (im Profil lässt sie sich ändern) */
+    if (r.ftpTest && r.ftpTest.ftp >= 50 && r.ftpTest.ftp <= 600) { daten.werteSpeichern({ ...(daten.werte() || {}), ftp: r.ftpTest.ftp }); konto.merkeWerte(); }
+    sv.vormerken(r); const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); konto.merke(id); return { id, strava: r.strava ? r.strava.state : null };
+  });
   ipcMain.on('m:weg', () => { daten.journalEnde(); faehrt = false; schlafAus(); });
 
   menue();

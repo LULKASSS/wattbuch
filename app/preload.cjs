@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('wattbuch', {
   strecken: () => ipcRenderer.invoke('daten:strecken'),
   fahrten: () => ipcRenderer.invoke('daten:fahrten'),
   werte: () => ipcRenderer.invoke('daten:werte'),
+  saison: () => ipcRenderer.invoke('saison:lesen'),
+  saisonSetzen: s => ipcRenderer.invoke('saison:setzen', s),
   /* Konto, Werte, Geräte (Bühne) */
   konto: () => ipcRenderer.invoke('konto:status'),
   anmelden: (email, pw) => ipcRenderer.invoke('konto:anmelden', email, pw),
