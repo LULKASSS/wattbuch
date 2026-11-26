@@ -269,6 +269,9 @@ body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:
 .fh button{justify-self:end;height:28px;padding:0 12px;border-radius:999px;border:1px solid rgba(246,240,230,.3);font-size:12.5px;color:var(--fg);white-space:nowrap}
 .fh button:hover{background:rgba(246,240,230,.12)}
 .fh button:disabled{border-color:transparent;color:var(--fg2);cursor:default;background:none}
+.fh button.lo{opacity:0;border-color:transparent;color:var(--fg2);transition:opacity .2s}
+.fh:hover button.lo,.fh button.lo:focus-visible,.fh button.lo[data-sicher="1"]{opacity:1}
+.fh button.lo[data-sicher="1"]{border-color:var(--bad);color:var(--fg)}
 .fh em{font-style:normal;justify-self:end;font-size:12.5px}
 .leer{margin:10px 18px;font-size:14px;color:var(--fg2)}
 @media (max-width:1100px){.fh{grid-template-columns:76px minmax(0,1fr) 70px 70px 0 110px}.fh span:nth-child(5){visibility:hidden}}

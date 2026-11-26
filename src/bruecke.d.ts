@@ -14,7 +14,7 @@ declare global {
       aufGeraete(cb: (g: { art: string; liste: { id: string; name: string }[] | null }) => void): Ab;
       strava(): Promise<StravaStand>; stravaVerbinden(): Promise<StravaStand>; stravaTrennen(): Promise<StravaStand>; stravaAbbrechen(id: string): Promise<boolean>;
       aufStrava(cb: (x: { id: string; state: string | null; url?: string }) => void): Ab;
-      laeufe(id: string, rev: boolean): Promise<{ id: string; start: string; dist: number[] }[]>; alsStrecke(id: string): Promise<{ ok: boolean; error?: string; strecke?: string }>; streckeWeg(id: string): Promise<boolean>;
+      laeufe(id: string, rev: boolean): Promise<{ id: string; start: string; dist: number[] }[]>; alsStrecke(id: string): Promise<{ ok: boolean; error?: string; strecke?: string }>; streckeWeg(id: string): Promise<boolean>; fahrtLoeschen(id: string): Promise<boolean>;
       befehl(b: Befehl): void; aufZustand(cb: (z: Zustand) => void): Ab; aufEreignis(cb: (e: Ereignis) => void): Ab; aufVollbild(cb: (v: boolean) => void): Ab; bereit(): void;
       zustand(z: Zustand): void; ereignis(e: Ereignis): void; aufBefehl(cb: (b: Befehl) => void): Ab;
       streckeSpeichern(s: Strecke): Promise<void>; rivale(id: string, rev: boolean): Promise<{ id: string; start: string; dist: number[] } | null>;

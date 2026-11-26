@@ -1,6 +1,8 @@
 /* Konto: Abgleich über Supabase (Projekt „Apps“), dieselben Tabellen wie die alte App: wattbuch_fahrten und
  * wattbuch_werte, Zeilenschutz (jeder sieht nur seine Zeilen). Ohne Bibliothek, direkt über REST.
- * Die Tabellen werden nie geändert, es wird nie eine Zeile gelöscht. Neue Fahrten gehen im Format der alten App
+ * Die Tabellen werden nie geändert, es wird nie eine Zeile gelöscht. Eine hier gelöschte Fahrt (nur mit dieser App
+ * aufgenommene) wird im Konto als gelöscht markiert, so wie es die alte App macht; ihre Daten bleiben in der Zeile.
+ * Neue Fahrten gehen im Format der alten App
  * hinein (plus routeId, rev, ganz, app), damit die alte App sie weiter lesen kann.
  * Ablauf wie in der alten App: Jede hier gespeicherte Fahrt landet im Ausgang. Ein Abgleich holt erst alles, was seit
  * dem letzten Mal im Konto neu ist, und schickt dann den Ausgang. Beim ersten Abgleich nach der Anmeldung gewinnt das
@@ -14,10 +16,10 @@ const SB = { url: process.env.WATTBUCH_SUPABASE_URL || 'https://nysoyxbsdsxdvykn
 
 function createKonto({ daten, melde = () => {}, log = () => {} }) {
   const file = path.join(daten.dir, 'konto.json');
-  const K = { s: null, out: new Map(), pulled: null, first: false, werte: false, wg: null, last: null, busy: false, err: '', mine: {}, weg: [], dout: new Map(), dpulled: null, dmine: {}, ohneDok: 0 };
-  { const d = daten.lies(file, null); if (d) Object.assign(K, { s: d.s || null, out: new Map(d.out || []), pulled: d.pulled || null, first: !!d.first, werte: !!d.werte, wg: d.wg || null, last: d.last || null, weg: d.weg || [], dout: new Map(d.dout || []), dpulled: d.dpulled || null }); }
-  const save = () => { fs.writeFileSync(file, JSON.stringify({ s: K.s, out: [...K.out], pulled: K.pulled, first: K.first, werte: K.werte, wg: K.wg, last: K.last, weg: K.weg, dout: [...K.dout], dpulled: K.dpulled }), { mode: 0o600 }); };
-  const status = () => ({ an: !!K.s, email: K.s ? K.s.email : null, busy: K.busy, err: K.err, last: K.last, wartet: K.out.size + (K.ohneDok ? 0 : K.dout.size) });
+  const K = { s: null, out: new Map(), pulled: null, first: false, werte: false, wg: null, last: null, busy: false, err: '', mine: {}, weg: [], dout: new Map(), dpulled: null, dmine: {}, ohneDok: 0, lout: new Map() };
+  { const d = daten.lies(file, null); if (d) Object.assign(K, { s: d.s || null, out: new Map(d.out || []), pulled: d.pulled || null, first: !!d.first, werte: !!d.werte, wg: d.wg || null, last: d.last || null, weg: d.weg || [], dout: new Map(d.dout || []), dpulled: d.dpulled || null, lout: new Map(d.lout || []) }); }
+  const save = () => { fs.writeFileSync(file, JSON.stringify({ s: K.s, out: [...K.out], pulled: K.pulled, first: K.first, werte: K.werte, wg: K.wg, last: K.last, weg: K.weg, dout: [...K.dout], dpulled: K.dpulled, lout: [...K.lout] }), { mode: 0o600 }); };
+  const status = () => ({ an: !!K.s, email: K.s ? K.s.email : null, busy: K.busy, err: K.err, last: K.last, wartet: K.out.size + K.lout.size + (K.ohneDok ? 0 : K.dout.size) });
   const sag = () => melde(status());
   /* Was ins Konto gehört: eigene Strecken, nicht die Bahn des FTP-Tests und keine nie gefahrene Runde des Plans */
   const synct = s => !!(s && s.id && !s.plan && !s.test);
@@ -39,14 +41,14 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
   async function anmelden(email, pw) {
     session(await sbAuth('token?grant_type=password', { email, password: pw }));
     /* Erster Abgleich: alles hier Aufgenommene vormerken, das Konto gewinnt bei Fahrten, die es schon kennt */
-    Object.assign(K, { first: true, pulled: null, werte: false, wg: null, err: '', mine: {}, out: new Map(daten.fahrtIds().filter(f => f.neu).map(f => [f.id, Date.now()])),
+    Object.assign(K, { first: true, pulled: null, werte: false, wg: null, err: '', mine: {}, lout: new Map(), out: new Map(daten.fahrtIds().filter(f => f.neu).map(f => [f.id, Date.now()])),
       dpulled: null, dmine: {}, ohneDok: 0, dout: new Map([...daten.strecken().filter(synct).map(x => ['strecken/' + x.id, [Date.now(), false]]), ...(daten.saison() ? [['saison/ziel', [Date.now(), false]]] : [])]) });
     save(); sag(); abgleich();
     return status();
   }
   function abmelden() {
     const t = K.s && K.s.access;
-    Object.assign(K, { s: null, out: new Map(), pulled: null, first: false, werte: false, wg: null, last: null, err: '', dout: new Map(), dpulled: null }); save(); sag();
+    Object.assign(K, { s: null, out: new Map(), pulled: null, first: false, werte: false, wg: null, last: null, err: '', dout: new Map(), dpulled: null, lout: new Map() }); save(); sag();
     if (t) fetch(SB.url + '/auth/v1/logout', { method: 'POST', headers: { apikey: SB.key, authorization: 'Bearer ' + t } }).catch(() => {});
     return status();
   }
@@ -69,6 +71,8 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
   const bald = (ms = 1500) => { if (!K.s) return; clearTimeout(timer); timer = setTimeout(abgleich, ms); };
   /* Neue oder geänderte Fahrt vormerken */
   function merke(id) { if (!K.s) return; K.out.set(id, Date.now() + Math.random()); save(); bald(); sag(); }
+  /* Hier gelöschte Fahrt: im Konto als gelöscht markieren (die Zeile und ihre Daten bleiben) */
+  function fahrtWeg(id, start) { if (!K.s) return; K.out.delete(id); K.lout.set(id, start); if (!K.weg.includes(id)) K.weg.push(id); save(); bald(); sag(); }
   function merkeWerte() { if (!K.s) return; K.werte = true; save(); bald(); }
   /* Strecke oder Saison vormerken; weg = im Konto als entfernt markieren (die Zeile bleibt, nichts wird gelöscht) */
   function merkeDok(sammlung, id, weg = false) { if (!K.s) return; K.dout.set(sammlung + '/' + id, [Date.now() + Math.random(), !!weg]); save(); bald(); sag(); }
@@ -114,6 +118,7 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
   /* Eine Zeile aus dem Konto übernehmen */
   function uebernimm(x) {
     if (K.mine[x.id] === x.geaendert) { delete K.mine[x.id]; return 0; }   // eigenes Echo
+    if (K.lout.has(x.id)) return 0;   // hier gelöscht, die Markierung ist noch unterwegs
     if (K.out.has(x.id)) { if (K.first) K.out.delete(x.id); else return 0; }
     if (x.geloescht) { if (!K.weg.includes(x.id)) K.weg.push(x.id); if (daten.fahrt(x.id)) { daten.fahrtLoeschen(x.id); return 1; } return 0; }
     if (!okRide(x.data)) return 0;
@@ -155,6 +160,14 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
           for (const [id, st] of part) if (K.out.get(id) === st) K.out.delete(id);
           save();
         }
+        /* hier Gelöschtes markieren: nur id, start und die Markierung, die Daten der Zeile bleiben stehen */
+        for (const part = [...K.lout]; part.length;) {
+          const teil = part.splice(0, 20);
+          const res = await sb('wattbuch_fahrten?on_conflict=user_id,id&select=id,geaendert', { method: 'POST', body: teil.map(([id, start]) => ({ id, start, geloescht: true })), prefer: 'resolution=merge-duplicates,return=representation' });
+          for (const x of res || []) K.mine[x.id] = x.geaendert;
+          for (const [id] of teil) K.lout.delete(id);
+          save();
+        }
         if (K.werte) {
           const v = daten.werte() || {};
           const res = await sb('wattbuch_werte?on_conflict=user_id&select=geaendert', { method: 'POST', body: [{ werte: { ftp: v.ftp, weight: v.weight, bike: v.bike } }], prefer: 'resolution=merge-duplicates,return=representation' });
@@ -167,12 +180,12 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
       } catch (e) { K.err = (e && e.message) || 'Fehler'; }
       finally { K.busy = false; lauf = null; }
       sag();
-      if (K.s && (K.out.size || K.werte || K.dout.size && !K.ohneDok)) bald(K.err ? 60000 : 500);
+      if (K.s && (K.out.size || K.lout.size || K.werte || K.dout.size && !K.ohneDok)) bald(K.err ? 60000 : 500);
       return status();
     })();
     return lauf;
   }
   const takt = setInterval(() => bald(0), 5 * 60000);
-  return { status, anmelden, abmelden, abgleich, merke, merkeWerte, merkeDok, synct, weg: () => K.weg, stop: () => { clearInterval(takt); clearTimeout(timer); } };
+  return { status, anmelden, abmelden, abgleich, merke, fahrtWeg, merkeWerte, merkeDok, synct, weg: () => K.weg, stop: () => { clearInterval(takt); clearTimeout(timer); } };
 }
 module.exports = { createKonto };

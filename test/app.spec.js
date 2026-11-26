@@ -207,7 +207,7 @@ async function konto(zeilen, werte, dok = null) {
       if (u.pathname === '/auth/v1/token') { const b = JSON.parse(body || '{}'); return b.password === 'geheim-im-test' || b.refresh_token ? send(200, { access_token: 'a', refresh_token: 'r', expires_in: 3600, user: { id: 'u1', email: 'test@example.com' } }) : send(400, { error_code: 'invalid_credentials' }); }
       if (req.headers.authorization !== 'Bearer a') return send(401, {});
       if (u.pathname === '/rest/v1/wattbuch_fahrten' && req.method === 'GET') { const gt = (u.searchParams.get('geaendert') || '').replace('gt.', ''); return send(200, zeilen.filter(z => !gt || z.geaendert > gt).sort((a, b) => a.geaendert.localeCompare(b.geaendert)).slice(0, 10)); }
-      if (u.pathname === '/rest/v1/wattbuch_fahrten' && req.method === 'POST') { const out = []; for (const r of JSON.parse(body)) { const z = { ...r, geaendert: t(uhr++) }, i = zeilen.findIndex(x => x.id === r.id); if (i >= 0) zeilen[i] = z; else zeilen.push(z); out.push({ id: z.id, geaendert: z.geaendert }); } return send(201, out); }
+      if (u.pathname === '/rest/v1/wattbuch_fahrten' && req.method === 'POST') { const out = []; for (const r of JSON.parse(body)) { const z = { ...r, geaendert: t(uhr++) }, i = zeilen.findIndex(x => x.id === r.id); if (i >= 0) zeilen[i] = { ...zeilen[i], ...z }; else zeilen.push(z); out.push({ id: z.id, geaendert: z.geaendert }); } return send(201, out); }
       if (u.pathname === '/rest/v1/wattbuch_werte' && req.method === 'GET') return send(200, werte.length ? werte : []);
       if (u.pathname === '/rest/v1/wattbuch_werte' && req.method === 'POST') { werte[0] = { werte: JSON.parse(body)[0].werte, geaendert: t(uhr++) }; return send(201, [{ geaendert: werte[0].geaendert }]); }
       if (dok && u.pathname === '/rest/v1/wattbuch_dokumente' && req.method === 'GET') { const gt = (u.searchParams.get('geaendert') || '').replace('gt.', ''); return send(200, dok.filter(z => !gt || z.geaendert > gt).sort((a, b) => a.geaendert.localeCompare(b.geaendert)).slice(0, 20)); }
@@ -255,15 +255,30 @@ test('Konto: alte Fahrten sind da und werden Rivale, neue Fahrt geht ins Konto u
   const neu = zeilen.find(z => z.data && z.data.app === 'neu');
   expect(neu.data.routeId).toBe('test-kurz'); expect(neu.data.route).toBe('Testrunde'); expect(neu.data.ganz).toBe(true); expect(neu.data.p.length).toBe(neu.data.dist.length); expect(neu.start).toBe(neu.data.start); expect(neu.geloescht).toBe(false);
   expect(zeilen.find(z => z.id === alt.id).data).toEqual(alt);   // alte Zeilen bleiben unberührt
-  expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
   expect((await stand(maschine)).ftp).toBe(240);
   /* die neue Tabelle gibt es in diesem Konto noch nicht: einmal gefragt, kein Fehler, der Abgleich läuft trotzdem durch */
   expect(K.log.filter(l => l.includes('wattbuch_dokumente'))).toEqual(['GET /rest/v1/wattbuch_dokumente']);
   await buehne.click('#home'); await buehne.click('#lvlB'); await expect(buehne.locator('#kSt')).toContainText('abgeglichen');
-  await app.close();
   /* eigene Sicherung: Wattbuch-Fahrten ja, Strava-Fahrten nein, Strecke ja */
   const sich = path.join(dir, 'Sicherung');
-  expect(fs.readdirSync(path.join(sich, 'fahrten')).sort()).toEqual([alt.id + '.json', neu.id + '.json'].sort());
+  await expect.poll(() => fs.readdirSync(path.join(sich, 'fahrten')).sort(), { timeout: 10_000 }).toEqual([alt.id + '.json', neu.id + '.json'].sort());
+  /* Fahrt löschen: nur die hier aufgenommene hat den Knopf, zwei Klicks; hier und in der Sicherung weg,
+     im Konto nur markiert (die Daten bleiben in der Zeile), keine Zeile wird gelöscht */
+  await buehne.keyboard.press('Escape'); await buehne.click('nav button[data-s=fahrten]');
+  await expect(buehne.locator('.fh')).toHaveCount(3); await expect(buehne.locator('.fh button.lo')).toHaveCount(1);
+  const lo = buehne.locator('.fh button.lo');
+  await lo.click(); await expect(lo).toHaveText('Wirklich?'); expect(fahrten(dir).length).toBe(3);
+  await lo.click();
+  await expect(buehne.locator('.fh')).toHaveCount(2);
+  expect(fahrten(dir).map(f => f.id).sort()).toEqual([alt.id, drau.id].sort());
+  await expect.poll(() => zeilen.find(z => z.id === neu.id).geloescht, { timeout: 10_000 }).toBe(true);
+  expect(zeilen.find(z => z.id === neu.id).data.app).toBe('neu'); expect(zeilen.length).toBe(4);
+  expect(zeilen.find(z => z.id === alt.id)).toMatchObject({ data: alt, geloescht: false });
+  expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
+  await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('#hBest')).toHaveText('8:20');   // Rivale ist wieder die alte Fahrt
+  await app.close();
+  expect(fs.readdirSync(path.join(sich, 'fahrten'))).toEqual([alt.id + '.json']);
+  expect(fahrten(dir).length).toBe(2);   // kommt beim Abgleich nicht zurück
   expect(fs.existsSync(path.join(sich, 'strecken', 'test-kurz.json'))).toBe(true);
   expect(fs.statSync(path.join(dir, 'daten', 'konto.json')).mode & 0o077).toBe(0);
   expect(probleme).toEqual([]);

@@ -371,7 +371,9 @@ $('rvWeg').onclick = async () => {
   if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = 'Wirklich entfernen'; setTimeout(() => { if (b.dataset.sicher) { b.dataset.sicher = ''; b.textContent = 'Runde entfernen'; } }, 3000); return; }
   b.dataset.sicher = ''; await W.streckeWeg(r.st.id);
 };
-/* Fahrten: alle Fahrten, neueste zuerst, nach Monat. Draußen-Fahrten aus Strava lassen sich als Strecke anlegen. */
+/* Fahrten: alle Fahrten, neueste zuerst, nach Monat. Draußen-Fahrten aus Strava lassen sich als Strecke anlegen,
+   mit dieser App aufgenommene Fahrten löschen (erster Klick fragt, zweiter löscht). */
+let loFrage = '', loT = 0;
 function zeigeFahrten() {
   const box = $('fhListe'); box.innerHTML = ''; let mon = '';
   const liste = alleFahrten.slice().sort((a, b) => b.start.localeCompare(a.start));
@@ -385,6 +387,14 @@ function zeigeFahrten() {
     if (f.draussen && f.stravaId) {
       const da = runden.some(r => r.st.id === 'sr' + f.stravaId), b = document.createElement('button'); b.type = 'button'; b.textContent = da ? 'ist Strecke' : 'Als Strecke'; b.disabled = da;
       b.onclick = async () => { b.disabled = true; b.textContent = 'holt'; const r = await W.alsStrecke(f.id); b.textContent = r.ok ? 'ist Strecke' : 'geht nicht'; };
+      row.appendChild(b);
+    } else if (f.neu) {
+      /* die Rückfrage merkt sich die Liste selbst: sie baut sich bei jeder Änderung der Daten neu auf */
+      const b = document.createElement('button'), fragt = loFrage === f.id; b.type = 'button'; b.className = 'lo'; b.textContent = fragt ? 'Wirklich?' : 'Löschen'; if (fragt) b.dataset.sicher = '1';
+      b.onclick = async () => {
+        if (loFrage !== f.id) { loFrage = f.id; clearTimeout(loT); loT = window.setTimeout(() => { loFrage = ''; if (sicht === 'fahrten') zeigeFahrten(); }, 3000); zeigeFahrten(); return; }
+        loFrage = ''; clearTimeout(loT); b.disabled = true; await W.fahrtLoeschen(f.id);
+      };
       row.appendChild(b);
     } else { const e = document.createElement('em'); e.textContent = f.draussen ? 'draußen' : f.rolle ? '' : 'Strava'; row.appendChild(e); }
     box.appendChild(row);

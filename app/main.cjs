@@ -173,6 +173,14 @@ app.whenReady().then(() => {
   ipcMain.handle('strava:alsStrecke', heil(async id => ({ strecke: await sv.alsStrecke(String(id)) })));
   /* Strecke entfernen: nur hier auf dem Gerät und in der eigenen Sicherung; eine Runde aus Strava kommt nicht wieder */
   ipcMain.handle('daten:streckeWeg', (_e, id) => { id = String(id); const war = daten.strecke(id); daten.streckeLoeschen(id); if (konto.synct(war)) konto.merkeDok('strecken', id, true); if (id.startsWith('sf')) sv.rundeWeg(id); try { fs.rmSync(path.join(sicherung.dir, 'strecken', id.replace(/[^\w.~-]/g, '_') + '.json')); } catch {} return true; });
+  /* Fahrt löschen: nur, was mit dieser App aufgenommen wurde. Die Datei hier und in der eigenen Sicherung verschwindet,
+     im Konto wird die Zeile als gelöscht markiert. Ein Upload zu Strava, der noch wartet, fällt aus. */
+  ipcMain.handle('daten:fahrtLoeschen', (_e, id) => {
+    id = String(id); const r = daten.fahrt(id); if (!r || r.app !== 'neu') return false;
+    sv.abbrechen(id); daten.fahrtLoeschen(id); konto.fahrtWeg(id, r.start);
+    try { fs.rmSync(path.join(sicherung.dir, 'fahrten', id.replace(/[^\w.~-]/g, '_') + '.json')); } catch {}
+    return true;
+  });
   if (!SV_AUS) setTimeout(() => sv.start(), 3000);
   /* Saison: das Ziel (FTP oder Tour bis zu einem Tag). null beendet sie. */
   ipcMain.handle('saison:lesen', () => daten.saison());
