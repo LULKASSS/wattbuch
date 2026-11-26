@@ -17,10 +17,10 @@ export interface Fahrt {
   p: number[]; hr: number[] | null; cad: number[] | null; spd: number[] | null; dist: number[] | null; alt: (number | null)[] | null;
   route: string | null; gain: number; trainer: boolean; ftp: number; weight: number;
   routeId?: string | null; rev?: boolean; ganz?: boolean; app?: 'neu';
-  src?: string; noW?: boolean; dur?: number;
+  src?: string; noW?: boolean; dur?: number; ftpTest?: { ftp: number; best: number; before: number };
 }
 export interface FahrtKurz { id: string; start: string; name: string; routeId: string | null; rev: boolean; ganz: boolean; rolle: boolean; dauer: number; zeit: number; km: number; hm: number; avgW: number | null; stravaId: string | null; draussen: boolean; tss: number; b20: number | null; ftpTest: number | null }
-export interface Werte { ftp: number; weight: number; bike: number; diff: number }
+export interface Werte { ftp: number; weight: number; bike: number; diff: number; erg?: boolean }   // erg: Watt halten
 export const WERTE_START: Werte = { ftp: 200, weight: 75, bike: 9, diff: 0.5 };
 
 export type Phase = 'lobby' | 'count' | 'ride' | 'done';
@@ -29,6 +29,7 @@ export interface Ergebnis {
   zeit: number; ganz: boolean; km: number; hm: number; avgW: number;
   bestzeiten?: number;   // wie viele Segment-Bestzeiten in dieser Fahrt gefallen sind (ohne die Runde selbst)
   id?: string; strava?: string | null;   // nach dem Speichern: Kennung der Fahrt und ob sie zu Strava geht
+  ftpTest?: { ftp: number; best: number; vorher: number } | null;   // FTP-Test: Ergebnis, null = zu kurz
   rivale: { start: string; dauer: number } | null;
   abstand: number | null;  // Sekunden zum Rivalen, negativ = schneller
 }
@@ -39,6 +40,8 @@ export interface Zustand {
   w: number | null; hr: number | null; cad: number | null;
   v: number; s: number; t: number; grade: number; up: number;
   ziel: number; coach: boolean; basis: number; ftp: number;
+  halten: boolean;                                  // die Rolle hält die Zielleistung
+  test: { stufe: number } | null;                   // FTP-Test läuft
   count: number;
   streckeId: string | null; rev: boolean;
   gs: number | null; gap: number | null; rivaleStart: string | null;
@@ -46,7 +49,7 @@ export interface Zustand {
 }
 export interface Ereignis { art: 'hinweis' | 'gross'; kopf?: string; text: string; ms?: number }
 export type Befehl =
-  | { was: 'start'; streckeId: string; rev: boolean; basis?: number }
+  | { was: 'start'; streckeId: string; rev: boolean; basis?: number; oben?: number } | { was: 'test' } | { was: 'halten' }
   | { was: 'abbruch' } | { was: 'pause'; an?: boolean } | { was: 'ende' } | { was: 'lobby' }
   | { was: 'coach' } | { was: 'stufe'; d: number }
-  | { was: 'wahl'; streckeId: string; rev: boolean; basis?: number } | { was: 'werte' } | { was: 'strecke'; id: string; name: string; fav?: { n: number }; pts: number[][] } | { was: 'trenne'; art: 'rolle' | 'puls' | 'kadenz' };
+  | { was: 'wahl'; streckeId: string; rev: boolean; basis?: number; oben?: number } | { was: 'werte' } | { was: 'strecke'; id: string; name: string; fav?: { n: number }; pts: number[][] } | { was: 'trenne'; art: 'rolle' | 'puls' | 'kadenz' };

@@ -156,7 +156,7 @@ app.whenReady().then(() => {
   ipcMain.handle('konto:abmelden', () => konto.abmelden());
   ipcMain.handle('werte:setzen', (_e, w) => {
     const fin = (x, a, b) => typeof x === 'number' && isFinite(x) && x >= a && x <= b, neu = { ...(daten.werte() || {}) };
-    if (fin(w.ftp, 50, 600)) neu.ftp = Math.round(w.ftp); if (fin(w.weight, 30, 200)) neu.weight = Math.round(w.weight * 10) / 10; if (fin(w.diff, .1, 1)) neu.diff = w.diff;
+    if (fin(w.ftp, 50, 600)) neu.ftp = Math.round(w.ftp); if (fin(w.weight, 30, 200)) neu.weight = Math.round(w.weight * 10) / 10; if (fin(w.diff, .1, 1)) neu.diff = w.diff; if (typeof w.erg === 'boolean') neu.erg = w.erg;
     daten.werteSpeichern(neu); konto.merkeWerte(); return neu;
   });
   /* Strava: in Tests per WATTBUCH_STRAVA_URL auf einen nachgebauten Server (auch für den Token-Tausch), der Aufruf

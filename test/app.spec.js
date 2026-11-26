@@ -514,7 +514,7 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
 test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zeigt die Woche; Strecken und Saison gleichen sich übers Konto ab', async () => {
   const zeilen = [], werte = [], dok = [], K = await konto(zeilen, werte, dok);
   const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 20, { WATTBUCH_SUPABASE_URL: K.url });
-  await buehne.click('#lvlB'); await buehne.fill('#kMail', 'test@example.com'); await buehne.fill('#kPw', 'geheim-im-test'); await buehne.click('#kForm button');
+  await buehne.click('#lvlB'); await expect(buehne.locator('#kForm')).toBeVisible(); await buehne.fill('#kMail', 'test@example.com'); await buehne.fill('#kPw', 'geheim-im-test'); await buehne.click('#kForm button');
   await expect(buehne.locator('#kWer')).toHaveText('test@example.com');
   await expect.poll(() => dok.map(d => d.sammlung + '/' + d.id), { timeout: 10_000 }).toEqual(['strecken/test-kurz']);   // die eigene Strecke liegt jetzt im Konto
   await buehne.keyboard.press('Escape');
@@ -552,13 +552,13 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect(buehne.locator('#saHeute')).toHaveText('Geschafft'); await expect(buehne.locator('#saWoche')).toHaveText('1 von 3 Fahrten');
   /* die nie gefahrene Runde des Plans war nie im Konto und ist wieder weg */
   expect(dok.filter(d => d.sammlung === 'strecken').map(d => d.id)).toEqual(['test-kurz']);
-  await expect.poll(() => fs.readdirSync(path.join(dir, 'daten', 'strecken'))).toEqual(['test-kurz.json']);
+  await expect.poll(() => fs.readdirSync(path.join(dir, 'daten', 'strecken'))).toEqual(['ftptest.json', 'test-kurz.json']);   // dazu nur die Bahn des FTP-Tests
   expect(probleme).toEqual([]);
   await app.close();
 
   /* Zweiter Mac, leer: nach dem Anmelden sind Strecke, Fahrt und Saison da */
   const dir2 = ordner(false), B = await starte(dir2, 1, { WATTBUCH_SUPABASE_URL: K.url });
-  await B.buehne.click('#lvlB'); await B.buehne.fill('#kMail', 'test@example.com'); await B.buehne.fill('#kPw', 'geheim-im-test'); await B.buehne.click('#kForm button');
+  await B.buehne.click('#lvlB'); await expect(B.buehne.locator('#kForm')).toBeVisible(); await B.buehne.fill('#kMail', 'test@example.com'); await B.buehne.fill('#kPw', 'geheim-im-test'); await B.buehne.click('#kForm button');
   await expect(B.buehne.locator('.card', { hasText: 'Testrunde' })).toHaveCount(1, { timeout: 15_000 });
   await B.buehne.keyboard.press('Escape');
   await B.buehne.click('nav button[data-s=saison]');
@@ -570,4 +570,56 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
   expect(B.probleme).toEqual([]);
   await B.app.close(); K.zu(); fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir2, { recursive: true, force: true });
+});
+
+/* ---------- Schritt 6: FTP-Test, Watt halten, Gegenrichtung ---------- */
+test('FTP-Test: Rampe an der Rolle, Ergebnis wird die neue FTP', async () => {
+  const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 30);
+  await expect(buehne.locator('.card')).toHaveCount(1);   // die Testbahn ist keine Runde der Lobby
+  await maschine.evaluate(() => { window.__fakeBle.maxPower = 310; });   // mehr geht nicht: bei 400 W ist Schluss
+  await buehne.click('#lvlB'); await buehne.click('#pTest');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
+  await expect(buehne.locator('#rName')).toHaveText('FTP-Test');
+  await expect(buehne.locator('#coachT')).toHaveText(/^FTP-Test · Stufe \d+ · \d+ W$/);
+  expect((await stand(maschine)).ziel).toBeGreaterThanOrEqual(100);
+  await expect.poll(() => maschine.evaluate(() => window.__fakeBle.ergTarget), { timeout: 10_000 }).toBeGreaterThanOrEqual(100);   // die Rolle hält die Stufe
+  await buehne.keyboard.press('ArrowUp'); await buehne.keyboard.press('c');   // im Test ohne Wirkung
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 80_000 });
+  await expect(buehne.locator('#resL')).toHaveText('FTP-Test');
+  const [r] = fahrten(dir);
+  expect(r.name).toBe('FTP-Test'); expect(r.routeId).toBeNull(); expect(r.route).toBeNull(); expect(r.ftpTest.before).toBe(200);
+  expect(r.ftpTest.best).toBeGreaterThan(290); expect(r.ftpTest.best).toBeLessThanOrEqual(312); expect(r.ftpTest.ftp).toBe(Math.round(r.ftpTest.best * .75));
+  await expect(buehne.locator('#resT')).toHaveText(r.ftpTest.ftp + ' W');
+  await expect(buehne.locator('#resP')).toHaveText(`Beste Minute ${r.ftpTest.best} W · vorher 200 W`);
+  expect(JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'werte.json'), 'utf8')).ftp).toBe(r.ftpTest.ftp);
+  await buehne.click('#home');
+  await expect(buehne.locator('#stufe')).toHaveText(r.ftpTest.ftp + ' W');
+  await expect(buehne.locator('#hName')).toHaveText('Testrunde'); await expect(buehne.locator('#hRival')).toBeHidden();
+  await buehne.click('nav button[data-s=saison]');
+  await expect(buehne.locator('#saGesch')).toContainText(`FTP-Test: ${r.ftpTest.ftp} W`);
+  expect(probleme).toEqual([]);
+  await app.close(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Watt halten und Gegenrichtung: zwei Schalter in der Lobby, Taste h in der Fahrt', async () => {
+  const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 6);
+  await buehne.click('#oHalt'); await expect(buehne.locator('#oHalt')).toHaveClass(/on/);
+  await buehne.click('#oRev'); await expect(buehne.locator('#oRev')).toHaveClass(/on/);
+  await expect.poll(() => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'werte.json'), 'utf8')).erg; } catch { return null; } }).toBe(true);
+  await warte(900); await buehne.click('#start');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
+  const z = await stand(maschine); expect(z.rev).toBe(true); expect(z.halten).toBe(true);
+  await expect(buehne.locator('#coachT')).toContainText('· hält');
+  await expect.poll(() => maschine.evaluate(() => window.__fakeBle.ergTarget), { timeout: 10_000 }).toBeGreaterThan(50);
+  await buehne.keyboard.press('h');
+  await expect(buehne.locator('#coachT')).not.toContainText('hält');
+  await expect.poll(() => maschine.evaluate(() => window.__fakeBle.ergTarget), { timeout: 10_000 }).toBeNull();   // wieder Steigung
+  await expect.poll(async () => (await stand(maschine)).t, { timeout: 15_000 }).toBeGreaterThan(14);
+  await buehne.click('#end');
+  await expect(buehne.locator('#resL')).toHaveText('Runde beendet');
+  const [r] = fahrten(dir); expect(r.rev).toBe(true); expect(r.route).toBe('Testrunde (umgekehrt)');
+  await buehne.click('#home');
+  await expect(buehne.locator('#oRev')).not.toHaveClass(/on/); await expect(buehne.locator('#oHalt')).toHaveClass(/on/);
+  expect(probleme).toEqual([]);
+  await app.close(); fs.rmSync(dir, { recursive: true, force: true });
 });

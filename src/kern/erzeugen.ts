@@ -9,6 +9,12 @@ const GEN: Record<string, { name: string; plan: (r: R) => number[][] }> = {
   berg: { name: 'Bergwertung', plan: r => { const climb = r(7, 11), a = [[r(3, 5), r(0, 1.5)], [r(1, 2), r(2, 4)]]; let c = climb; while (c > 0) { const l = Math.min(c, r(.6, 1.8)); a.push([l, r(5, 10)]); c -= l; } a.push([r(.5, 1), r(1, 3)], [climb * .8, -r(5, 7)], [r(2, 4), r(-1, .5)]); return a; } },
   flach: { name: 'Flachstück', plan: r => { const a: number[][] = []; let left = r(32, 46); while (left > 0) { const l = r(2, 6); a.push([l, r(-1, 1)], [r(.3, .8), r(2, 4)], [r(.3, .8), -r(2, 4)]); left -= l + 1; } return a; } }
 };
+/* Flache Bahn für den FTP-Test: 40 km im Kreis, keine Runde der Lobby */
+export function testbahn(): Strecke {
+  const n = 1601, R = 40000 / (2 * Math.PI), line: [number, number][] = [];
+  for (let i = 0; i <= 240; i++) { const t = i / 240 * 2 * Math.PI; line.push([+(50 + R * Math.cos(t) / 111320).toFixed(5), +(10 + R * Math.sin(t) / (111320 * Math.cos(50 * Math.PI / 180))).toFixed(5)]); }
+  return { id: 'ftptest', name: 'FTP-Test', dist: 40000, step: 25, gain: 0, ele: Array(n).fill(100), line, test: true };
+}
 export const GEN_START: [string, number][] = [['huegel', 7], ['berg', 23], ['flach', 41]];
 
 /* km: gewünschte Länge (für die Runde zum Tag); ohne Angabe die übliche Länge der Art */

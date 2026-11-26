@@ -16,9 +16,12 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-interface Runde { st: Strecke; rt: Bahn; best: FahrtKurz | null; zuletzt: string | null; tag: string; min: number; seed: number }
+interface Runde { st: Strecke; rt: Bahn; rtR?: Bahn; best: FahrtKurz | null; zuletzt: string | null; tag: string; min: number; seed: number }
 let runden: Runde[] = [], alleFahrten: FahrtKurz[] = [], pick = 0, ftp = 200, gewicht = 84;
 let saison: Saison | null = null, plan: Tagesplan | null = null, heuteId: string | null = null;
+let testR: Runde | null = null, rev = false, halten = false, planP = 140;
+/* Bahn der Runde in der gewählten Richtung */
+const rtVon = (r: Runde) => rev && !r.st.test ? (r.rtR || (r.rtR = bahn(r.st, true))) : r.rt;
 const heuteTag = () => tagNr(new Date());
 let z: Zustand | null = null, zZeit = 0, akt: Akt = 'lobby', aktRt: Bahn | null = null, haupt: { s: number; top: number } | null = null;
 const welt = new Welt($<HTMLCanvasElement>('gl'));
@@ -31,11 +34,11 @@ async function ladeRunden() {
   let [strecken, fahrten, werte, sa] = await Promise.all([W.strecken(), W.fahrten(), W.werte(), W.saison()]);
   /* beim allerersten Start legt der Maschinenraum die ersten Runden gerade erst an */
   for (let i = 0; !strecken.length && i < 40; i++) { await new Promise(r => setTimeout(r, 250)); strecken = await W.strecken(); }
-  if (werte) { ftp = werte.ftp || ftp; gewicht = (werte.weight || 75) + (werte.bike || 9); }
+  if (werte) { ftp = werte.ftp || ftp; gewicht = (werte.weight || 75) + (werte.bike || 9); halten = !!werte.erg; }
   alleFahrten = fahrten; saison = sa;
   /* Mit Saison gibt der Tag die Zielleistung vor, ohne sind es 70 % der FTP */
-  plan = saison ? tagesplan(saison, fahrten, heuteTag(), ftp) : null;
-  const P = plan ? plan.watt : grundleistung(ftp);
+  plan = saison ? tagesplan(saison, fahrten, heuteTag(), ftp, true) : null;
+  const P = planP = plan ? plan.watt : grundleistung(ftp);
   const baue = (st: Strecke): Runde => {
     const rt = bahn(st), eigene = fahrten.filter(f => f.routeId === st.id && !f.rev && f.rolle);
     const best = eigene.filter(f => f.ganz).sort((a, b) => a.dauer - b.dauer)[0] || null;
@@ -43,8 +46,11 @@ async function ladeRunden() {
     return { st, rt, best, zuletzt, tag: '', min: Math.round(fahrzeit(rt, 0, rt.dist, P, gewicht) / 60), seed: seedOf(st.id) };
   };
   runden = strecken.filter(st => !st.test).map(baue);
+  const tb = strecken.find(st => st.test); testR = tb ? { ...baue(tb), min: 25 } : null;
   let heute: Runde | undefined;
-  if (plan) {
+  /* Tag des FTP-Tests: die flache Bahn ist die Runde für heute */
+  if (plan && plan.art === 'test' && testR) { runden.push(testR); heute = testR; }
+  else if (plan) {
     /* Die Runde zum Tag: eine eigene, die zur Dauer passt; sonst ein Stück einer langen eigenen Strecke; sonst eine
        erzeugte. Was für einen früheren Tag angelegt und nie gefahren wurde, verschwindet wieder. */
     const eigen = runden.filter(r => !r.st.plan), kand = eigen.map(r => ({ id: r.st.id, min: r.min, zuletzt: r.zuletzt }));
@@ -64,7 +70,7 @@ async function ladeRunden() {
     const kurz = runden.filter(r => r.min <= 90), wahl = kurz.length ? kurz : runden.slice().sort((a, b) => a.min - b.min).slice(0, 1);
     heute = wahl.slice().sort((a, b) => (a.zuletzt || '').localeCompare(b.zuletzt || '') || a.min - b.min)[0];
   }
-  const heuteT = !plan ? 'Heute für dich' : plan.art === 'frei' ? (plan.erledigt ? 'Heute geschafft' : 'Heute frei') : `Heute · ${ART[plan.art].name} · ${plan.watt} W`;
+  const heuteT = !plan ? 'Heute für dich' : plan.art === 'frei' ? (plan.erledigt ? 'Heute geschafft' : 'Heute frei') : plan.art === 'test' ? 'Heute · FTP-Test' : `Heute · ${ART[plan.art].name} · ${plan.watt} W`;
   for (const r of runden) r.tag = r === heute ? heuteT : r.best ? 'Rivale wartet' : '';
   runden.sort((a, b) => (a === heute ? -1 : b === heute ? 1 : 0)); heuteId = heute ? heute.st.id : null;
   return heute ? runden.indexOf(heute) : 0;
@@ -87,9 +93,13 @@ function fuelleLobby() {
   $('hTag').textContent = r.tag; const h = $('hName'); h.innerHTML = '';
   [...r.st.name].forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch === ' ' ? ' ' : ch; s.style.animationDelay = (i * .035) + 's'; h.appendChild(s); });
   h.style.fontSize = r.st.name.length > 12 ? `clamp(40px,${Math.max(3.6, 7.4 * 12 / r.st.name.length)}vw,${Math.round(112 * 12 / r.st.name.length)}px)` : '';
-  $('hKm').textContent = fmt(r.rt.dist / 1000, 1); $('hHm').textContent = fmt(r.st.gain); $('hMin').textContent = String(r.min);
-  $('hRival').hidden = !r.best;
-  if (r.best) { $('hWhen').textContent = tag(r.best.start); $('hBest').textContent = zeit(r.best.dauer); }
+  /* in Gegenrichtung zählen Fahrzeit und Rivale dieser Richtung */
+  const rt = rtVon(r), min = rev && !r.st.test ? Math.round(fahrzeit(rt, 0, rt.dist, planP, gewicht) / 60) : r.min;
+  const best = rev ? alleFahrten.filter(f => f.routeId === r.st.id && f.rev && f.rolle && f.ganz).sort((a, b) => a.dauer - b.dauer)[0] || null : r.best;
+  $('hKm').textContent = fmt(r.rt.dist / 1000, 1); $('hHm').textContent = fmt(r.st.gain); $('hMin').textContent = String(min);
+  $('hRival').hidden = !best;
+  if (best) { $('hWhen').textContent = tag(best.start); $('hBest').textContent = zeit(best.dauer); }
+  $('oHalt').classList.toggle('on', halten); $('oRev').classList.toggle('on', rev); $('oRev').hidden = $('oHalt').hidden = !!r.st.test;
   $('stufe').textContent = fmt(ftp) + ' W';
   /* Stufe: mit einer Saison der Weg zum Ziel */
   $('stufeW').hidden = !saison; if (saison) $('stufeB').style.width = (fortschritt(saison, alleFahrten, ftp).anteil * 100).toFixed(1) + '%';
@@ -105,15 +115,18 @@ function baueKarten() {
     profil(b.children[2] as HTMLCanvasElement, r.rt, null, null); b.onclick = () => waehle(i); box.appendChild(b);
   });
 }
-const basis = () => plan ? plan.watt : undefined;
-function zeige(i: number) { const r = runden[i]; welt.strecke(r.rt, r.seed); W.befehl({ was: 'wahl', streckeId: r.st.id, rev: false, basis: basis() }); }
+const basis = () => plan ? plan.watt : undefined, oben = () => plan ? Math.round(ftp * ART[plan.art].oben) : undefined;
+const wahl = (r: Runde) => W.befehl({ was: 'wahl', streckeId: r.st.id, rev: rev && !r.st.test, basis: basis(), oben: oben() });
+function zeige(i: number) { const r = runden[i]; welt.strecke(rtVon(r), r.seed); wahl(r); }
 function waehle(i: number) {
   const n = runden.length; i = (i + n) % n;
   if (i === pick || akt !== 'lobby') return;
-  pick = i; baueKarten(); fuelleLobby(); if (sicht === 'rivalen') { rvAuf = ''; zeigeRivalen(); } $('flash').classList.add('on');
+  pick = i; rev = false; baueKarten(); fuelleLobby(); if (sicht === 'rivalen') { rvAuf = ''; zeigeRivalen(); } $('flash').classList.add('on');
   setTimeout(() => { zeige(pick); $('flash').classList.remove('on'); }, 360);
 }
-const start = () => { const r = runden[pick]; if (r && akt === 'lobby') W.befehl({ was: 'start', streckeId: r.st.id, rev: false, basis: basis() }); };
+const start = () => { const r = runden[pick]; if (r && akt === 'lobby') W.befehl(r.st.test ? { was: 'test' } : { was: 'start', streckeId: r.st.id, rev, basis: basis(), oben: oben() }); };
+$('oRev').onclick = () => { if (akt !== 'lobby' || !runden[pick]) return; rev = !rev; fuelleLobby(); if (sicht === 'rivalen') { rvAuf = ''; zeigeRivalen(); } $('flash').classList.add('on'); setTimeout(() => { zeige(pick); $('flash').classList.remove('on'); }, 360); };
+$('oHalt').onclick = async () => { halten = !halten; $('oHalt').classList.toggle('on', halten); await W.werteSetzen({ erg: halten }); };
 
 /* ---------- Einblendungen ---------- */
 function toast(l: string, b: string, ms = 3600) {
@@ -133,15 +146,20 @@ function setzeAkt(a: Akt) {
   if (a !== 'lobby') blatt(null);
   if (a === 'done') ergebnis();
   if (a !== 'lobby' && sicht !== 'lobby') setzeSicht('lobby');
-  if (a === 'lobby' && vor === 'done') ladeRunden().then(i => { pick = i; baueKarten(); fuelleLobby(); zeige(pick); });
+  if (a === 'lobby' && vor === 'done') ladeRunden().then(i => { pick = i; rev = false; baueKarten(); fuelleLobby(); zeige(pick); });
 }
 let cntVor = 0;
 W.aufZustand((n: Zustand) => {
   z = n; zZeit = performance.now();
   /* Runde, die gerade läuft (auch nach einem Neustart der Bühne mitten in der Fahrt) */
-  if (n.streckeId && (!aktRt || aktRt.id !== n.streckeId)) {
-    const i = runden.findIndex(r => r.st.id === n.streckeId);
-    if (i >= 0) { if (i !== pick || !aktRt) { pick = i; baueKarten(); fuelleLobby(); welt.strecke(runden[i].rt, runden[i].seed); } aktRt = runden[i].rt; const a = anstiege(aktRt).sort((x, y) => y.gain - x.gain)[0]; haupt = a ? { s: a.s, top: a.top } : null; $('rName').textContent = aktRt.name; }
+  if (n.streckeId && (!aktRt || aktRt.id !== n.streckeId || aktRt.rev !== n.rev)) {
+    const i = runden.findIndex(r => r.st.id === n.streckeId), r = i >= 0 ? runden[i] : testR && testR.st.id === n.streckeId ? testR : null;
+    if (r) {
+      const neu = i !== pick || !aktRt || rev !== n.rev; rev = n.rev;
+      if (i >= 0 && neu) { pick = i; baueKarten(); fuelleLobby(); }
+      if (neu || i < 0) welt.strecke(rtVon(r), r.seed);
+      aktRt = rtVon(r); const a = anstiege(aktRt).sort((x, y) => y.gain - x.gain)[0]; haupt = a ? { s: a.s, top: a.top } : null; $('rName').textContent = aktRt.name;
+    }
   }
   if (!n.streckeId) aktRt = null;
   setzeAkt(n.phase === 'done' && !n.ergebnis ? 'lobby' : n.phase);
@@ -160,6 +178,13 @@ function geraete(n: Zustand) {
 }
 function ergebnis() {
   const e = z && z.ergebnis; if (!e) return;
+  if (e.ftpTest !== undefined) {   // FTP-Test: die neue FTP groß, daneben die beste Minute
+    const f = e.ftpTest; $('resL').textContent = 'FTP-Test'; $('resT').textContent = f ? fmt(f.ftp) + ' W' : zeit(e.zeit);
+    $('resP').textContent = f ? `Beste Minute ${fmt(f.best)} W · vorher ${fmt(f.vorher)} W` : 'Zu kurz für ein Ergebnis';
+    $('resSa').textContent = ''; $('resW').textContent = 'Ø ' + fmt(e.avgW) + ' W'; $('resK').textContent = zeit(e.zeit); $('resH').textContent = ''; $('resB').textContent = '';
+    if (e.id && e.id !== resId) { resId = e.id; stravaMarke(e.strava); saisonZeile(); } else if (!e.id) { resId = null; stravaMarke(null); }
+    return;
+  }
   const a = e.abstand, gleich = a != null && Math.abs(a) < 1;
   $('resL').textContent = !e.ganz ? 'Runde beendet' : a == null ? 'Erste Zeit' : gleich ? 'Gleichauf' : a < 0 ? 'Neue Bestzeit' : 'Knapp dahinter';
   const t0 = performance.now(), el = $('resT');
@@ -175,7 +200,7 @@ function ergebnis() {
 /* Ergebnisbild: was die Fahrt für die Saison gebracht hat (sobald sie gespeichert ist) */
 async function saisonZeile() {
   const f = await W.fahrten(), heute = heuteTag(), teile: string[] = [];
-  if (saison) { const p = tagesplan(saison, f, heute, ftp); teile.push(`Woche ${p.woche.nr}`, p.ist >= p.soll ? 'Wochenziel geschafft' : `Wochenziel zu ${Math.round(p.ist / Math.max(p.soll, 1) * 100)} %`); }
+  if (saison) { const p = tagesplan(saison, f, heute, ftp, true); teile.push(`Woche ${p.woche.nr}`, p.ist >= p.soll ? 'Wochenziel geschafft' : `Wochenziel zu ${Math.round(p.ist / Math.max(p.soll, 1) * 100)} %`); }
   else { const n = serie(f, heute); if (n >= 2) teile.push(`${n} Wochen in Folge`); }
   const m = meilensteine(f, 1)[0], letzte = f[f.length - 1];
   if (m && letzte && m.start === letzte.start) teile.push(m.text);
@@ -192,7 +217,7 @@ function anzeige() {
   $('watt').style.color = wc; $('arc').style.stroke = wc; $('zone').style.color = wc;
   $('tick').style.transformOrigin = '165px 165px'; $('tick').style.transform = `rotate(${135 + clamp(z.ziel / skala, 0, 1) * 270}deg)`;
   $('zone').textContent = w == null ? 'Rolle wecken' : (lg === 'ok' ? 'Im Ziel' : lg === 'drunter' ? 'Mehr Druck' : 'Zu viel') + ' · ' + zone(w, z.ftp);
-  $('coachT').textContent = (z.coach ? 'Coach · Ziel ' : 'Ziel ') + z.ziel + ' W';
+  $('coachT').textContent = z.test ? `FTP-Test · Stufe ${z.test.stufe} · ${z.ziel} W` : (z.coach ? 'Coach · Ziel ' : 'Ziel ') + z.ziel + ' W' + (z.halten ? ' · hält' : '');
   $('coach').classList.toggle('on', z.coach); $('pm').classList.toggle('auto', z.coach);
   /* Tempo: hervorgehoben, wenn schnell */
   const kmh = z.v * 3.6; $('kmh').textContent = fmt(kmh, 1); $('kmh').style.color = kmh >= 38 ? a : kmh < 16 ? 'var(--fg2)' : 'var(--fg)';
@@ -281,6 +306,7 @@ async function blatt(was: 'geraete' | 'profil' | null) {
   document.body.dataset.blatt = was;
 }
 $('devB').onclick = () => blatt(document.body.dataset.blatt === 'geraete' ? null : 'geraete');
+$('pTest').onclick = () => { blatt(null); W.befehl({ was: 'test' }); };
 $('lvlB').onclick = () => blatt(document.body.dataset.blatt === 'profil' ? null : 'profil');
 $('blatt').addEventListener('pointerdown', e => { if (e.target === $('blatt')) blatt(null); });
 for (const [id, feld, mal] of [['pFtp', 'ftp', 1], ['pKg', 'weight', 1], ['pDiff', 'diff', .01]] as [string, string, number][])
@@ -300,7 +326,7 @@ function neuLaden() {
     /* Die gewählte Runde bleibt, außer der Tag gibt jetzt eine andere vor (neue Saison, neuer Plan) */
     const vor = runden[pick] ? runden[pick].st.id : null, hVor = heuteId, n = runden.length, heute = await ladeRunden(), i = runden.findIndex(r => r.st.id === vor);
     pick = i >= 0 && heuteId === hVor ? i : heute; baueKarten(); fuelleLobby();
-    if (!n || !runden[pick] || runden[pick].st.id !== vor) zeige(pick); else W.befehl({ was: 'wahl', streckeId: runden[pick].st.id, rev: false, basis: basis() });
+    if (!n || !runden[pick] || runden[pick].st.id !== vor) { rev = false; fuelleLobby(); zeige(pick); } else wahl(runden[pick]);
     if (sicht === 'rivalen') zeigeRivalen(); if (sicht === 'fahrten') zeigeFahrten(); if (sicht === 'saison') zeigeSaison();
   }, 300);
 }
@@ -320,11 +346,11 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
 let rvFuer = '', rvAuf = '';
 async function zeigeRivalen() {
   const r = runden[pick]; if (!r) return;
-  $('rvName').textContent = r.st.name; ($('rvWeg') as HTMLButtonElement).textContent = 'Runde entfernen'; $('rvWeg').dataset.sicher = '';
+  $('rvName').textContent = r.st.name + (rev && !r.st.test ? ' (umgekehrt)' : ''); ($('rvWeg') as HTMLButtonElement).textContent = 'Runde entfernen'; $('rvWeg').dataset.sicher = '';
   const fuer = r.st.id; rvFuer = fuer;
-  const laeufe = await W.laeufe(r.st.id, false); if (rvFuer !== fuer || sicht !== 'rivalen') return;
+  const laeufe = await W.laeufe(r.st.id, rev && !r.st.test); if (rvFuer !== fuer || sicht !== 'rivalen') return;
   const box = $('rvListe'); box.innerHTML = '';
-  for (const seg of segmente(r.rt)) {
+  for (const seg of segmente(rtVon(r))) {
     const v = versuche(seg, laeufe), b = document.createElement('button'); b.className = 'rv' + (rvAuf === seg.id ? ' auf' : ''); b.type = 'button';
     b.innerHTML = '<b></b><span class="z"></span><span class="d"></span><span class="n"></span>';
     const titel = b.children[0] as HTMLElement; titel.textContent = seg.art === 'runde' ? 'Ganze Runde' : `Anstieg km ${fmt(seg.von / 1000, 1)}`;
@@ -454,6 +480,7 @@ addEventListener('keydown', e => {
   else if (e.key === 'Escape' && akt === 'lobby' && sicht !== 'lobby') setzeSicht('lobby');
   else if (e.key === ' ' && akt === 'ride') { W.befehl({ was: 'pause' }); e.preventDefault(); }
   else if (e.key === 'c' && akt === 'ride') W.befehl({ was: 'coach' });
+  else if (e.key === 'h' && akt === 'ride') W.befehl({ was: 'halten' });
   else if (e.key === 'Escape' && akt === 'count') W.befehl({ was: 'abbruch' });
 });
 function groesse() { const pc = $<HTMLCanvasElement>('prof'), pr = Math.min(devicePixelRatio || 1, 2); pc.width = Math.max(200, Math.round((innerWidth - 80) * pr)); pc.height = Math.round(44 * pr); welt.groesse(); }

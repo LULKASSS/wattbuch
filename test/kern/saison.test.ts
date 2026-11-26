@@ -114,3 +114,65 @@ describe('Die Runde zum Tag', () => {
     }
   });
 });
+
+/* ---------- Schritt 6: voller Coach und FTP-Test ---------- */
+import { Coach, Rampe } from '../../src/kern/coach';
+import { testbahn } from '../../src/kern/erzeugen';
+import { anstiege, gradeAt } from '../../src/kern/strecke';
+
+describe('Coach', () => {
+  const rt = bahn(erzeuge('berg', 23)), neu = () => new Coach(rt, 200, 84, 140, 180);
+  it('rollt erst ein, bei kurzen Runden kürzer', () => {
+    const c = neu();
+    expect(c.warm).toBe(300); expect(c.ziel(0, 0)).toBe(100); expect(c.ziel(0, 150)).toBe(120);
+    const kurz: Strecke = { id: 'k', name: 'k', dist: 3000, step: 25, gain: 0, ele: Array(121).fill(100), line: [[50, 10], [50.02, 10]] };
+    const k = new Coach(bahn(kurz), 200, 84, 140, 180);
+    expect(k.warm).toBeLessThan(90); expect(k.ziel(2900, 400)).toBe(140);
+  });
+  it('am Berg mehr als im Flachen, nie über dem Deckel, bergab weniger', () => {
+    const c = neu(), berg = c.climbs.slice().sort((a, b) => b.gain - a.gain)[0];
+    expect(c.climbs.length).toBe(anstiege(rt).length);
+    const w = c.ziel(berg.s + 100, 2000);
+    expect(w).toBeGreaterThan(140); expect(w).toBeLessThanOrEqual(200);
+    expect(berg.w).toBe(c.ziel(berg.s, 2000)); expect(berg.t).toBeGreaterThan(60);
+    let ab = 0; for (let d = berg.over + 200; d < rt.dist - 200; d += 25) if (gradeAt(rt, d + 40) < -4 && gradeAt(rt, d + 100) < -4 && !c.climbs.some(x => d >= x.s && d < x.over)) { ab = d; break; }
+    expect(ab).toBeGreaterThan(0); expect(c.ziel(ab, 2000)).toBeLessThan(140);
+    c.basis = 160; c.oben = 205; expect(c.ziel(ab, 2000)).toBeGreaterThanOrEqual(120);   // Pfeiltasten heben das Niveau
+  });
+  it('über der FTP nur, solange die Reserve reicht', () => {
+    const hoch = new Coach(rt, 200, 84, 190, 260), berg = hoch.climbs.slice().sort((a, b) => b.gain - a.gain)[0];
+    const voll = hoch.ziel(berg.s + 50, 2000);
+    for (let i = 0; i < 120; i++) hoch.sekunde(330);
+    expect(hoch.reserve).toBeLessThan(.2);
+    expect(hoch.ziel(berg.s + 50, 2000)).toBeLessThanOrEqual(voll);
+    for (let i = 0; i < 1200; i++) hoch.sekunde(100);
+    expect(hoch.reserve).toBeGreaterThan(.8);
+  });
+  it('sagt jede Sache einmal: einrollen, Leistung am Fuß, kurz vor oben, danach erholen', () => {
+    const c = neu(), berg = c.climbs.slice().sort((a, b) => b.gain - a.gain)[0];
+    expect(c.ansage(10, 3)!.text).toMatch(/^Erst einrollen · 5 min$/); expect(c.ansage(20, 4)).toBeNull();
+    expect(c.ansage(berg.s + 10, 900)!.text).toMatch(/^Jetzt \d+ W · \d+ (s|min) bis oben$/); expect(c.ansage(berg.s + 30, 905)).toBeNull();
+    expect(c.ansage(berg.top - 30, 1500)!.text).toMatch(/^Noch \d+ s drücken$/);
+  });
+});
+
+describe('FTP-Test', () => {
+  it('Rampe: Start bei der halben FTP, jede Minute 20 W mehr', () => {
+    const r = new Rampe(230);
+    expect(r.start).toBe(120); expect(r.ziel(0)).toBe(120); expect(r.ziel(59)).toBe(120); expect(r.ziel(60)).toBe(140); expect(r.ziel(601)).toBe(320); expect(new Rampe(150).start).toBe(100);
+  });
+  it('Schluss nach 8 s unter 80 % der Stufe oder zu niedriger Kadenz, nicht in den ersten 90 s', () => {
+    const r = new Rampe(200); let t = 0;
+    for (; t < 80; t++) expect(r.sekunde(t, 20, 80)).toBe(false);
+    for (; t < 300; t++) expect(r.sekunde(t, r.ziel(t), 85)).toBe(false);
+    for (let k = 0; k < 7; k++) expect(r.sekunde(t++, r.ziel(t) * .7, 85)).toBe(false);
+    expect(r.sekunde(t++, r.ziel(t), 85)).toBe(false);   // gefangen: zählt von vorn
+    for (let k = 0; k < 7; k++) expect(r.sekunde(t++, r.ziel(t), 40)).toBe(false);
+    expect(r.sekunde(t, r.ziel(t), 40)).toBe(true);
+  });
+  it('Ergebnis: 75 % der besten Minute, unter zwei Minuten keins; die Bahn ist flach', () => {
+    const p = [...Array(300).fill(150), ...Array(60).fill(280), ...Array(20).fill(100)];
+    expect(Rampe.ergebnis(p)).toEqual({ best: 280, ftp: 210 }); expect(Rampe.ergebnis(Array(100).fill(300))).toBeNull();
+    const b = testbahn(); expect(b.test).toBe(true); expect(new Set(b.ele).size).toBe(1); expect(bahn(b).dist).toBe(40000); expect(bahn(b).loop).toBe(true);
+  });
+});

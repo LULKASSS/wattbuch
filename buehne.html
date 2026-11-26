@@ -24,6 +24,7 @@
     <h1 class="dsp" id="hName"></h1>
     <div class="stats"><span><b id="hKm"></b>km</span><span><b id="hHm"></b>Höhenmeter</span><span><b id="hMin"></b>Minuten</span></div>
     <div class="rival" id="hRival" hidden>Dein Rivale: <b>du, <span id="hWhen"></span></b> · <b id="hBest"></b></div>
+    <div class="opt"><button type="button" id="oHalt">Watt halten</button><button type="button" id="oRev">Gegenrichtung</button></div>
     <div class="go"><button class="gobtn" id="start"><span>Losfahren</span></button><small>oder einfach lostreten</small></div>
   </div>
   <div class="dock"><div id="cards" style="display:contents"></div></div>
@@ -106,6 +107,7 @@
   <div id="blProfil">
     <div class="lbl">Profil</div>
     <div class="fz"><label>FTP<span><input id="pFtp" type="number" min="50" max="600" step="1" inputmode="numeric"><em>W</em></span></label><label>Gewicht<span><input id="pKg" type="number" min="30" max="200" step="0.5" inputmode="decimal"><em>kg</em></span></label><label>Steigung<span><input id="pDiff" type="number" min="10" max="100" step="5" inputmode="numeric"><em>%</em></span></label></div>
+    <button class="bbtn leer" id="pTest" type="button" style="display:block;margin:14px 0 0">FTP-Test</button>
     <div class="lbl" style="margin-top:22px">Konto</div>
     <form id="kForm"><input id="kMail" type="email" autocomplete="username" placeholder="E-Mail" aria-label="E-Mail"><input id="kPw" type="password" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort"><button class="bbtn" type="submit">Anmelden</button><p id="kMsg"></p></form>
     <div id="kAn" hidden><b id="kWer"></b><small id="kSt"></small><button class="bbtn leer" id="kAus" type="button">Abmelden</button></div>
