@@ -579,7 +579,14 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect(buehne.locator('#saHeute')).toHaveText('Geschafft'); await expect(buehne.locator('#saWoche')).toHaveText('1 von 3 Fahrten');
   await expect(buehne.locator('#saTage .tg.heute')).toHaveClass(/fertig/); await expect(buehne.locator('#saHeuteB')).toHaveClass(/fertig/);
   /* ein Klick auf die Woche zeigt alle Wochen der Saison */
-  await buehne.click('#saWoZ'); await expect(buehne.locator('#ppT')).toHaveText('Woche 1 von 13'); await expect(buehne.locator('#ppListe .pr')).toHaveCount(13); await buehne.keyboard.press('Escape'); await expect(buehne.locator('body')).not.toHaveAttribute('data-pop');
+  await buehne.click('#saWoZ'); await expect(buehne.locator('#ppT')).toHaveText('Woche 1 von 13'); await expect(buehne.locator('#ppListe .pr')).toHaveCount(13); await expect(buehne.locator('#ppTage .tg')).toHaveCount(7);
+  /* jede Woche lässt sich ansehen: Woche 6 mit ihren geplanten Fahrten, Stunden, km und Höhenmetern */
+  await buehne.locator('#ppListe .pr').nth(5).click();
+  await expect(buehne.locator('#ppT')).toHaveText('Woche 6 von 13'); await expect(buehne.locator('#ppListe .pr.on')).toContainText('Woche 6'); await expect(buehne.locator('#ppListe .pr.on')).toContainText(/3 Fahrten.*\d:\d\d h.*\d+ km.*\d+ Hm/);
+  await expect(buehne.locator('#ppTage .tg:not(.frei)')).toHaveCount(3); await expect(buehne.locator('#ppH span', { hasText: 'Fahrten' }).locator('b')).toHaveText('3');
+  await buehne.keyboard.press('Escape'); await expect(buehne.locator('body')).not.toHaveAttribute('data-pop');
+  /* ein Klick auf das Ziel zeigt den Weg der FTP dorthin */
+  await buehne.click('#saZielZ'); await expect(buehne.locator('#ppT')).toHaveText(/^220 W bis /); await expect(buehne.locator('#ppH span', { hasText: 'fehlen' }).locator('b')).toHaveText('20 W'); await buehne.keyboard.press('Escape');
   /* die nie gefahrene Runde des Plans war nie im Konto und ist wieder weg */
   expect(dok.filter(d => d.sammlung === 'strecken').map(d => d.id)).toEqual(['test-kurz']);
   await expect.poll(() => fs.readdirSync(path.join(dir, 'daten', 'strecken'))).toEqual(['ftptest.json', 'test-kurz.json']);   // dazu nur die Bahn des FTP-Tests
@@ -596,8 +603,14 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   /* Saison beenden: zwei Klicks, im Konto als entfernt markiert, nichts gelöscht */
   /* Ziel ändern: der Anfang der Saison bleibt, „Saison beenden“ steht nur hier */
   await expect(B.buehne.locator('#saEnde')).toBeHidden(); await B.buehne.click('#saAend');
-  await expect(B.buehne.locator('#saZiel')).toHaveValue('220'); await B.buehne.fill('#saZiel', '225'); await B.buehne.click('#saOk');
-  await expect(B.buehne.locator('#saZielT')).toHaveText('225 W'); await expect(B.buehne.locator('#saWo')).toHaveText('1 von 13');
+  await expect(B.buehne.locator('#saZiel')).toHaveValue('220'); await B.buehne.fill('#saZiel', '225');
+  /* Regler: vier Fahrten je 20 Minuten, die Schätzung rechnet mit; der Plan richtet sich danach */
+  await expect(B.buehne.locator('#saTageT')).toHaveText('3×'); await expect(B.buehne.locator('#saMinT')).toHaveText('45 min');
+  await B.buehne.evaluate(() => { for (const [id, v] of [['saTageR', '4'], ['saMinR', '20']]) { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); } });
+  await expect(B.buehne.locator('#saEst')).toHaveText(/^1:20 h je Woche: etwa \d+ W · für 225 W (etwa \d+:\d\d h je Woche|reicht die Zeit bis dahin nicht)$/);
+  await B.buehne.click('#saOk');
+  await expect(B.buehne.locator('#saZielT')).toHaveText('225 W'); await expect(B.buehne.locator('#saWo')).toHaveText('1 von 13'); await expect(B.buehne.locator('#saWoche')).toHaveText(/ von 4 Fahrten$/);
+  expect(JSON.parse(fs.readFileSync(path.join(dir2, 'daten', 'saison.json'), 'utf8'))).toMatchObject({ ziel: 225, tage: 4, minuten: 20 });
   await B.buehne.click('#saAend');
   await B.buehne.click('#saEnde'); await expect(B.buehne.locator('#saEnde')).toHaveText('Wirklich beenden'); await B.buehne.click('#saEnde');
   await expect(B.buehne.locator('#saNeu')).toBeVisible();
@@ -696,10 +709,15 @@ test('Startseite: letzte Fahrt und eigene Zahlen, FTP zieht von selbst nach, Pro
   await buehne.click('#ppWahl button[data-art=woche]'); await expect(buehne.locator('#ppL')).toHaveText('Woche');
   await buehne.keyboard.press('Escape'); await buehne.click('#dkWoche'); await expect(buehne.locator('#ppL')).toHaveText('Woche'); await buehne.keyboard.press('Escape');
   /* Meilensteine: die Bestwerte in einer Zeile */
-  await expect(buehne.locator('#dMeilenT')).toContainText('Längste Fahrt 10 km'); await buehne.click('#dMeilen');
+  await expect(buehne.locator('#dMeilenT .mt', { hasText: 'Längste Fahrt' }).locator('b')).toHaveText('10 km'); await buehne.click('#dMeilen');
   await expect(buehne.locator('#ppH span', { hasText: 'Schnellster Schnitt' }).locator('b')).toHaveText('28,8 km/h'); await buehne.keyboard.press('Escape');
-  /* der Stapel zeigt alle Runden zur Wahl */
-  await buehne.click('#stapel'); await expect(buehne.locator('#ppListe .card')).toHaveCount(1); await buehne.locator('#ppListe .card').first().click(); await expect(buehne.locator('body')).not.toHaveAttribute('data-pop');
+  /* ein Klick auf einen Wochenbalken öffnet diese Woche mit ihren Fahrten (der letzte Balken ist die laufende) */
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('buehne')).setSize(1440, 1100)); await warte(700);   // genug Höhe, damit die Kurven zu sehen sind
+  await buehne.locator('#dBalken').click({ position: { x: (await buehne.locator('#dBalken').boundingBox()).width * 15 / 16, y: 20 } });
+  await expect(buehne.locator('#ppL')).toHaveText('Woche'); await expect(buehne.locator('#ppListe .pr')).toHaveCount(1); await buehne.keyboard.press('Escape');
+  /* der Stapel führt in die Lobby zu allen Runden */
+  await buehne.click('#stapel'); await expect(buehne.locator('body')).toHaveAttribute('data-sicht', 'lobby'); await expect(buehne.locator('#cards .card')).toHaveCount(1);
+  await buehne.click('nav button[data-s=start]');
   await buehne.click('#hmStrava');
   await expect(buehne.locator('body')).toHaveAttribute('data-blatt', 'profil'); await expect(buehne.locator('#svB')).toBeVisible(); await expect(buehne.locator('#kForm')).toBeVisible();
   /* von Hand gesenkt bleibt gesenkt: die alte Fahrt hebt sie nicht wieder an */

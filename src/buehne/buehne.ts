@@ -8,7 +8,8 @@ import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
 import { segmente, versuche } from '../kern/segmente';
 import { bestwerte, form, formWort, ftpHinweis, ftpVerlauf, isoTag, meilensteine, serie, tagAus, tagNr, wocheIst, zeitraeume, type FtpPunkt, type ZeitArt } from '../kern/form';
-import { ART, erzeugteRunde, fortschritt, gewohnt, passende, stundenVon, tagesplan, teilrunde, wochen, wochenplan, type Saison, type Tagesplan } from '../kern/saison';
+import { ART, erzeugteRunde, fortschritt, gewohnt, passende, planTage, schaetzeFtp, stundenFuer, stundenVon, tagesplan, teilrunde, wochen, wochenplan, type Plantag, type Saison, type Tagesplan } from '../kern/saison';
+import { tempoBei } from '../kern/physik';
 import { Welt, type Akt } from './welt/welt';
 import type { KontoStand, Gemerkt, StravaStand } from '../bruecke';
 
@@ -133,7 +134,8 @@ function fuelleStart() {
   $('hmFtp').textContent = fmt(ftp); $('hmWkg').textContent = fmt(ftp / koerper, 1);
   const n = serie(alleFahrten, heute);
   $('dJahrL').textContent = J.name; $('dJahr').textContent = fmt(J.km); $('dJahrT').textContent = `${J.n} ${J.n === 1 ? 'Fahrt' : 'Fahrten'}${n >= 2 ? ` · Serie ${n}` : ''}`; $('dJahrT').classList.toggle('gut', n >= 2);
-  const B = bestwerte(alleFahrten); $('dMeilen').hidden = !B.length; $('dMeilenT').textContent = B.slice(0, 3).map(x => `${x.name} ${bestText(x)}`).join(' · ');
+  const B = bestwerte(alleFahrten), mb = $('dMeilenT'); $('dMeilen').hidden = !B.length; mb.innerHTML = '';
+  for (const x of B) { const e = document.createElement('div'); e.className = 'mt'; e.innerHTML = '<small></small><b></b><span></span>'; e.children[0].textContent = x.name; e.children[1].textContent = bestText(x); e.children[2].textContent = datum(x.start); if (heute - tagNr(x.start) <= 7) e.children[1].className = 'gut'; mb.appendChild(e); }
   zeigeSaison();
   if (popWas) fuellePop();
 }
@@ -149,13 +151,11 @@ function balken(cv: HTMLCanvasElement, v: number[], sel = v.length - 1, namen: s
     if (namen) { g.textBaseline = 'top'; g.fillStyle = an ? '#F6F0E6' : '#CFC6D2'; g.fillText(namen[i], px + w / 2, H - fuss + 8); }
   });
 }
-/* Unten stehen höchstens vier Runden: ein Fenster um die gewählte, die Pfeiltasten gehen durch alle */
-let kAb = 0;
 function baueKarten() {
   const n = runden.length, box = $('cards'); box.innerHTML = '';
-  kAb = Math.max(0, Math.min(n - 4, pick < kAb ? pick : pick > kAb + 3 ? pick - 3 : kAb));
-  runden.slice(kAb, kAb + 4).forEach((r, k) => { const i = kAb + k; box.appendChild(karte(r, i === pick, () => waehle(i), true)); });
-  /* Startseite: nur die gewählte Runde, als Stapel; ein Klick zeigt alle */
+  runden.forEach((r, i) => box.appendChild(karte(r, i === pick, () => waehle(i), true)));
+  (box.children[pick] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  /* Startseite: nur die gewählte Runde, als Stapel; ein Klick führt in die Lobby zu allen Runden */
   const r = runden[pick], st = $('stapel'); st.hidden = !r; st.classList.toggle('einzeln', n < 2); $('stapelN').textContent = n > 1 ? `${n} Runden` : '';
   if (r) { st.children[0].textContent = r.st.name; st.children[1].textContent = `${fmt(r.rt.dist / 1000, 1)} km · ${fmt(r.st.gain)} Hm · ${r.min} min`; profil(st.children[2] as HTMLCanvasElement, r.rt, null, null); }
 }
@@ -523,11 +523,21 @@ function zeigeFahrten() {
 /* ---------- Saison und Fortschritt ---------- */
 const tagLang = (iso: string) => new Date(iso + 'T12:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
 let saEdit = false;
+function tageStreifen(box: HTMLElement, P: Plantag[], heute: number) {
+  const WT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], hi = Math.max(30, ...P.map(d => d.minuten)); box.innerHTML = '';
+  P.forEach((d, i) => {
+    const e = document.createElement('div'); e.className = 'tg' + (d.heute ? ' heute' : '') + (d.gefahren ? ' fertig' : d.minuten ? '' : ' frei'); e.innerHTML = '<span></span><div class="tb"><i></i></div><b></b><small></small>';
+    e.children[0].textContent = WT[i % 7]; (e.children[1].firstChild as HTMLElement).style.height = (d.minuten ? Math.max(12, d.minuten / hi * 100) : 4).toFixed(0) + '%';
+    e.children[2].textContent = d.gefahren ? (d.km >= 1 ? `${fmt(d.km)} km` : `${d.minuten} min`) : d.minuten ? `${d.minuten} min` : '–';
+    e.children[3].textContent = d.gefahren ? `${hMin(d.minuten)} h` : d.minuten ? (d.art === 'test' ? 'FTP-Test' : `${ART[d.art].name} · ${d.watt} W`) : d.tag < heute ? '' : 'frei';
+    box.appendChild(e);
+  });
+}
 const hMin = (min: number) => `${Math.floor(min / 60)}:${String(Math.floor(min % 60)).padStart(2, '0')}`;
 function zeigeSaison() {
   const heute = heuteTag(), s = saison, p = plan;
   if (!s) saEdit = false;
-  $('saNeu').hidden = !!s && !saEdit; $('saLauf').hidden = !s || saEdit;
+  $('saNeu').hidden = !!s && !saEdit; $('saLauf').hidden = !s || saEdit; $('dash').classList.toggle('edit', !s || saEdit);
   $('saEnde').hidden = $('saAb').hidden = !s; $('saOk').textContent = s ? 'Speichern' : 'Saison starten'; $('saNeuT').textContent = s ? 'Ziel ändern' : 'Dein Ziel';
   if (s && p && !saEdit) {
     const eh = s.art === 'ftp' ? 'W' : 'km', rest = tagAus(s.bis) - heute, fo = fortschritt(s, alleFahrten, ftp);
@@ -539,22 +549,23 @@ function zeigeSaison() {
     $('saWocheB').style.width = (clamp(p.ist / Math.max(p.soll, 1), 0, 1) * 100).toFixed(1) + '%';
     $('saHeute').textContent = p.art === 'frei' ? (p.erledigt ? 'Geschafft' : 'Frei') : p.art === 'test' ? 'FTP-Test · 25 min' : `${ART[p.art].name} · ${p.minuten} min · ${p.watt} W`; $('saHeuteB').classList.toggle('fertig', p.erledigt);
     /* die Woche zum Abarbeiten: je Tag eine Säule */
-    const P = wochenplan(s, alleFahrten, heute, ftp, true), WT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], box = $('saTage'), hi = Math.max(30, ...P.map(d => d.minuten)); box.innerHTML = '';
-    let ist = 0, offen = 0;
-    P.forEach((d, i) => {
-      if (d.gefahren) ist += d.minuten; else offen += d.minuten;
-      const e = document.createElement('div'); e.className = 'tg' + (d.heute ? ' heute' : '') + (d.gefahren ? ' fertig' : d.minuten ? '' : ' frei'); e.innerHTML = '<span></span><div class="tb"><i></i></div><b></b><small></small>';
-      e.children[0].textContent = WT[i]; (e.children[1].firstChild as HTMLElement).style.height = (d.minuten ? Math.max(12, d.minuten / hi * 100) : 4).toFixed(0) + '%';
-      e.children[2].textContent = d.gefahren ? (d.km >= 1 ? `${fmt(d.km)} km` : `${d.minuten} min`) : d.minuten ? `${d.minuten} min` : '–';
-      e.children[3].textContent = d.gefahren ? `${hMin(d.minuten)} h` : d.minuten ? (d.art === 'test' ? 'FTP-Test' : `${ART[d.art].name} · ${d.watt} W`) : d.tag < heute ? '' : 'frei';
-      box.appendChild(e);
-    });
+    const P = wochenplan(s, alleFahrten, heute, ftp, true); let ist = 0, offen = 0;
+    for (const d of P) if (d.gefahren) ist += d.minuten; else offen += d.minuten;
+    tageStreifen($('saTage'), P, heute);
     $('saStd').textContent = `${hMin(ist)} von ${hMin(ist + offen)} h`;
   } else if (!s && !$<HTMLInputElement>('saBis').value) saisonVorgabe();
+  if (!s || saEdit) saRegler();
+  passeAn();
+}
+/* Die Tafel scrollt nie: passt sie nicht in die Höhe, rückt erst alles zusammen, dann fällt der Reihe nach weg,
+   was am ehesten fehlen darf */
+function passeAn() {
+  const d = $('dash'), g = d.querySelector<HTMLElement>('.dg')!; d.classList.remove('knapp', 'eng1', 'eng2', 'eng3');
+  for (const k of ['knapp', 'eng1', 'eng2', 'eng3']) { if (g.scrollHeight <= g.clientHeight + 1) break; d.classList.add(k); }
 }
 /* Die Wochen der Saison als Balken: Höhe = Pensum in Stunden. Vergangene Wochen sind so weit gefüllt, wie sie
    geschafft wurden (grün ab vier Fünfteln), die laufende ist hell umrandet, darüber ihr Pensum. */
-function weg(cv: HTMLCanvasElement, s: Saison, heute: number) {
+function weg(cv: HTMLCanvasElement, s: Saison, heute: number, sel = -1) {
   const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, Wo = wochen(s), n = Wo.length;
   g.clearRect(0, 0, Wd, H);
   const hi = Math.max(...Wo.map(w => w.soll)), bw = (Wd - 8) / n, lu = Math.min(14, bw * .18), unten = H - 34, hoch = unten - 44;
@@ -567,8 +578,10 @@ function weg(cv: HTMLCanvasElement, s: Saison, heute: number) {
       const a = clamp(wocheIst(alleFahrten, w.mo).punkte / Math.max(w.soll, 1), 0, 1);
       if (a > 0) { g.save(); g.beginPath(); g.roundRect(x, y, b, h, r); g.clip(); g.fillStyle = a >= .8 ? '#8FD9B0' : '#F3B56B'; g.fillRect(x, unten - h * a, b, h * a); g.restore(); }
     }
-    if (i === jetzt) { g.strokeStyle = '#F6F0E6'; g.lineWidth = 3; g.beginPath(); g.roundRect(x, y, b, h, r); g.stroke(); g.fillStyle = '#F6F0E6'; g.textBaseline = 'bottom'; g.fillText(`${hMin(stundenVon(w.soll) * 60)} h`, clamp(x + b / 2, 44, Wd - 44), y - 8); g.textBaseline = 'top'; }
-    if (n <= 30 || i % 4 === 0 || i === n - 1) { g.fillStyle = i === jetzt ? '#F6F0E6' : w.art === 'ruhe' ? 'rgba(207,198,210,.55)' : '#CFC6D2'; g.fillText(String(w.nr), x + b / 2, unten + 8); }
+    if (i === jetzt) { g.strokeStyle = '#F6F0E6'; g.lineWidth = 3; g.beginPath(); g.roundRect(x, y, b, h, r); g.stroke(); }
+    if (i === sel && sel !== jetzt) { g.strokeStyle = '#F3B56B'; g.lineWidth = 4; g.beginPath(); g.roundRect(x, y, b, h, r); g.stroke(); }
+    if (i === (sel < 0 ? jetzt : sel)) { g.fillStyle = '#F6F0E6'; g.textBaseline = 'bottom'; g.fillText(`${hMin(stundenVon(w.soll) * 60)} h`, clamp(x + b / 2, 44, Wd - 44), y - 8); g.textBaseline = 'top'; }
+    if (n <= 30 || i % 4 === 0 || i === n - 1) { g.fillStyle = i === jetzt || i === sel ? '#F6F0E6' : w.art === 'ruhe' ? 'rgba(207,198,210,.55)' : '#CFC6D2'; g.fillText(String(w.nr), x + b / 2, unten + 8); }
   });
 }
 function kurve(cv: HTMLCanvasElement, v: number[], farbe = '#F3B56B') {
@@ -583,13 +596,30 @@ function saisonVorgabe() {
   $<HTMLInputElement>('saZiel').value = String(saArt === 'ftp' ? Math.round(ftp * 1.08 / 5) * 5 : 100);
   $('saZielL').textContent = saArt === 'ftp' ? 'FTP' : 'Strecke'; $('saEinh').textContent = saArt === 'ftp' ? 'W' : 'km';
   $<HTMLInputElement>('saBis').value = isoTag(heuteTag() + 84); $<HTMLInputElement>('saBis').min = isoTag(heuteTag() + 7);
+  /* Regler: so viel, wie zuletzt gewohnt (Fahrtage und Dauer der letzten sechs Wochen) */
+  const heute = heuteTag(), F = alleFahrten.filter(f => { const t = tagNr(f.start); return t > heute - 42 && t <= heute; });
+  $<HTMLInputElement>('saTageR').value = String(clamp(Math.round(new Set(F.map(f => tagNr(f.start))).size / 6) || 3, 1, 7));
+  $<HTMLInputElement>('saMinR').value = String(clamp(F.length ? Math.round(F.reduce((a, f) => a + f.zeit, 0) / F.length / 300) * 5 : 45, 10, 180));
+  saRegler();
 }
+/* Schätzung zu den Reglern: wohin die FTP mit dieser Zeit etwa kommt, und was das Ziel an Zeit bräuchte */
+function saRegler() {
+  const t = +$<HTMLInputElement>('saTageR').value, m = +$<HTMLInputElement>('saMinR').value, bis = $<HTMLInputElement>('saBis').value, heute = heuteTag(), est = $('saEst');
+  $('saTageT').textContent = `${t}×`; $('saMinT').textContent = `${m} min`;
+  if (saArt !== 'ftp') { est.textContent = `${hMin(t * m)} h je Woche`; est.classList.remove('gut'); return; }
+  const wo = bis ? Math.max(1, (tagAus(bis) - heute) / 7) : 12, fit = form(alleFahrten, heute).fitness, ziel = +$<HTMLInputElement>('saZiel').value || ftp;
+  const e = schaetzeFtp(ftp, fit, t, m, wo), h = stundenFuer(ftp, fit, ziel, wo);
+  est.textContent = `${hMin(t * m)} h je Woche: etwa ${fmt(e)} W · für ${fmt(ziel)} W ${h == null ? 'reicht die Zeit bis dahin nicht' : h === 0 ? 'reicht das' : `etwa ${hMin(h * 60)} h je Woche`}`;
+  est.classList.toggle('gut', e >= ziel);
+}
+for (const id of ['saTageR', 'saMinR', 'saZiel', 'saBis']) $(id).addEventListener('input', saRegler);
 document.querySelectorAll<HTMLElement>('#saArt button').forEach(b => { b.onclick = () => { saArt = b.dataset.art as 'ftp' | 'tour'; document.querySelectorAll('#saArt button').forEach(x => x.classList.toggle('on', x === b)); saisonVorgabe(); }; });
 $('saNeu').addEventListener('submit', async e => {
   e.preventDefault(); const ziel = +$<HTMLInputElement>('saZiel').value, bis = $<HTMLInputElement>('saBis').value, heute = heuteTag();
   if (!(ziel > 0) || !bis || tagAus(bis) <= heute) return;
   /* ein neues Ziel beginnt heute; ein geändertes behält seinen Anfang */
-  saison = await W.saisonSetzen(saison ? { ...saison, art: saArt, ziel, bis } : { art: saArt, ziel, bis, von: isoTag(heute), ftp0: ftp, last0: Math.round(gewohnt(alleFahrten, heute)) });
+  const tage = +$<HTMLInputElement>('saTageR').value, minuten = +$<HTMLInputElement>('saMinR').value;
+  saison = await W.saisonSetzen(saison ? { ...saison, art: saArt, ziel, bis, tage, minuten } : { art: saArt, ziel, bis, von: isoTag(heute), ftp0: ftp, last0: Math.round(gewohnt(alleFahrten, heute)), tage, minuten });
   saEdit = false; neuLaden();
 });
 $('saAend').onclick = () => {
@@ -597,6 +627,8 @@ $('saAend').onclick = () => {
   saEdit = true; saArt = s.art; document.querySelectorAll<HTMLElement>('#saArt button').forEach(x => x.classList.toggle('on', x.dataset.art === s.art));
   $('saZielL').textContent = s.art === 'ftp' ? 'FTP' : 'Strecke'; $('saEinh').textContent = s.art === 'ftp' ? 'W' : 'km';
   $<HTMLInputElement>('saZiel').value = String(s.ziel); $<HTMLInputElement>('saBis').value = s.bis; $<HTMLInputElement>('saBis').min = isoTag(heuteTag() + 1);
+  if (s.tage && s.minuten) { $<HTMLInputElement>('saTageR').value = String(s.tage); $<HTMLInputElement>('saMinR').value = String(s.minuten); }
+  else { const b = s.bis; saisonVorgabe(); $<HTMLInputElement>('saZiel').value = String(s.ziel); $<HTMLInputElement>('saBis').value = b; }
   zeigeSaison();
 };
 $('saAb').onclick = () => { saEdit = false; zeigeSaison(); };
@@ -608,8 +640,8 @@ $('saEnde').onclick = async () => {
 };
 
 /* ---------- Fenster zum Reinklicken: FTP, Kilometer, Meilensteine, Runden, Wochen der Saison ---------- */
-type Pop = 'ftp' | 'km' | 'meilen' | 'runden' | 'wochen';
-let popWas: Pop | null = null, kmArt: ZeitArt = 'jahr', kmSel = -1;
+type Pop = 'ftp' | 'km' | 'meilen' | 'wochen' | 'ziel';
+let popWas: Pop | null = null, kmArt: ZeitArt = 'jahr', kmSel = -1, woSel = -1;
 function pop(was: Pop | null, art?: ZeitArt) {
   if (akt !== 'lobby') was = null;
   popWas = was; if (!was) { delete document.body.dataset.pop; return; }
@@ -617,10 +649,12 @@ function pop(was: Pop | null, art?: ZeitArt) {
   blatt(null); document.body.dataset.pop = was; fuellePop();
 }
 /* FTP über die Zeit als Treppe, an jeder Stufe der Wert */
-function stufen(cv: HTMLCanvasElement, V: FtpPunkt[]) {
-  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, t0 = Date.parse(V[0].start), t1 = Math.max(Date.now(), t0 + 864e5), lo = Math.min(...V.map(p => p.ftp)) - 12, hi = Math.max(...V.map(p => p.ftp)) + 12;
+function stufen(cv: HTMLCanvasElement, V: FtpPunkt[], ziel = 0) {
+  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, t0 = Date.parse(V[0].start), t1 = Math.max(Date.now(), t0 + 864e5), lo = Math.min(...V.map(p => p.ftp)) - 12, hi = Math.max(ziel, ...V.map(p => p.ftp)) + 12;
   const X = (t: number) => 30 + (Wd - 90) * (t - t0) / (t1 - t0), Y = (w: number) => H - 30 - (H - 90) * (w - lo) / (hi - lo);
-  g.clearRect(0, 0, Wd, H); g.beginPath(); g.moveTo(X(t0), Y(V[0].ftp));
+  g.clearRect(0, 0, Wd, H);
+  if (ziel) { g.setLineDash([12, 10]); g.strokeStyle = '#8FD9B0'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, Y(ziel)); g.lineTo(Wd, Y(ziel)); g.stroke(); g.setLineDash([]); g.font = '600 24px Manrope, sans-serif'; g.fillStyle = '#8FD9B0'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(`Ziel ${fmt(ziel)} W`, 8, Y(ziel) + 8); }
+  g.beginPath(); g.moveTo(X(t0), Y(V[0].ftp));
   V.forEach((p, i) => { const x = X(Date.parse(p.start)); if (i) { g.lineTo(x, Y(V[i - 1].ftp)); g.lineTo(x, Y(p.ftp)); } });
   g.lineTo(X(t1), Y(V[V.length - 1].ftp)); g.strokeStyle = '#F3B56B'; g.lineWidth = 5; g.lineJoin = g.lineCap = 'round'; g.stroke();
   g.font = '600 24px Manrope, sans-serif'; g.textBaseline = 'bottom'; let xVor = -1e9;
@@ -633,11 +667,12 @@ function stufen(cv: HTMLCanvasElement, V: FtpPunkt[]) {
 function fuellePop() {
   const was = popWas; if (!was) return;
   const heute = heuteTag(), H = $('ppH'), cv = $<HTMLCanvasElement>('ppBild'), li = $('ppListe');
-  H.innerHTML = ''; li.innerHTML = ''; li.className = 'rolle'; $('ppWahl').hidden = was !== 'km'; cv.hidden = was === 'meilen' || was === 'runden'; cv.onclick = null; cv.classList.toggle('klick', was === 'km');
+  H.innerHTML = ''; li.innerHTML = ''; li.className = 'rolle'; $('ppWahl').hidden = was !== 'km'; cv.hidden = was === 'meilen'; cv.onclick = null; cv.classList.toggle('klick', was === 'km' || was === 'wochen'); $('ppTage').hidden = was !== 'wochen';
+  const oeffne = (id: string) => () => { pop(null); setzeSicht('fahrten'); oeffneFahrt(id); };
   const kopf = (l: string, t: string) => { $('ppL').textContent = l; $('ppT').textContent = t; };
   const gross = (zz: [string, string][]) => { for (const [w, l] of zz) { const e = document.createElement('span'), bb = document.createElement('b'); bb.textContent = w; e.append(bb, l); H.appendChild(e); } };
-  const zeile = (t: string[], klick?: () => void, gut = false) => {
-    const e = document.createElement('div'); e.className = 'pr' + (klick ? ' klick' : ''); if (klick) e.onclick = klick;
+  const zeile = (t: string[], klick?: () => void, gut = false, cls = '') => {
+    const e = document.createElement('div'); e.className = 'pr' + (klick ? ' klick' : '') + cls; if (klick) e.onclick = klick;
     t.forEach((x, i) => { const c = document.createElement(i === 1 ? 'b' : 'span'); c.textContent = x; if (gut && i === t.length - 1) c.className = 'gut'; e.appendChild(c); }); li.appendChild(e);
   };
   if (was === 'ftp') {
@@ -656,29 +691,57 @@ function fuellePop() {
     balken(cv, Z.map(x => x.km), kmSel, Z.map(x => x.kurz));
     cv.onclick = e => { const i = Math.floor((e.offsetX / cv.clientWidth * cv.width - 8) / ((cv.width - 16) / Z.length)); if (i >= 0 && i < Z.length) { kmSel = i; fuellePop(); } };
     const F = alleFahrten.filter(f => { const t = tagNr(f.start); return t >= z.von && t <= z.bis; }).reverse();
-    for (const f of F) zeile([datum(f.start), f.name, f.km ? `${fmt(f.km, 1)} km` : '', zeit(f.zeit), f.avgW ? `${fmt(f.avgW)} W` : ''], () => { pop(null); setzeSicht('fahrten'); oeffneFahrt(f.id); });
+    for (const f of F) zeile([datum(f.start), f.name, f.km ? `${fmt(f.km, 1)} km` : '', zeit(f.zeit), f.avgW ? `${fmt(f.avgW)} W` : ''], oeffne(f.id));
     if (!F.length) { const e = document.createElement('p'); e.className = 'leer'; e.textContent = 'Keine Fahrt'; li.appendChild(e); }
   } else if (was === 'meilen') {
     kopf('Meilensteine', 'Bestwerte');
     gross(bestwerte(alleFahrten).map(x => [bestText(x), `${x.name} · ${datum(x.start)}`] as [string, string]));
     for (const m of meilensteine(alleFahrten, 40)) { const [l, w] = m.text.includes(': ') ? m.text.split(': ') : ['Fahrten', m.text]; zeile([datum(m.start), l, w], undefined, heute - tagNr(m.start) <= 7); }
-  } else if (was === 'runden') {
-    kopf('Runden', runden[pick] ? runden[pick].st.name : '');
-    li.className = 'rolle rgrid';
-    runden.map((r, i) => ({ r, i })).sort((a, b) => (b.r.zuletzt || '').localeCompare(a.r.zuletzt || '')).forEach(({ r, i }) => li.appendChild(karte(r, i === pick, () => { pop(null); waehle(i); }, true)));
   } else if (was === 'wochen' && saison && plan) {
-    const s = saison, Wo = wochen(s);
-    kopf('Saison', `Woche ${plan.woche.nr} von ${plan.wochen}`);
-    gross([[hMin(stundenVon(plan.soll) * 60), 'Stunden diese Woche'], [`${plan.fahrtenIst} von ${plan.fahrtenSoll}`, 'Fahrten'], [`${Math.round(clamp(plan.ist / Math.max(plan.soll, 1), 0, 1) * 100)} %`, 'geschafft']]);
-    weg(cv, s, heute);
-    for (const w of Wo) { const a = w.mo <= heute ? Math.round(clamp(wocheIst(alleFahrten, w.mo).punkte / Math.max(w.soll, 1), 0, 1) * 100) : null; zeile([`Woche ${w.nr}`, `ab ${datum(isoTag(w.mo) + 'T12:00')}`, w.art === 'ruhe' ? 'ruhig' : w.art === 'ziel' ? 'Ziel' : '', `${hMin(stundenVon(w.soll) * 60)} h`, a == null ? '' : `${a} %`], undefined, a != null && a >= 80); }
+    /* alle Wochen der Saison zum Erkunden: ein Klick auf einen Balken oder eine Zeile zeigt die Woche Tag für Tag.
+       Kommende Wochen sind eine Vorschau (als würde jede geplante Fahrt gefahren); km aus Zeit und Leistung im Flachen,
+       Höhenmeter nach dem, was die Fahrten der letzten zwölf Wochen je Kilometer hatten. */
+    const s = saison, Wo = wochen(s), n = Wo.length, jetzt = clamp(Math.floor((heute - Wo[0].mo) / 7), 0, n - 1); if (woSel < 0 || woSel >= n) woSel = jetzt;
+    const V = planTage(s, alleFahrten, heute, ftp, Wo[0].mo, Wo[n - 1].mo + 6, true);
+    let kmS = 0, hmS = 0; for (const f of alleFahrten) if (tagNr(f.start) > heute - 84 && f.km > 0) { kmS += f.km; hmS += f.hm || 0; }
+    const hmJeKm = kmS > 20 ? hmS / kmS : 8, hmAm = (t: number) => alleFahrten.reduce((a, f) => a + (tagNr(f.start) === t ? f.hm || 0 : 0), 0);
+    const summe = (i: number) => { const T = V.slice(i * 7, i * 7 + 7); let min = 0, km = 0, hm = 0, fahrten = 0; for (const d of T) { if (!d.minuten) continue; fahrten++; min += d.minuten; const k = d.gefahren ? d.km : tempoBei(d.watt, 0, gewicht) * d.minuten * 60 / 1000; km += k; hm += d.gefahren ? hmAm(d.tag) : k * hmJeKm; } return { T, min, km, hm, fahrten }; };
+    const anteil = (w: typeof Wo[0]) => w.mo <= heute ? Math.round(clamp(wocheIst(alleFahrten, w.mo).punkte / Math.max(w.soll, 1), 0, 1) * 100) : null;
+    const w = Wo[woSel], S = summe(woSel), a = anteil(w);
+    kopf('Saison', `Woche ${w.nr} von ${n}${w.art === 'ruhe' ? ' · ruhig' : w.art === 'ziel' ? ' · Zielwoche' : ''}`);
+    gross([[hMin(S.min), 'Stunden'], [String(S.fahrten), S.fahrten === 1 ? 'Fahrt' : 'Fahrten'], [fmt(S.km), 'km'], [fmt(S.hm), 'Höhenmeter'], ...(a == null ? [] : [[`${a} %`, 'geschafft'] as [string, string]])]);
+    weg(cv, s, heute, woSel);
+    cv.onclick = e => { const i = Math.floor((e.offsetX / cv.clientWidth * cv.width - 4) / ((cv.width - 8) / n)); if (i >= 0 && i < n) { woSel = i; fuellePop(); } };
+    tageStreifen($('ppTage'), S.T, heute);
+    const oben = li.scrollTop;
+    Wo.forEach((x, i) => { const Z = summe(i), p = anteil(x); zeile([`Woche ${x.nr}`, `ab ${datum(isoTag(x.mo) + 'T12:00')}${x.art === 'ruhe' ? ' · ruhig' : x.art === 'ziel' ? ' · Ziel' : ''}`, `${Z.fahrten} ${Z.fahrten === 1 ? 'Fahrt' : 'Fahrten'}`, `${hMin(Z.min)} h`, `${fmt(Z.km)} km`, `${fmt(Z.hm)} Hm`, p == null ? '' : `${p} %`], () => { woSel = i; fuellePop(); }, p != null && p >= 80, ' w7' + (i === woSel ? ' on' : '')); });
+    li.scrollTop = oben; li.querySelector('.pr.on')?.scrollIntoView({ block: 'nearest' });
+  } else if (was === 'ziel' && saison) {
+    /* das Ziel: wo die FTP steht, ihr Weg dorthin und die Fahrten, die sie tragen (beste 20 Minuten, davon 95 %) */
+    const s = saison, rest = tagAus(s.bis) - heute, fo = fortschritt(s, alleFahrten, ftp);
+    if (s.art === 'ftp') {
+      kopf('Ziel', `${fmt(s.ziel)} W bis ${tagLang(s.bis)}`);
+      const e = s.tage && s.minuten ? schaetzeFtp(ftp, form(alleFahrten, heute).fitness, s.tage, s.minuten, Math.max(1, rest / 7)) : 0;
+      gross([[`${fmt(ftp)} W`, 'jetzt'], [`${fmt(Math.max(0, s.ziel - ftp))} W`, 'fehlen'], [String(Math.max(0, rest)), rest === 1 ? 'Tag' : 'Tage'], ...(e ? [[`${fmt(e)} W`, 'mit deiner Zeit etwa'] as [string, string]] : [])]);
+      stufen(cv, ftpVerlauf(alleFahrten, ftp), s.ziel);
+      for (const f of alleFahrten.filter(x => x.b20).reverse().slice(0, 60)) { const w95 = Math.round(f.b20! * .95); zeile([datum(f.start), f.name, `${fmt(f.b20!)} W`, '20 min', `${fmt(w95)} W`], oeffne(f.id), w95 >= ftp); }
+    } else {
+      kopf('Ziel', `${fmt(s.ziel)} km bis ${tagLang(s.bis)}`);
+      gross([[`${fmt(fo.jetzt)} km`, 'längste Fahrt der Saison'], [`${fmt(Math.max(0, s.ziel - fo.jetzt))} km`, 'fehlen'], [String(Math.max(0, rest)), rest === 1 ? 'Tag' : 'Tage']]);
+      const F = alleFahrten.filter(f => tagNr(f.start) >= tagAus(s.von) && f.km > 0); balken(cv, F.slice(-16).map(f => f.km));
+      for (const f of F.slice().sort((x, y) => y.km - x.km).slice(0, 40)) zeile([datum(f.start), f.name, `${fmt(f.km, 1)} km`, zeit(f.zeit), f.avgW ? `${fmt(f.avgW)} W` : ''], oeffne(f.id), f.km >= s.ziel);
+    }
+    if (!li.children.length) { const e = document.createElement('p'); e.className = 'leer'; e.textContent = 'Noch keine Fahrt, die zählt'; li.appendChild(e); }
   }
 }
 $('ppZu').onclick = () => pop(null);
 $('pop').addEventListener('pointerdown', e => { if (e.target === $('pop')) pop(null); });
 document.querySelectorAll<HTMLElement>('#ppWahl button').forEach(x => { x.onclick = () => { kmArt = x.dataset.art as ZeitArt; kmSel = -1; fuellePop(); }; });
 $('dkFtp').onclick = () => pop('ftp'); $('dkWoche').onclick = () => pop('km', 'woche'); $('dkJahr').onclick = () => pop('km', 'jahr');
-$('dMeilen').onclick = () => pop('meilen'); $('stapel').onclick = () => pop('runden'); $('saWoZ').onclick = () => pop('wochen');
+$('dMeilen').onclick = () => pop('meilen'); $('saWoZ').onclick = () => { woSel = -1; pop('wochen'); }; $('saZielZ').onclick = () => pop('ziel');
+$('stapel').onclick = () => setzeSicht('lobby');
+/* ein Klick auf einen Wochenbalken öffnet genau diese Woche mit ihren Fahrten */
+$('dBalken').onclick = e => { const cv = $<HTMLCanvasElement>('dBalken'), i = Math.floor((e.offsetX / cv.clientWidth * cv.width - 8) / ((cv.width - 16) / 8)); if (i < 0 || i > 7) return; pop('km', 'woche'); kmSel = 4 + i; fuellePop(); };
 
 /* ---------- Bedienung ---------- */
 $('start').onclick = $('startH').onclick = start; $('end').onclick = () => W.befehl({ was: 'ende' }); $('home').onclick = () => W.befehl({ was: 'lobby' });
@@ -702,7 +765,7 @@ addEventListener('keydown', e => {
   else if (e.key === 'h' && akt === 'ride') W.befehl({ was: 'halten' });
   else if (e.key === 'Escape' && akt === 'count') W.befehl({ was: 'abbruch' });
 });
-function groesse() { const pc = $<HTMLCanvasElement>('prof'), pr = Math.min(devicePixelRatio || 1, 2); pc.width = Math.max(200, Math.round((innerWidth - 80) * pr)); pc.height = Math.round(44 * pr); welt.groesse(); }
+function groesse() { const pc = $<HTMLCanvasElement>('prof'), pr = Math.min(devicePixelRatio || 1, 2); pc.width = Math.max(200, Math.round((innerWidth - 80) * pr)); pc.height = Math.round(44 * pr); welt.groesse(); passeAn(); }
 addEventListener('resize', groesse);
 W.aufVollbild(v => document.body.classList.toggle('voll', v));
 W.geraete().then(g => { gemerkt = g; });

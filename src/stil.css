@@ -347,8 +347,20 @@ button.dk:hover{background:rgba(246,240,230,.09)}
 .dk em{display:block;font-style:normal;font-size:13px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis}
 .plus{display:inline-block;vertical-align:middle;margin-left:8px;text-decoration:none;font:700 12.5px "Manrope",sans-serif;letter-spacing:0;color:var(--ink);background:var(--ok);border-radius:999px;padding:3px 8px}
 .plus[hidden]{display:none}
-.dg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:12px;min-height:0}
-.dg .fdc canvas{height:clamp(64px,11vh,130px)}
+.dg{display:flex;flex-direction:column;gap:12px;margin-top:12px;min-height:0;flex:1;overflow:hidden}
+.dg>*{flex-shrink:0}
+/* passt die Tafel nicht in die Höhe, fällt der Reihe nach weg: die Kurven, die Säulen der Woche, die Meilensteine */
+#dash.knapp .dg .fdc canvas{height:64px}
+#dash.knapp .tb{height:20px}
+#dash.knapp .mz{flex-basis:62px;max-height:120px}
+#dash.knapp .mt span{display:none}
+#dash.knapp .hb{margin-top:8px;padding:8px 14px}
+#dash.knapp .dg .fdc{padding-top:10px;padding-bottom:10px}
+#dash.knapp .dp .sz,#dash.knapp .sz{min-height:34px}
+#dash.eng1 .dgr,#dash.eng2 .tb,#dash.eng3 .mz{display:none}
+.dgr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.dg canvas.klick{cursor:pointer}
+.dg .fdc canvas{height:clamp(56px,9vh,130px)}
 .sz.vier{grid-template-columns:76px auto minmax(0,1fr) 150px;width:100%;text-align:left}
 .sz em{font-style:normal;font-size:13px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis}
 button.sz{padding:0;font:inherit;color:inherit;border-radius:0}
@@ -371,7 +383,7 @@ button.sz:hover{background:rgba(246,240,230,.05)}
 .tage{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:10px}
 .tg{padding:8px 8px 7px;border-radius:12px;background:rgba(246,240,230,.05);border:1px solid transparent;min-width:0;white-space:nowrap;text-align:center}
 .tg span{display:block;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg2)}
-.tb{display:flex;align-items:flex-end;justify-content:center;height:clamp(26px,6vh,72px);margin:6px 0 5px}
+.tb{display:flex;align-items:flex-end;justify-content:center;height:clamp(22px,4.5vh,72px);margin:6px 0 5px}
 .tb i{display:block;width:46%;min-height:3px;border-radius:5px 5px 2px 2px;background:rgba(246,240,230,.3)}
 .tg b{display:block;font:600 15px "Sora",sans-serif;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis}
 .tg small{display:block;font-size:11.5px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;min-height:15px}
@@ -382,14 +394,26 @@ button.sz:hover{background:rgba(246,240,230,.05)}
 .tg.fertig b,.tg.fertig span{color:var(--ok)}
 .tg.frei b{color:var(--fg2);font-weight:500}
 .tg.frei .tb i{background:rgba(246,240,230,.12);width:20%}
-.mz{display:flex;align-items:center;gap:14px;text-align:left;padding:11px 16px;white-space:nowrap;transition:background .2s}
+/* Meilensteine: die Bestwerte als Marken, sie füllen, was unten an Platz bleibt */
+.mz{display:flex;flex-direction:column;flex:1 0 96px;max-height:200px;text-align:left;transition:background .2s}
+.mz[hidden]{display:none}
 .mz:hover{background:rgba(28,20,40,.7)}
-.mz em{flex:1;min-width:0;font-style:normal;font-size:13.5px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis}
-.mz>i{font-style:normal;font-size:20px;color:var(--b);line-height:1}
+.msr{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:8px;flex:1;min-height:0}
+.mt{display:flex;flex-direction:column;justify-content:center;padding:6px 12px;border-radius:12px;background:rgba(243,181,107,.09);border-left:3px solid var(--a);min-width:0;white-space:nowrap;overflow:hidden}
+.mt small{font-size:11.5px;color:var(--b);overflow:hidden;text-overflow:ellipsis}
+.mt b{font:600 clamp(17px,1.7vw,26px) "Sora",sans-serif;letter-spacing:-.02em;color:var(--fg)}
+.mt span{font-size:11.5px;color:var(--fg2)}
+/* Regler: wie viel Zeit das Ziel bekommen soll, darunter die Schätzung */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:18px;width:100%}
+.rg label{font-size:12.5px;color:var(--fg2);min-width:0}
+.rg span{display:flex;justify-content:space-between;align-items:baseline;white-space:nowrap}
+.rg b{font:600 18px "Sora",sans-serif;letter-spacing:-.02em;color:var(--fg)}
+.rg input{width:100%;margin:6px 0 0;accent-color:var(--a)}
+.est{margin:0;font-size:13.5px;color:var(--b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#saNeu{gap:10px;margin-bottom:0}
 @media (max-width:1100px){.hm .stats{gap:16px}.hm .stats b{font-size:22px}.hg{gap:22px}.dp{padding:16px 16px 14px}.tg{padding:7px 3px 6px}.tg b{font-size:13px}.tg small{display:none}.sz.vier{grid-template-columns:60px auto minmax(0,1fr) 60px}}
-@media (max-height:860px){.dgc{display:none}}
-@media (max-height:720px){.tb{display:none}.hm h1{font-size:34px}.hb{margin-top:8px;padding:8px 14px}.dp .sz{min-height:34px}}
-@media (max-height:640px){.mz{display:none}.dk b{font-size:26px}.stapel canvas{display:none}.hm .go{margin-top:14px}.hm .opt{margin-top:12px}}
+@media (max-height:720px){.hm h1{font-size:34px}.hb{margin-top:8px;padding:8px 14px}.dp .sz{min-height:34px}}
+@media (max-height:640px){.dk b{font-size:26px}.stapel canvas{display:none}.hm .go{margin-top:14px}.hm .opt{margin-top:12px}}
 /* Fenster zum Reinklicken: FTP, Kilometer, Meilensteine, Runden, Wochen der Saison */
 #pop{display:grid;place-items:center;background:rgba(7,6,13,.5);opacity:0;transition:opacity .25s}
 #pop>*{pointer-events:none}
@@ -410,6 +434,16 @@ body[data-pop] .pp{transform:none}
 .pr span:first-child{text-align:left}
 .pr.klick{cursor:pointer}
 .pr.klick:hover{background:rgba(246,240,230,.06)}
+/* Lobby: alle Runden als schmale Karten in einer Reihe, bei vielen zum Durchschieben */
+#lobby .dock{overflow-x:auto;scrollbar-width:none;padding-top:12px;margin-top:-12px}
+#lobby .dock::-webkit-scrollbar{display:none}
+#cards .card{flex:0 0 clamp(150px,13vw,196px);display:block}
+.pr.w7{grid-template-columns:84px minmax(0,1fr) 84px 70px 70px 76px 56px;cursor:pointer}
+.pr.w7:hover,.pr.on{background:rgba(246,240,230,.07)}
+.pr.on b{color:var(--a)}
+.pp .tage{margin-top:12px}
+.pp .tage[hidden]{display:none}
+.pp .tb{height:44px}
 .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;align-content:start}
 .rgrid .card{max-width:none}
 .rgrid .card:hover,.rgrid .card.on{transform:none}
@@ -437,3 +471,5 @@ body[data-fahrt] .fh>:nth-child(n+4){display:none}
 .bw .weg{height:6px}
 .bw b{font:600 16px "Sora",sans-serif;letter-spacing:-.02em;color:var(--fg);min-width:54px;text-align:right}
 .bw.gut .weg i{background:var(--ok)}
+/* Ebenen, die gerade nicht zu sehen sind, fangen keine Klicks ab (der Countdown-Ring liegt mitten im Bild) */
+body:not([data-stage=count]) #count,body:not([data-stage=count]) #count *,body:not(.paused) #pause,body:not(.paused) #pause *,#big,#big *{pointer-events:none}

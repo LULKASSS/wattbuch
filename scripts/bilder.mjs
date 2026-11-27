@@ -23,7 +23,9 @@ let page; for (let i = 0; i < 50 && !page; i++) { page = app.windows().find(w =>
 page.on('console', m => { if (m.type() === 'error') console.log('Konsole:', m.text()); }); page.on('pageerror', e => console.log('Fehler:', e.message));
 const bild = n => page.screenshot({ path: path.join(ziel, n + '.png') });
 await page.waitForFunction(() => window.__wb && window.__wb.z && window.__wb.z.geraete.rolle === 'an', null, { timeout: 20000 });
-await warte(5000); await bild('0-start'); await page.click('nav button[data-s=lobby]'); await warte(1200); await bild('1-lobby');
+await warte(5000); await bild('0-start');
+if (process.env.SAISON) { await page.click('#saWoZ'); await warte(700); await page.locator('#ppListe .pr').nth(5).click(); await warte(500); await bild('0b-wochen'); await page.keyboard.press('Escape'); await warte(400); await page.click('#saAend'); await warte(600); await bild('0c-regler'); await page.click('#saAb'); await warte(300); }
+await page.click('nav button[data-s=lobby]'); await warte(1200); await bild('1-lobby');
 /* RIVALE=1: die Runde nehmen, auf der schon ein Versuch liegt (falls sie nicht ohnehin gewählt ist) */
 if (process.env.RIVALE) { const k = page.locator('#cards .card', { hasText: 'Rivale wartet' }); if (await k.count()) { await k.first().click(); await warte(3500); } await bild('1c-lobby-rivale'); }
 if (process.env.SAISON) { await page.click('nav button[data-s=fahrten]'); await warte(1200); await bild('1f-fahrten'); await page.locator('.fh').first().click(); await warte(3500); await bild('1g-fahrt'); await page.keyboard.press('Escape'); await warte(900); await page.click('nav button[data-s=lobby]'); await warte(800); }

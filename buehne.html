@@ -52,24 +52,28 @@
       <button class="dk" id="dkJahr" type="button"><span id="dJahrL"></span><b class="dsp"><i id="dJahr"></i><small>km</small></b><em id="dJahrT"></em></button>
     </div>
     <div class="dg">
-      <section class="fdc dgc"><div class="lbl">Fitness, zwölf Wochen</div><canvas id="saKurve" width="900" height="220"></canvas></section>
-      <section class="fdc dgc"><div class="lbl">Kilometer je Woche</div><canvas id="dBalken" width="900" height="220"></canvas></section>
+      <div class="dgr dgc">
+        <section class="fdc"><div class="lbl">Fitness, zwölf Wochen</div><canvas id="saKurve" width="900" height="220"></canvas></section>
+        <section class="fdc"><div class="lbl">Kilometer je Woche</div><canvas id="dBalken" class="klick" width="900" height="220"></canvas></section>
+      </div>
       <section class="fdc breit" id="saP">
         <form id="saNeu" hidden>
           <h2 class="dsp" id="saNeuT">Dein Ziel</h2>
           <div class="wahl" id="saArt"><button type="button" class="on" data-art="ftp">FTP</button><button type="button" data-art="tour">Lange Tour</button></div>
           <div class="fz"><label><span id="saZielL">FTP</span><span><input id="saZiel" type="number" min="1" max="600" step="1" inputmode="numeric" aria-label="Ziel"><em id="saEinh">W</em></span></label><label>bis<span><input id="saBis" type="date" aria-label="bis"></span></label></div>
+          <div class="rg"><label><span>Fahrten pro Woche <b id="saTageT"></b></span><input id="saTageR" type="range" min="1" max="7" step="1" aria-label="Fahrten pro Woche"></label><label><span>Minuten je Fahrt <b id="saMinT"></b></span><input id="saMinR" type="range" min="10" max="180" step="5" aria-label="Minuten je Fahrt"></label></div>
+          <p class="est" id="saEst"></p>
           <div class="fk"><button class="bbtn" type="submit" id="saOk">Saison starten</button><button class="klein" id="saAb" type="button" hidden>Abbrechen</button><button class="klein" id="saEnde" type="button" hidden>Saison beenden</button></div>
         </form>
         <div id="saLauf" hidden>
           <div class="pk"><h2 class="dsp" id="saTitel"></h2><button class="klein" id="saAend" type="button">Ändern</button></div>
-          <div class="sz vier"><span>Ziel</span><b id="saZielT"></b><em id="saFort"></em><i class="weg"><i id="saFortB"></i></i></div>
+          <button class="sz vier" id="saZielZ" type="button"><span>Ziel</span><b id="saZielT"></b><em id="saFort"></em><i class="weg"><i id="saFortB"></i></i></button>
           <button class="sz vier" id="saWoZ" type="button"><span>Woche</span><b id="saWo"></b><em><i id="saWoche"></i> · <i id="saStd"></i></em><i class="weg"><i id="saWocheB"></i></i></button>
           <div class="hb" id="saHeuteB"><span>Heute</span><b class="dsp" id="saHeute"></b></div>
           <div class="tage" id="saTage"></div>
         </div>
       </section>
-      <button class="fdc breit mz" id="dMeilen" type="button"><span class="lbl">Meilensteine</span><em id="dMeilenT"></em><i>›</i></button>
+      <button class="fdc mz" id="dMeilen" type="button"><div class="lbl">Meilensteine</div><div class="msr" id="dMeilenT"></div></button>
     </div>
   </div>
 </div></div>
@@ -153,6 +157,7 @@
   <div class="wahl" id="ppWahl" hidden><button type="button" data-art="woche">Woche</button><button type="button" data-art="monat">Monat</button><button type="button" data-art="jahr">Jahr</button></div>
   <div class="fdh" id="ppH"></div>
   <canvas id="ppBild" width="1800" height="420"></canvas>
+  <div class="tage" id="ppTage" hidden></div>
   <div class="rolle" id="ppListe"></div>
 </div></div>
 <div id="toasts"></div>

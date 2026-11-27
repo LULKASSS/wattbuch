@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FahrtKurz, Strecke } from '../../src/kern/typen';
 import { form, formWort, ftpHinweis, isoTag, meilensteine, montag, serie, tagAus, wocheIst, wochentag } from '../../src/kern/form';
-import { erzeugteRunde, fortschritt, gewohnt, passende, tagesplan, teilrunde, wochen, type Saison, wochenplan, stundenVon } from '../../src/kern/saison';
+import { erzeugteRunde, fortschritt, gewohnt, passende, tagesplan, teilrunde, wochen, type Saison, wochenplan, stundenVon, planTage, schaetzeFtp, stundenFuer } from '../../src/kern/saison';
 import { bahn, fahrzeit } from '../../src/kern/strecke';
 import { erzeuge } from '../../src/kern/erzeugen';
 // @ts-expect-error Hauptprozess ohne Typen
@@ -213,7 +213,7 @@ describe('Wochenplan der Saison', () => {
     expect(P[2].heute).toBe(true); expect(P[2].art).toBe(T.art); expect(P[2].minuten).toBe(T.minuten); expect(P[2].watt).toBe(T.watt);
     const geplant = P.filter(p => !p.gefahren && p.minuten > 0);
     expect(geplant.length).toBe(T.fahrtenSoll - 1); expect(geplant.every(p => p.tag >= heute && p.watt >= 100 && p.minuten % 5 === 0)).toBe(true);
-    expect(stundenVon(104)).toBe(2);
+    expect(stundenVon(110)).toBe(2);
   });
 });
 
@@ -234,5 +234,26 @@ describe('Zum Reinklicken: FTP-Verlauf, Zeiträume, Bestwerte', () => {
     const B = bestwerte(f), von = (n: string) => B.find(b => b.name === n)!;
     expect(von('Längste Fahrt').wert).toBe(52); expect(von('Schnellster Schnitt').wert).toBe(30); expect(von('Beste 20 Minuten').wert).toBe(210); expect(von('Meiste Höhenmeter').wert).toBe(300); expect(von('Längste Zeit').wert).toBe(7200);
     expect(bestwerte([])).toEqual([]);
+  });
+});
+
+describe('Plan nach eigener Zeit', () => {
+  const mo = montag(HEUTE), s = { art: 'ftp' as const, ziel: 280, bis: isoTag(mo + 7 * 20), von: isoTag(mo), ftp0: 240, last0: 300, tage: 4, minuten: 20 };
+  it('vier Fahrten je 20 Minuten: so viele Fahrten, jede nah an 20 Minuten, das Pensum wächst nicht', () => {
+    const W = wochen(s); expect(W[0].soll).toBe(W[1].soll); expect(Math.round(stundenVon(W[0].soll) * 60)).toBe(80);
+    const P = wochenplan(s, [], mo, 240).filter(p => p.minuten > 0);
+    expect(P.length).toBe(4); expect(P.every(p => p.minuten >= 15 && p.minuten <= 30)).toBe(true);
+    expect(tagesplan(s, [], mo, 240).fahrtenSoll).toBe(4);
+  });
+  it('Vorschau über alle Wochen: jede Woche lässt sich ansehen, nach dem Zieltag ist nichts mehr geplant', () => {
+    const P = planTage(s, [], mo, 240, mo, mo + 7 * 21 - 1);
+    expect(P.length).toBe(147); expect(P.slice(35, 42).filter(p => p.minuten > 0).length).toBe(4);   // Woche 6
+    expect(P.slice(141).every(p => p.minuten === 0)).toBe(true);
+  });
+  it('Schätzung: wenig Zeit hält die FTP nicht, mehr Zeit hebt sie, gedeckelt; für das Ziel braucht es Stunden', () => {
+    expect(schaetzeFtp(240, 14, 4, 20, 22)).toBeLessThan(240); expect(schaetzeFtp(240, 14, 4, 20, 22)).toBeGreaterThan(215);
+    const a = schaetzeFtp(240, 14, 4, 60, 22), b = schaetzeFtp(240, 14, 5, 90, 22);
+    expect(a).toBeGreaterThan(245); expect(b).toBeGreaterThan(a); expect(schaetzeFtp(240, 14, 7, 300, 22)).toBe(288); expect(schaetzeFtp(240, 14, 7, 300, 4)).toBe(250);
+    const h = stundenFuer(240, 14, 280, 22)!; expect(h).toBeGreaterThan(4); expect(h).toBeLessThan(8); expect(stundenFuer(240, 14, 280, 4)).toBeNull(); expect(stundenFuer(240, 14, 230, 4)).toBe(0);
   });
 });

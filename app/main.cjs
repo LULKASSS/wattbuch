@@ -187,7 +187,8 @@ app.whenReady().then(() => {
   ipcMain.handle('saison:lesen', () => daten.saison());
   ipcMain.handle('saison:setzen', (_e, s) => {
     const ok = s && (s.art === 'ftp' || s.art === 'tour') && isFinite(s.ziel) && s.ziel > 0 && /^\d{4}-\d\d-\d\d$/.test(s.bis) && /^\d{4}-\d\d-\d\d$/.test(s.von);
-    daten.saisonSpeichern(ok ? { art: s.art, ziel: Math.round(s.ziel), bis: s.bis, von: s.von, ftp0: Math.round(+s.ftp0 || 200), last0: Math.round(+s.last0 || 0) } : null);
+    daten.saisonSpeichern(ok ? { art: s.art, ziel: Math.round(s.ziel), bis: s.bis, von: s.von, ftp0: Math.round(+s.ftp0 || 200), last0: Math.round(+s.last0 || 0),
+      ...(s.tage >= 1 && s.tage <= 7 && s.minuten >= 10 && s.minuten <= 300 ? { tage: Math.round(s.tage), minuten: Math.round(s.minuten) } : {}) } : null);
     konto.merkeDok('saison', 'ziel', !ok); return daten.saison();
   });
   ipcMain.handle('geraete:liste', () => daten.geraete());
