@@ -64,3 +64,42 @@ export function ftpHinweis(fahrten: FahrtKurz[], heute: number, ftp: number, sei
   const w = Math.round(b * .95);
   return w >= ftp + 3 ? w : null;
 }
+
+/* Entwicklung der FTP: jede Änderung, abgelesen an der FTP, die bei den Fahrten galt, am Ende der heutige Wert */
+export interface FtpPunkt { start: string; ftp: number }
+export function ftpVerlauf(fahrten: FahrtKurz[], ftpJetzt: number, jetzt = new Date().toISOString()): FtpPunkt[] {
+  const out: FtpPunkt[] = [];
+  for (const f of fahrten.slice().sort((a, b) => a.start.localeCompare(b.start))) if (f.ftp && (!out.length || out[out.length - 1].ftp !== f.ftp)) out.push({ start: f.start, ftp: f.ftp });
+  if (!out.length || out[out.length - 1].ftp !== ftpJetzt) out.push({ start: jetzt, ftp: ftpJetzt });
+  return out;
+}
+/* Fahrten nach Woche, Monat oder Jahr zusammengezählt: die letzten `n` Zeiträume bis heute, der älteste zuerst.
+   von/bis sind Tage (einschließlich), damit sich die Fahrten eines Zeitraums heraussuchen lassen. */
+export type ZeitArt = 'woche' | 'monat' | 'jahr';
+export interface Zeitraum { name: string; kurz: string; von: number; bis: number; km: number; sek: number; hm: number; n: number }
+export function zeitraeume(fahrten: FahrtKurz[], art: ZeitArt, heute: number, n: number): Zeitraum[] {
+  const out: Zeitraum[] = [], d0 = new Date(heute * 864e5), J = d0.getUTCFullYear(), M = d0.getUTCMonth(), tag = (j: number, m: number, t: number) => Math.round(Date.UTC(j, m, t) / 864e5);
+  const MON = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const kurzTag = (t: number) => { const d = new Date(t * 864e5); return `${d.getUTCDate()}.${d.getUTCMonth() + 1}.`; };
+  for (let i = n - 1; i >= 0; i--) {
+    let von: number, bis: number, name: string, kurz: string;
+    if (art === 'woche') { von = montag(heute) - 7 * i; bis = von + 6; name = `${kurzTag(von)} bis ${kurzTag(bis)}`; kurz = kurzTag(von); }
+    else if (art === 'monat') { const m = M - i, j = J + Math.floor(m / 12), mm = ((m % 12) + 12) % 12; von = tag(j, mm, 1); bis = tag(j, mm + 1, 0); name = `${MON[mm]} ${j}`; kurz = MON[mm].slice(0, 3); }
+    else { von = tag(J - i, 0, 1); bis = tag(J - i, 11, 31); name = kurz = String(J - i); }
+    out.push({ name, kurz, von, bis, km: 0, sek: 0, hm: 0, n: 0 });
+  }
+  for (const f of fahrten) { const t = tagNr(f.start), z = out.find(x => t >= x.von && t <= x.bis); if (z) { z.km += f.km || 0; z.sek += f.zeit || 0; z.hm += f.hm || 0; z.n++; } }
+  return out;
+}
+/* Die wichtigsten Bestwerte, eine Zeile voll: längste Fahrt, schnellster Schnitt (ab 20 Minuten), beste 20 Minuten,
+   meiste Höhenmeter, längste Zeit im Sattel */
+export interface Bestwert { name: string; wert: number; art: 'km' | 'kmh' | 'watt' | 'hm' | 'zeit'; start: string }
+export function bestwerte(fahrten: FahrtKurz[]): Bestwert[] {
+  const out: Bestwert[] = [], beste = (name: string, art: Bestwert['art'], w: (f: FahrtKurz) => number) => { let b: FahrtKurz | null = null, x = 0; for (const f of fahrten) { const v = w(f); if (v > x) { x = v; b = f; } } if (b) out.push({ name, wert: x, art, start: b.start }); };
+  beste('Längste Fahrt', 'km', f => f.km || 0);
+  beste('Schnellster Schnitt', 'kmh', f => f.zeit >= 1200 && f.km >= 5 ? f.km / f.zeit * 3600 : 0);
+  beste('Beste 20 Minuten', 'watt', f => f.b20 || 0);
+  beste('Meiste Höhenmeter', 'hm', f => f.hm || 0);
+  beste('Längste Zeit', 'zeit', f => f.zeit || 0);
+  return out;
+}

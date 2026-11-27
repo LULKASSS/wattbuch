@@ -7,7 +7,7 @@ import { bahn, anstiege, fahrzeit, type Bahn } from '../kern/strecke';
 import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
 import { segmente, versuche } from '../kern/segmente';
-import { form, formWort, ftpHinweis, isoTag, meilensteine, montag, serie, tagAus, tagNr, wocheIst } from '../kern/form';
+import { bestwerte, form, formWort, ftpHinweis, ftpVerlauf, isoTag, meilensteine, serie, tagAus, tagNr, wocheIst, zeitraeume, type FtpPunkt, type ZeitArt } from '../kern/form';
 import { ART, erzeugteRunde, fortschritt, gewohnt, passende, stundenVon, tagesplan, teilrunde, wochen, wochenplan, type Saison, type Tagesplan } from '../kern/saison';
 import { Welt, type Akt } from './welt/welt';
 import type { KontoStand, Gemerkt, StravaStand } from '../bruecke';
@@ -72,9 +72,10 @@ async function ladeRunden() {
     runden = runden.filter(r => !r.st.plan || r.st.id === id);
     heute = runden.find(r => r.st.id === id);
   } else {
-    /* Ohne Saison: unter den Runden bis 90 Minuten die, die am längsten nicht gefahren wurde; sonst die kürzeste */
-    const kurz = runden.filter(r => r.min <= 90), wahl = kurz.length ? kurz : runden.slice().sort((a, b) => a.min - b.min).slice(0, 1);
-    heute = wahl.slice().sort((a, b) => (a.zuletzt || '').localeCompare(b.zuletzt || '') || a.min - b.min)[0];
+    /* Ohne Saison: die Runde, die zuletzt gefahren wurde; ist noch keine gefahren, die kürzeste bis 90 Minuten */
+    const gefahren = runden.filter(r => r.zuletzt).sort((a, b) => b.zuletzt!.localeCompare(a.zuletzt!))[0];
+    const kurz = runden.filter(r => r.min <= 90), wahl = kurz.length ? kurz : runden;
+    heute = gefahren || wahl.slice().sort((a, b) => a.min - b.min)[0];
   }
   const heuteT = !plan ? 'Heute für dich' : plan.art === 'frei' ? (plan.erledigt ? 'Heute geschafft' : 'Heute frei') : plan.art === 'test' ? 'Heute · FTP-Test' : `Heute · ${ART[plan.art].name} · ${plan.watt} W`;
   for (const r of runden) r.tag = r === heute ? heuteT : r.best ? 'Rivale wartet' : '';
@@ -117,53 +118,51 @@ function fuelleStart() {
   $('hmL').textContent = f ? 'Letzte Fahrt · ' + (vor <= 0 ? 'heute' : vor === 1 ? 'gestern' : `vor ${vor} Tagen`) : 'Wattbuch'; $('hmL').classList.toggle('gut', !!f && vor <= 0);
   $('hmName').textContent = f ? f.name : 'Noch keine Fahrt'; $('hmF').hidden = !f;
   if (f) { $('hmKm').textContent = f.km ? fmt(f.km, 1) : '–'; $('hmZeit').textContent = zeit(f.zeit); $('hmW').textContent = f.avgW ? fmt(f.avgW) : '–'; $('hmP').textContent = fmt(f.tss || 0); }
-  const r = runden[pick]; $('hmHeute').textContent = r ? `${r.st.name} · ${r.min} min` : '';
-  /* Stand: Fitness, die Woche (und die acht Wochen davor als Balken), FTP, das Jahr */
-  const F = form(alleFahrten, heute); $('dFit').textContent = fmt(F.fitness);
-  const mo = montag(heute), jahr = new Date().getFullYear(), W8: number[] = Array(8).fill(0);
-  let sek = 0, kmW = 0, km4 = 0, kmJ = 0, hmJ = 0, nJ = 0, b20 = 0; const tageW = new Set<number>();
-  for (const x of alleFahrten) {
-    const t = tagNr(x.start), w = Math.floor((t - mo) / 7) + 7;
-    if (w >= 0 && w < 8) W8[w] += x.km || 0;
-    if (t >= mo && t <= heute) { sek += x.zeit; kmW += x.km || 0; tageW.add(t); }
-    if (t > heute - 28 && t <= heute) km4 += x.km || 0;
-    if (new Date(x.start).getFullYear() === jahr) { kmJ += x.km || 0; hmJ += x.hm || 0; nJ++; }
-    if (x.b20 && t > heute - 42 && x.b20 > b20) b20 = x.b20;
-  }
-  $('dWo').textContent = `${Math.floor(sek / 3600)}:${String(Math.floor(sek % 3600 / 60)).padStart(2, '0')}`;
-  $('dWoT').textContent = `${fmt(kmW)} km · ${tageW.size} ${tageW.size === 1 ? 'Fahrt' : 'Fahrten'}${tageW.has(heute) ? ' · heute gefahren' : ''}`; $('dWoT').classList.toggle('gut', tageW.has(heute));
-  balken($<HTMLCanvasElement>('dBalken'), W8);
+  const r = runden[pick]; $('hmHeute').textContent = r ? r.tag || 'oder einfach lostreten' : '';
+  /* Stand: vier große Zahlen (Fitness, Woche, FTP, Jahr), darunter Fitness als Kurve und die Wochen als Balken */
+  const F = form(alleFahrten, heute), v = F.verlauf, trend = v[v.length - 1] - v[v.length - 15];
+  $('dFit').textContent = fmt(F.fitness);
+  $('saForm').textContent = alleFahrten.length ? `${formWort(F.form)[0].toUpperCase()}${formWort(F.form).slice(1)} · ${trend > 1 ? 'steigt' : trend < -1 ? 'sinkt' : 'hält'}` : '–'; $('saForm').classList.toggle('gut', trend > 1);
+  kurve($<HTMLCanvasElement>('saKurve'), v, trend > 1 ? '#8FD9B0' : '#F3B56B');
+  const W8 = zeitraeume(alleFahrten, 'woche', heute, 8), wo = W8[7], J = zeitraeume(alleFahrten, 'jahr', heute, 1)[0], da = alleFahrten.some(x => tagNr(x.start) === heute);
+  $('dWo').textContent = fmt(wo.km); $('dWoT').textContent = `${hMin(wo.sek / 60)} h · ${wo.n} ${wo.n === 1 ? 'Fahrt' : 'Fahrten'}${da ? ' · heute gefahren' : ''}`; $('dWoT').classList.toggle('gut', da);
+  balken($<HTMLCanvasElement>('dBalken'), W8.map(w => w.km));
   /* FTP gestiegen (in den letzten 30 Tagen): grün, mit dem Zuwachs */
   const wj = werteJetzt, plus = wj && wj.ftpVor && wj.ftpAm && wj.ftpVor < ftp && Date.now() - Date.parse(wj.ftpAm) < 30 * 864e5 ? ftp - wj.ftpVor : 0;
   $('dFtpB2').classList.toggle('gut', plus > 0); $('dFtpPlus').hidden = !plus; $('dFtpPlus').textContent = `+${fmt(plus)} W`;
-  $('hmFtp').textContent = fmt(ftp); $('hmWkg').textContent = fmt(ftp / koerper, 1); $('dB20').textContent = b20 ? `${fmt(b20)} W` : '–';
-  $('dJahrL').textContent = String(jahr); $('dJahr').textContent = fmt(kmJ); $('dJahrT').textContent = `${nJ} ${nJ === 1 ? 'Fahrt' : 'Fahrten'}${hmJ ? ` · ${fmt(hmJ)} Hm` : ''}`;
-  $('hmKm4').textContent = `${fmt(km4)} km`;
+  $('hmFtp').textContent = fmt(ftp); $('hmWkg').textContent = fmt(ftp / koerper, 1);
+  const n = serie(alleFahrten, heute);
+  $('dJahrL').textContent = J.name; $('dJahr').textContent = fmt(J.km); $('dJahrT').textContent = `${J.n} ${J.n === 1 ? 'Fahrt' : 'Fahrten'}${n >= 2 ? ` · Serie ${n}` : ''}`; $('dJahrT').classList.toggle('gut', n >= 2);
+  const B = bestwerte(alleFahrten); $('dMeilen').hidden = !B.length; $('dMeilenT').textContent = B.slice(0, 3).map(x => `${x.name} ${bestText(x)}`).join(' · ');
   zeigeSaison();
+  if (popWas) fuellePop();
 }
-/* Balken je Woche (km), die laufende Woche hell, die Zahl darüber */
-function balken(cv: HTMLCanvasElement, v: number[]) {
-  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, hi = Math.max(1, ...v), n = v.length, bw = (Wd - 16) / n;
-  g.clearRect(0, 0, Wd, H); g.font = '600 22px Manrope, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+const bestText = (x: { wert: number; art: string }) => x.art === 'km' ? `${fmt(x.wert)} km` : x.art === 'kmh' ? `${fmt(x.wert, 1)} km/h` : x.art === 'watt' ? `${fmt(x.wert)} W` : x.art === 'hm' ? `${fmt(x.wert)} Hm` : `${hMin(x.wert / 60)} h`;
+/* Balken (km je Zeitraum): einer ist hervorgehoben (sonst der letzte), die Zahl darüber, auf Wunsch Namen darunter */
+function balken(cv: HTMLCanvasElement, v: number[], sel = v.length - 1, namen: string[] | null = null) {
+  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, hi = Math.max(1, ...v), n = v.length, bw = (Wd - 16) / n, fuss = namen ? 34 : 0;
+  g.clearRect(0, 0, Wd, H); g.font = '600 22px Manrope, sans-serif'; g.textAlign = 'center';
   v.forEach((x, i) => {
-    const h = Math.max(4, (H - 36) * x / hi), px = 8 + i * bw + 6, w = bw - 12, y = H - h, jetzt = i === n - 1;
-    g.fillStyle = jetzt ? '#F3B56B' : 'rgba(246,240,230,.28)'; g.beginPath(); g.roundRect(px, y, w, h, 7); g.fill();
-    if (x >= 1) { g.fillStyle = jetzt ? '#F6F0E6' : '#CFC6D2'; g.fillText(fmt(x), px + w / 2, y - 5); }
+    const h = Math.max(4, (H - 36 - fuss) * x / hi), w = Math.min(bw - 12, 150), px = 8 + i * bw + (bw - w) / 2, y = H - fuss - h, an = i === sel;
+    g.fillStyle = an ? '#F3B56B' : 'rgba(246,240,230,.28)'; g.beginPath(); g.roundRect(px, y, w, h, 7); g.fill();
+    g.textBaseline = 'bottom'; if (x >= 1) { g.fillStyle = an ? '#F6F0E6' : '#CFC6D2'; g.fillText(fmt(x), px + w / 2, y - 5); }
+    if (namen) { g.textBaseline = 'top'; g.fillStyle = an ? '#F6F0E6' : '#CFC6D2'; g.fillText(namen[i], px + w / 2, H - fuss + 8); }
   });
 }
 /* Unten stehen höchstens vier Runden: ein Fenster um die gewählte, die Pfeiltasten gehen durch alle */
 let kAb = 0;
 function baueKarten() {
-  const n = runden.length;
+  const n = runden.length, box = $('cards'); box.innerHTML = '';
   kAb = Math.max(0, Math.min(n - 4, pick < kAb ? pick : pick > kAb + 3 ? pick - 3 : kAb));
-  for (const [id, h] of [['cards', 88], ['cardsH', 52]] as [string, number][]) {
-    const box = $(id); box.innerHTML = '';
-    runden.slice(kAb, kAb + 4).forEach((r, k) => {
-      const i = kAb + k, b = document.createElement('button'); b.className = 'glass card' + (i === pick ? ' on' : ''); b.innerHTML = `<b></b><small></small><canvas width="480" height="${h}"></canvas>`;
-      b.children[0].textContent = r.st.name; b.children[1].textContent = `${fmt(r.rt.dist / 1000, 1)} km · ${fmt(r.st.gain)} Hm${r.tag && id === 'cards' ? ' · ' + r.tag.split(' · ')[0] : ''}`;
-      profil(b.children[2] as HTMLCanvasElement, r.rt, null, null); b.onclick = () => waehle(i); box.appendChild(b);
-    });
-  }
+  runden.slice(kAb, kAb + 4).forEach((r, k) => { const i = kAb + k; box.appendChild(karte(r, i === pick, () => waehle(i), true)); });
+  /* Startseite: nur die gewählte Runde, als Stapel; ein Klick zeigt alle */
+  const r = runden[pick], st = $('stapel'); st.hidden = !r; st.classList.toggle('einzeln', n < 2); $('stapelN').textContent = n > 1 ? `${n} Runden` : '';
+  if (r) { st.children[0].textContent = r.st.name; st.children[1].textContent = `${fmt(r.rt.dist / 1000, 1)} km · ${fmt(r.st.gain)} Hm · ${r.min} min`; profil(st.children[2] as HTMLCanvasElement, r.rt, null, null); }
+}
+function karte(r: Runde, an: boolean, klick: () => void, mitTag: boolean) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'glass card' + (an ? ' on' : ''); b.innerHTML = '<b></b><small></small><canvas width="480" height="88"></canvas>';
+  b.children[0].textContent = r.st.name; b.children[1].textContent = `${fmt(r.rt.dist / 1000, 1)} km · ${fmt(r.st.gain)} Hm${r.tag && mitTag ? ' · ' + r.tag.split(' · ')[0] : ''}`;
+  profil(b.children[2] as HTMLCanvasElement, r.rt, null, null); b.onclick = klick; return b;
 }
 const basis = () => plan ? plan.watt : undefined, oben = () => plan ? Math.round(ftp * ART[plan.art].oben) : undefined;
 const wahl = (r: Runde) => W.befehl({ was: 'wahl', streckeId: r.st.id, rev: rev && !r.st.test, basis: basis(), oben: oben() });
@@ -200,7 +199,7 @@ function setzeAkt(a: Akt) {
   if (a === 'count') {
     const ring = $('ring'); ring.style.transition = 'none'; ring.style.strokeDashoffset = '817'; void ring.getBoundingClientRect(); ring.style.transition = 'stroke-dashoffset 3s linear'; ring.style.strokeDashoffset = '0';
   }
-  if (a !== 'lobby') blatt(null);
+  if (a !== 'lobby') { blatt(null); pop(null); }
   if (a === 'done') ergebnis();
   if (a !== 'lobby' && sicht !== 'lobby') setzeSicht('lobby');
   if (a === 'lobby' && vor === 'done') ladeRunden().then(i => { pick = i; rev = false; baueKarten(); fuelleLobby(); zeige(pick); });
@@ -399,6 +398,7 @@ type Sicht = 'start' | 'lobby' | 'rivalen' | 'fahrten';
 let sicht: Sicht = 'start';
 function setzeSicht(x: Sicht) {
   if (x !== 'fahrten' && fhAuf) oeffneFahrt('');
+  if (popWas && x !== 'start') pop(null);
   sicht = x; document.body.dataset.sicht = x; blatt(null);
   document.querySelectorAll<HTMLElement>('nav button').forEach(b => b.classList.toggle('on', b.dataset.s === x));
   if (x === 'rivalen') zeigeRivalen(); if (x === 'fahrten') zeigeFahrten();
@@ -523,53 +523,39 @@ function zeigeFahrten() {
 /* ---------- Saison und Fortschritt ---------- */
 const tagLang = (iso: string) => new Date(iso + 'T12:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
 let saEdit = false;
-const hMin = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, '0')}`;
+const hMin = (min: number) => `${Math.floor(min / 60)}:${String(Math.floor(min % 60)).padStart(2, '0')}`;
 function zeigeSaison() {
-  const heute = heuteTag(), F = form(alleFahrten, heute), s = saison, p = plan;
+  const heute = heuteTag(), s = saison, p = plan;
   if (!s) saEdit = false;
-  $('saNeu').hidden = !!s && !saEdit; $('saLauf').hidden = !s || saEdit; $('saAend').hidden = !s || saEdit;
+  $('saNeu').hidden = !!s && !saEdit; $('saLauf').hidden = !s || saEdit;
   $('saEnde').hidden = $('saAb').hidden = !s; $('saOk').textContent = s ? 'Speichern' : 'Saison starten'; $('saNeuT').textContent = s ? 'Ziel ändern' : 'Dein Ziel';
-  $('saL').textContent = s && p ? `Saison · Woche ${p.woche.nr} von ${p.wochen}${p.woche.art === 'ruhe' ? ' · ruhige Woche' : p.woche.art === 'ziel' ? ' · Zielwoche' : ''}` : 'Saison';
   if (s && p && !saEdit) {
     const eh = s.art === 'ftp' ? 'W' : 'km', rest = tagAus(s.bis) - heute, fo = fortschritt(s, alleFahrten, ftp);
-    $('saZielT').textContent = `${fmt(s.ziel)} ${eh} bis ${tagLang(s.bis)}`;
-    $('saRest').textContent = rest > 1 ? `noch ${rest} Tage` : rest === 1 ? 'morgen' : rest === 0 ? 'heute' : 'vorbei';
-    $('saFort').textContent = `${fmt(fo.jetzt)} von ${fmt(s.ziel)} ${eh}`; $('saFort').classList.toggle('gut', fo.anteil >= 1); $('saFortB').style.width = (fo.anteil * 100).toFixed(1) + '%';
-    $('saHeute').textContent = p.art === 'frei' ? (p.erledigt ? 'Geschafft' : 'Frei') : `${ART[p.art].name} · ${p.minuten} min · ${p.watt} W`; $('saHeute').classList.toggle('gut', p.erledigt);
+    $('saTitel').textContent = `Saison bis ${tagLang(s.bis)}`;
+    $('saZielT').textContent = `${fmt(s.ziel)} ${eh}`; $('saZielT').classList.toggle('gut', fo.anteil >= 1);
+    $('saFort').textContent = `jetzt ${fmt(fo.jetzt)} ${eh} · ${rest > 1 ? `noch ${rest} Tage` : rest === 1 ? 'morgen' : rest === 0 ? 'heute' : 'vorbei'}`; $('saFortB').style.width = (fo.anteil * 100).toFixed(1) + '%';
+    $('saWo').textContent = `${p.woche.nr} von ${p.wochen}${p.woche.art === 'ruhe' ? ' · ruhig' : p.woche.art === 'ziel' ? ' · Zielwoche' : ''}`;
     $('saWoche').textContent = `${p.fahrtenIst} von ${p.fahrtenSoll} Fahrten`; $('saWoche').classList.toggle('gut', p.ist >= p.soll * .95);
     $('saWocheB').style.width = (clamp(p.ist / Math.max(p.soll, 1), 0, 1) * 100).toFixed(1) + '%';
-    /* die Woche zum Abarbeiten */
-    const P = wochenplan(s, alleFahrten, heute, ftp, true), WT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], box = $('saTage'); box.innerHTML = '';
+    $('saHeute').textContent = p.art === 'frei' ? (p.erledigt ? 'Geschafft' : 'Frei') : p.art === 'test' ? 'FTP-Test · 25 min' : `${ART[p.art].name} · ${p.minuten} min · ${p.watt} W`; $('saHeuteB').classList.toggle('fertig', p.erledigt);
+    /* die Woche zum Abarbeiten: je Tag eine Säule */
+    const P = wochenplan(s, alleFahrten, heute, ftp, true), WT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], box = $('saTage'), hi = Math.max(30, ...P.map(d => d.minuten)); box.innerHTML = '';
     let ist = 0, offen = 0;
     P.forEach((d, i) => {
       if (d.gefahren) ist += d.minuten; else offen += d.minuten;
-      const e = document.createElement('div'); e.className = 'tg' + (d.heute ? ' heute' : '') + (d.gefahren ? ' fertig' : d.minuten ? '' : ' frei'); e.innerHTML = '<span></span><b></b><small></small>';
-      e.children[0].textContent = WT[i];
-      e.children[1].textContent = d.gefahren ? (d.km >= 1 ? `${fmt(d.km)} km` : `${d.minuten} min`) : d.minuten ? `${d.minuten} min` : '–';
-      e.children[2].textContent = d.gefahren ? `${hMin(d.minuten)} h` : d.minuten ? (d.art === 'test' ? 'FTP-Test' : `${ART[d.art].name} · ${d.watt} W`) : d.tag < heute ? '' : 'frei';
+      const e = document.createElement('div'); e.className = 'tg' + (d.heute ? ' heute' : '') + (d.gefahren ? ' fertig' : d.minuten ? '' : ' frei'); e.innerHTML = '<span></span><div class="tb"><i></i></div><b></b><small></small>';
+      e.children[0].textContent = WT[i]; (e.children[1].firstChild as HTMLElement).style.height = (d.minuten ? Math.max(12, d.minuten / hi * 100) : 4).toFixed(0) + '%';
+      e.children[2].textContent = d.gefahren ? (d.km >= 1 ? `${fmt(d.km)} km` : `${d.minuten} min`) : d.minuten ? `${d.minuten} min` : '–';
+      e.children[3].textContent = d.gefahren ? `${hMin(d.minuten)} h` : d.minuten ? (d.art === 'test' ? 'FTP-Test' : `${ART[d.art].name} · ${d.watt} W`) : d.tag < heute ? '' : 'frei';
       box.appendChild(e);
     });
     $('saStd').textContent = `${hMin(ist)} von ${hMin(ist + offen)} h`;
-    weg(s, heute);
   } else if (!s && !$<HTMLInputElement>('saBis').value) saisonVorgabe();
-  const v = F.verlauf, trend = v[v.length - 1] - v[v.length - 15];
-  $('saForm').textContent = alleFahrten.length ? `${formWort(F.form)[0].toUpperCase()}${formWort(F.form).slice(1)} · ${trend > 1 ? 'steigt' : trend < -1 ? 'sinkt' : 'hält'}` : '–'; $('saForm').classList.toggle('gut', trend > 1);
-  kurve($<HTMLCanvasElement>('saKurve'), v, trend > 1 ? '#8FD9B0' : '#F3B56B');
-  const n = serie(alleFahrten, heute); $('saSerie').textContent = n ? `${n} ${n === 1 ? 'Woche' : 'Wochen'} in Folge` : '–'; $('saSerie').classList.toggle('gut', n >= 2);
-  $('saFtpZ').hidden = !(s && s.art === 'ftp');
-  $('saFtp').textContent = s && s.art === 'ftp' ? `${fmt(ftp)} von ${fmt(s.ziel)} W` : `${fmt(ftp)} W`;
-  /* Meilensteine als Marken, die der letzten Woche grün */
-  const box = $('saGesch'); box.innerHTML = '';
-  for (const m of meilensteine(alleFahrten)) {
-    const [l, w] = m.text.includes(': ') ? m.text.split(': ') : ['Fahrten', m.text], d = document.createElement('div');
-    d.className = 'ms' + (heute - tagNr(m.start) <= 7 ? ' neu' : ''); d.innerHTML = '<small></small><b></b><span></span>'; d.children[0].textContent = l; d.children[1].textContent = w; d.children[2].textContent = datum(m.start); box.appendChild(d);
-  }
-  $('saGeschL').hidden = !box.children.length;
 }
 /* Die Wochen der Saison als Balken: Höhe = Pensum in Stunden. Vergangene Wochen sind so weit gefüllt, wie sie
    geschafft wurden (grün ab vier Fünfteln), die laufende ist hell umrandet, darüber ihr Pensum. */
-function weg(s: Saison, heute: number) {
-  const cv = $<HTMLCanvasElement>('saWeg'), g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, Wo = wochen(s), n = Wo.length;
+function weg(cv: HTMLCanvasElement, s: Saison, heute: number) {
+  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, Wo = wochen(s), n = Wo.length;
   g.clearRect(0, 0, Wd, H);
   const hi = Math.max(...Wo.map(w => w.soll)), bw = (Wd - 8) / n, lu = Math.min(14, bw * .18), unten = H - 34, hoch = unten - 44;
   const jetzt = clamp(Math.floor((heute - Wo[0].mo) / 7), 0, n - 1);
@@ -621,12 +607,86 @@ $('saEnde').onclick = async () => {
   b.dataset.sicher = ''; b.textContent = 'Saison beenden'; $<HTMLInputElement>('saBis').value = ''; saEdit = false; saison = await W.saisonSetzen(null); neuLaden();
 };
 
+/* ---------- Fenster zum Reinklicken: FTP, Kilometer, Meilensteine, Runden, Wochen der Saison ---------- */
+type Pop = 'ftp' | 'km' | 'meilen' | 'runden' | 'wochen';
+let popWas: Pop | null = null, kmArt: ZeitArt = 'jahr', kmSel = -1;
+function pop(was: Pop | null, art?: ZeitArt) {
+  if (akt !== 'lobby') was = null;
+  popWas = was; if (!was) { delete document.body.dataset.pop; return; }
+  if (art) { kmArt = art; kmSel = -1; }
+  blatt(null); document.body.dataset.pop = was; fuellePop();
+}
+/* FTP über die Zeit als Treppe, an jeder Stufe der Wert */
+function stufen(cv: HTMLCanvasElement, V: FtpPunkt[]) {
+  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, t0 = Date.parse(V[0].start), t1 = Math.max(Date.now(), t0 + 864e5), lo = Math.min(...V.map(p => p.ftp)) - 12, hi = Math.max(...V.map(p => p.ftp)) + 12;
+  const X = (t: number) => 30 + (Wd - 90) * (t - t0) / (t1 - t0), Y = (w: number) => H - 30 - (H - 90) * (w - lo) / (hi - lo);
+  g.clearRect(0, 0, Wd, H); g.beginPath(); g.moveTo(X(t0), Y(V[0].ftp));
+  V.forEach((p, i) => { const x = X(Date.parse(p.start)); if (i) { g.lineTo(x, Y(V[i - 1].ftp)); g.lineTo(x, Y(p.ftp)); } });
+  g.lineTo(X(t1), Y(V[V.length - 1].ftp)); g.strokeStyle = '#F3B56B'; g.lineWidth = 5; g.lineJoin = g.lineCap = 'round'; g.stroke();
+  g.font = '600 24px Manrope, sans-serif'; g.textBaseline = 'bottom'; let xVor = -1e9;
+  V.forEach((p, i) => {
+    const x = X(Date.parse(p.start)), y = Y(p.ftp), letzter = i === V.length - 1;
+    g.fillStyle = letzter ? '#F6F0E6' : '#F3B56B'; g.beginPath(); g.arc(x, y, letzter ? 9 : 6, 0, 7); g.fill();
+    if (x - xVor > 90 || letzter) { g.textAlign = x > Wd - 120 ? 'right' : 'left'; g.fillStyle = letzter ? '#F6F0E6' : '#CFC6D2'; g.fillText(`${fmt(p.ftp)} W`, x + (x > Wd - 120 ? -12 : 0), y - 14); xVor = x; }
+  });
+}
+function fuellePop() {
+  const was = popWas; if (!was) return;
+  const heute = heuteTag(), H = $('ppH'), cv = $<HTMLCanvasElement>('ppBild'), li = $('ppListe');
+  H.innerHTML = ''; li.innerHTML = ''; li.className = 'rolle'; $('ppWahl').hidden = was !== 'km'; cv.hidden = was === 'meilen' || was === 'runden'; cv.onclick = null; cv.classList.toggle('klick', was === 'km');
+  const kopf = (l: string, t: string) => { $('ppL').textContent = l; $('ppT').textContent = t; };
+  const gross = (zz: [string, string][]) => { for (const [w, l] of zz) { const e = document.createElement('span'), bb = document.createElement('b'); bb.textContent = w; e.append(bb, l); H.appendChild(e); } };
+  const zeile = (t: string[], klick?: () => void, gut = false) => {
+    const e = document.createElement('div'); e.className = 'pr' + (klick ? ' klick' : ''); if (klick) e.onclick = klick;
+    t.forEach((x, i) => { const c = document.createElement(i === 1 ? 'b' : 'span'); c.textContent = x; if (gut && i === t.length - 1) c.className = 'gut'; e.appendChild(c); }); li.appendChild(e);
+  };
+  if (was === 'ftp') {
+    const V = ftpVerlauf(alleFahrten, ftp); let b20 = 0; for (const x of alleFahrten) if (x.b20 && tagNr(x.start) > heute - 42 && x.b20 > b20) b20 = x.b20;
+    kopf('FTP', `${fmt(ftp)} W`);
+    gross([[fmt(ftp / koerper, 1), 'W/kg'], [b20 ? `${fmt(b20)} W` : '–', 'beste 20 Minuten in sechs Wochen'], [`${V[V.length - 1].ftp - V[0].ftp >= 0 ? '+' : ''}${fmt(V[V.length - 1].ftp - V[0].ftp)} W`, `seit ${datum(V[0].start)}`]]);
+    stufen(cv, V);
+    for (let i = V.length - 1; i >= 0; i--) { const d = i ? V[i].ftp - V[i - 1].ftp : 0; zeile([datum(V[i].start), `${fmt(V[i].ftp)} W`, i ? `${d > 0 ? '+' : ''}${fmt(d)} W` : 'Anfang'], undefined, d > 0); }
+  } else if (was === 'km') {
+    const jahre = alleFahrten.length ? clamp(new Date().getFullYear() - new Date(alleFahrten[0].start).getFullYear() + 1, 1, 8) : 1;
+    const Z = zeitraeume(alleFahrten, kmArt, heute, kmArt === 'jahr' ? jahre : 12); if (kmSel < 0 || kmSel >= Z.length) kmSel = Z.length - 1;
+    const z = Z[kmSel];
+    document.querySelectorAll<HTMLElement>('#ppWahl button').forEach(x => x.classList.toggle('on', x.dataset.art === kmArt));
+    kopf(kmArt === 'woche' ? 'Woche' : kmArt === 'monat' ? 'Monat' : 'Jahr', z.name);
+    gross([[fmt(z.km), 'km'], [hMin(z.sek / 60), 'Stunden'], [String(z.n), z.n === 1 ? 'Fahrt' : 'Fahrten'], [fmt(z.hm), 'Höhenmeter']]);
+    balken(cv, Z.map(x => x.km), kmSel, Z.map(x => x.kurz));
+    cv.onclick = e => { const i = Math.floor((e.offsetX / cv.clientWidth * cv.width - 8) / ((cv.width - 16) / Z.length)); if (i >= 0 && i < Z.length) { kmSel = i; fuellePop(); } };
+    const F = alleFahrten.filter(f => { const t = tagNr(f.start); return t >= z.von && t <= z.bis; }).reverse();
+    for (const f of F) zeile([datum(f.start), f.name, f.km ? `${fmt(f.km, 1)} km` : '', zeit(f.zeit), f.avgW ? `${fmt(f.avgW)} W` : ''], () => { pop(null); setzeSicht('fahrten'); oeffneFahrt(f.id); });
+    if (!F.length) { const e = document.createElement('p'); e.className = 'leer'; e.textContent = 'Keine Fahrt'; li.appendChild(e); }
+  } else if (was === 'meilen') {
+    kopf('Meilensteine', 'Bestwerte');
+    gross(bestwerte(alleFahrten).map(x => [bestText(x), `${x.name} · ${datum(x.start)}`] as [string, string]));
+    for (const m of meilensteine(alleFahrten, 40)) { const [l, w] = m.text.includes(': ') ? m.text.split(': ') : ['Fahrten', m.text]; zeile([datum(m.start), l, w], undefined, heute - tagNr(m.start) <= 7); }
+  } else if (was === 'runden') {
+    kopf('Runden', runden[pick] ? runden[pick].st.name : '');
+    li.className = 'rolle rgrid';
+    runden.map((r, i) => ({ r, i })).sort((a, b) => (b.r.zuletzt || '').localeCompare(a.r.zuletzt || '')).forEach(({ r, i }) => li.appendChild(karte(r, i === pick, () => { pop(null); waehle(i); }, true)));
+  } else if (was === 'wochen' && saison && plan) {
+    const s = saison, Wo = wochen(s);
+    kopf('Saison', `Woche ${plan.woche.nr} von ${plan.wochen}`);
+    gross([[hMin(stundenVon(plan.soll) * 60), 'Stunden diese Woche'], [`${plan.fahrtenIst} von ${plan.fahrtenSoll}`, 'Fahrten'], [`${Math.round(clamp(plan.ist / Math.max(plan.soll, 1), 0, 1) * 100)} %`, 'geschafft']]);
+    weg(cv, s, heute);
+    for (const w of Wo) { const a = w.mo <= heute ? Math.round(clamp(wocheIst(alleFahrten, w.mo).punkte / Math.max(w.soll, 1), 0, 1) * 100) : null; zeile([`Woche ${w.nr}`, `ab ${datum(isoTag(w.mo) + 'T12:00')}`, w.art === 'ruhe' ? 'ruhig' : w.art === 'ziel' ? 'Ziel' : '', `${hMin(stundenVon(w.soll) * 60)} h`, a == null ? '' : `${a} %`], undefined, a != null && a >= 80); }
+  }
+}
+$('ppZu').onclick = () => pop(null);
+$('pop').addEventListener('pointerdown', e => { if (e.target === $('pop')) pop(null); });
+document.querySelectorAll<HTMLElement>('#ppWahl button').forEach(x => { x.onclick = () => { kmArt = x.dataset.art as ZeitArt; kmSel = -1; fuellePop(); }; });
+$('dkFtp').onclick = () => pop('ftp'); $('dkWoche').onclick = () => pop('km', 'woche'); $('dkJahr').onclick = () => pop('km', 'jahr');
+$('dMeilen').onclick = () => pop('meilen'); $('stapel').onclick = () => pop('runden'); $('saWoZ').onclick = () => pop('wochen');
+
 /* ---------- Bedienung ---------- */
 $('start').onclick = $('startH').onclick = start; $('end').onclick = () => W.befehl({ was: 'ende' }); $('home').onclick = () => W.befehl({ was: 'lobby' });
 $('coach').onclick = $('wbtn').onclick = () => W.befehl({ was: 'coach' });
 $('less').onclick = () => W.befehl({ was: 'stufe', d: -10 }); $('more').onclick = () => W.befehl({ was: 'stufe', d: 10 });
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey) return;
+  if (document.body.dataset.pop) { if (e.key === 'Escape') pop(null); return; }
   if (document.body.dataset.blatt) { if (e.key === 'Escape') blatt(null); return; }   // im Blatt gehören die Tasten den Feldern
   if ((e.target as HTMLElement).closest?.('input') && e.key !== 'Escape') return;   // in einem Feld gehören die Tasten dem Feld
   if (e.key === 'ArrowUp' && akt === 'ride') { W.befehl({ was: 'stufe', d: 10 }); e.preventDefault(); }

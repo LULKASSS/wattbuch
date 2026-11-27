@@ -216,3 +216,23 @@ describe('Wochenplan der Saison', () => {
     expect(stundenVon(104)).toBe(2);
   });
 });
+
+import { bestwerte, ftpVerlauf, zeitraeume } from '../../src/kern/form';
+describe('Zum Reinklicken: FTP-Verlauf, Zeiträume, Bestwerte', () => {
+  it('FTP-Verlauf: jede Änderung einmal, am Ende der heutige Wert', () => {
+    const f = [fahrt(HEUTE - 30, 50, { ftp: 200 }), fahrt(HEUTE - 20, 50, { ftp: 200 }), fahrt(HEUTE - 10, 50, { ftp: 210 }), fahrt(HEUTE - 5, 50, { ftp: null })];
+    expect(ftpVerlauf(f, 220, 'jetzt').map(p => p.ftp)).toEqual([200, 210, 220]); expect(ftpVerlauf(f, 210).length).toBe(2); expect(ftpVerlauf([], 200, 'jetzt')).toEqual([{ start: 'jetzt', ftp: 200 }]);
+  });
+  it('Zeiträume: Wochen, Monate und Jahre zählen km, Zeit und Fahrten, der letzte ist der laufende', () => {
+    const f = [fahrt(HEUTE, 50), fahrt(HEUTE - 7, 50), fahrt(HEUTE - 8, 50), fahrt(HEUTE - 400, 50)];
+    const W = zeitraeume(f, 'woche', HEUTE, 12); expect(W.length).toBe(12); expect(W[11].von).toBe(montag(HEUTE)); expect(W[11].n + W[10].n + W[9].n).toBe(3); expect(W.reduce((a, w) => a + w.km, 0)).toBe(90);
+    const M = zeitraeume(f, 'monat', HEUTE, 12); expect(M[11].bis).toBeGreaterThanOrEqual(HEUTE); expect(M[11].von).toBeLessThanOrEqual(HEUTE); expect(M[11].name).toMatch(/^[A-ZÄ][a-zä]+ \d{4}$/);
+    const J = zeitraeume(f, 'jahr', HEUTE, 3); expect(J.map(j => j.n).reduce((a, b) => a + b, 0)).toBe(4); expect(J[2].name).toBe(isoTag(HEUTE).slice(0, 4));
+  });
+  it('Bestwerte: längste Fahrt, schnellster Schnitt, beste 20 Minuten', () => {
+    const f = [fahrt(HEUTE - 3, 50, { km: 30, zeit: 3600, b20: 210, hm: 300 }), fahrt(HEUTE - 2, 50, { km: 52, zeit: 7200, b20: 190, hm: 100 }), fahrt(HEUTE - 1, 50, { km: 4, zeit: 300, b20: null, hm: 0 })];
+    const B = bestwerte(f), von = (n: string) => B.find(b => b.name === n)!;
+    expect(von('Längste Fahrt').wert).toBe(52); expect(von('Schnellster Schnitt').wert).toBe(30); expect(von('Beste 20 Minuten').wert).toBe(210); expect(von('Meiste Höhenmeter').wert).toBe(300); expect(von('Längste Zeit').wert).toBe(7200);
+    expect(bestwerte([])).toEqual([]);
+  });
+});

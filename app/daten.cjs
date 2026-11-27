@@ -41,7 +41,7 @@ function createDaten(dir) {
     return { id: r.id, start: r.start, name: r.name, routeId: st ? st.id : null, rev, ganz: rz > 0, rolle: rolle(r), dauer: rz || n, zeit: n, km: r.dist && r.dist.length ? r.dist[r.dist.length - 1] / 1000 : 0, hm: Math.round(r.gain || 0), avgW,
       stravaId: r.strava && r.strava.id ? String(r.strava.id) : null, draussen: r.src === 'strava' && !r.trainer,
       /* für Saison und Fortschritt: Belastung in Punkten, bester 20-min-Schnitt, Ergebnis eines FTP-Tests */
-      tss: Math.round(punkte(r) * 10) / 10, b20: r.noW ? null : (b => b ? Math.round(b) : null)(bestAvg(r.p, 1200)), ftpTest: r.ftpTest ? r.ftpTest.ftp : null };
+      tss: Math.round(punkte(r) * 10) / 10, b20: r.noW ? null : (b => b ? Math.round(b) : null)(bestAvg(r.p, 1200)), ftpTest: r.ftpTest ? r.ftpTest.ftp : null, ftp: r.ftp > 0 ? Math.round(r.ftp) : null };   // ftp: die FTP, die bei der Fahrt galt
   }
   let liste = null;
   const fahrten = () => liste || (liste = alle(D.fahrten).map(kurz).sort((a, b) => a.start.localeCompare(b.start)));
