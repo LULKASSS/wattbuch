@@ -262,7 +262,7 @@ body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:
 .klein:hover{border-color:rgba(246,240,230,.3);color:var(--fg)}
 .mon{margin:16px 0 6px 18px;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--b)}
 .mon:first-child{margin-top:4px}
-.fh{grid-template-columns:86px minmax(0,1fr) 78px 78px 70px 118px;height:44px;border-bottom:1px solid var(--line);border-radius:0;font-size:14px;color:var(--fg2)}
+.fh{grid-template-columns:86px minmax(0,1fr) 78px 78px 70px 118px 92px;height:44px;border-bottom:1px solid var(--line);border-radius:0;font-size:14px;color:var(--fg2)}
 .fh b{color:var(--fg)}
 .fh span{text-align:right}
 .fh span:first-child{text-align:left}
@@ -274,7 +274,7 @@ body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:
 .fh button.lo[data-sicher="1"]{border-color:var(--bad);color:var(--fg)}
 .fh em{font-style:normal;justify-self:end;font-size:12.5px}
 .leer{margin:10px 18px;font-size:14px;color:var(--fg2)}
-@media (max-width:1100px){.fh{grid-template-columns:76px minmax(0,1fr) 70px 70px 0 110px}.fh span:nth-child(5){visibility:hidden}}
+@media (max-width:1100px){.fh{grid-template-columns:76px minmax(0,1fr) 70px 70px 0 110px 86px}.fh span:nth-child(5){visibility:hidden}}
 .sicht.breit{padding:20px 22px 14px 8px;border-radius:20px;background:rgba(16,11,26,.66);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .sicht.breit>.lbl{margin-left:18px}
 #fahrten,#saison{padding-top:88px}

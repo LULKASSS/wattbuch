@@ -372,7 +372,7 @@ $('rvWeg').onclick = async () => {
   b.dataset.sicher = ''; await W.streckeWeg(r.st.id);
 };
 /* Fahrten: alle Fahrten, neueste zuerst, nach Monat. Draußen-Fahrten aus Strava lassen sich als Strecke anlegen,
-   mit dieser App aufgenommene Fahrten löschen (erster Klick fragt, zweiter löscht). */
+   jede Fahrt lässt sich löschen (erster Klick fragt, zweiter löscht). */
 let loFrage = '', loT = 0;
 function zeigeFahrten() {
   const box = $('fhListe'); box.innerHTML = ''; let mon = '';
@@ -388,7 +388,8 @@ function zeigeFahrten() {
       const da = runden.some(r => r.st.id === 'sr' + f.stravaId), b = document.createElement('button'); b.type = 'button'; b.textContent = da ? 'ist Strecke' : 'Als Strecke'; b.disabled = da;
       b.onclick = async () => { b.disabled = true; b.textContent = 'holt'; const r = await W.alsStrecke(f.id); b.textContent = r.ok ? 'ist Strecke' : 'geht nicht'; };
       row.appendChild(b);
-    } else if (f.neu) {
+    } else { const e = document.createElement('em'); e.textContent = f.draussen ? 'draußen' : f.rolle ? '' : 'Strava'; row.appendChild(e); }
+    {
       /* die Rückfrage merkt sich die Liste selbst: sie baut sich bei jeder Änderung der Daten neu auf */
       const b = document.createElement('button'), fragt = loFrage === f.id; b.type = 'button'; b.className = 'lo'; b.textContent = fragt ? 'Wirklich?' : 'Löschen'; if (fragt) b.dataset.sicher = '1';
       b.onclick = async () => {
@@ -396,7 +397,7 @@ function zeigeFahrten() {
         loFrage = ''; clearTimeout(loT); b.disabled = true; await W.fahrtLoeschen(f.id);
       };
       row.appendChild(b);
-    } else { const e = document.createElement('em'); e.textContent = f.draussen ? 'draußen' : f.rolle ? '' : 'Strava'; row.appendChild(e); }
+    }
     box.appendChild(row);
   }
 }

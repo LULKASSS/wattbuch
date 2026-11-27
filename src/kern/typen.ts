@@ -19,7 +19,7 @@ export interface Fahrt {
   routeId?: string | null; rev?: boolean; ganz?: boolean; app?: 'neu';
   src?: string; noW?: boolean; dur?: number; ftpTest?: { ftp: number; best: number; before: number };
 }
-export interface FahrtKurz { id: string; start: string; name: string; routeId: string | null; rev: boolean; ganz: boolean; rolle: boolean; dauer: number; zeit: number; km: number; hm: number; avgW: number | null; stravaId: string | null; neu: boolean; draussen: boolean; tss: number; b20: number | null; ftpTest: number | null }
+export interface FahrtKurz { id: string; start: string; name: string; routeId: string | null; rev: boolean; ganz: boolean; rolle: boolean; dauer: number; zeit: number; km: number; hm: number; avgW: number | null; stravaId: string | null; draussen: boolean; tss: number; b20: number | null; ftpTest: number | null }
 export interface Werte { ftp: number; weight: number; bike: number; diff: number; erg?: boolean }   // erg: Watt halten
 export const WERTE_START: Werte = { ftp: 200, weight: 75, bike: 9, diff: 0.5 };
 

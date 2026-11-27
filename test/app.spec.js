@@ -262,11 +262,11 @@ test('Konto: alte Fahrten sind da und werden Rivale, neue Fahrt geht ins Konto u
   /* eigene Sicherung: Wattbuch-Fahrten ja, Strava-Fahrten nein, Strecke ja */
   const sich = path.join(dir, 'Sicherung');
   await expect.poll(() => fs.readdirSync(path.join(sich, 'fahrten')).sort(), { timeout: 10_000 }).toEqual([alt.id + '.json', neu.id + '.json'].sort());
-  /* Fahrt löschen: nur die hier aufgenommene hat den Knopf, zwei Klicks; hier und in der Sicherung weg,
+  /* Fahrt löschen: jede hat den Knopf, zwei Klicks; hier und in der Sicherung weg,
      im Konto nur markiert (die Daten bleiben in der Zeile), keine Zeile wird gelöscht */
   await buehne.keyboard.press('Escape'); await buehne.click('nav button[data-s=fahrten]');
-  await expect(buehne.locator('.fh')).toHaveCount(3); await expect(buehne.locator('.fh button.lo')).toHaveCount(1);
-  const lo = buehne.locator('.fh button.lo');
+  await expect(buehne.locator('.fh')).toHaveCount(3); await expect(buehne.locator('.fh button.lo')).toHaveCount(3);
+  const lo = buehne.locator('.fh').first().locator('button.lo');   // die neueste: die eben gefahrene
   await lo.click(); await expect(lo).toHaveText('Wirklich?'); expect(fahrten(dir).length).toBe(3);
   await lo.click();
   await expect(buehne.locator('.fh')).toHaveCount(2);
@@ -276,9 +276,17 @@ test('Konto: alte Fahrten sind da und werden Rivale, neue Fahrt geht ins Konto u
   expect(zeilen.find(z => z.id === alt.id)).toMatchObject({ data: alt, geloescht: false });
   expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
   await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('#hBest')).toHaveText('8:20');   // Rivale ist wieder die alte Fahrt
+  /* auch die alte Fahrt und die aus Strava: markiert, Daten bleiben, nichts kommt beim Abgleich zurück */
+  await buehne.click('nav button[data-s=fahrten]');
+  for (const n of [1, 0]) { const b = buehne.locator('.fh').first().locator('button.lo'); await b.click(); await expect(b).toHaveText('Wirklich?'); await b.click(); await expect(buehne.locator('.fh')).toHaveCount(n); }
+  await expect.poll(() => zeilen.filter(z => z.geloescht).length, { timeout: 10_000 }).toBe(4);
+  expect(zeilen.find(z => z.id === alt.id).data).toEqual(alt); expect(zeilen.find(z => z.id === drau.id).data).toEqual(drau);
+  expect(K.log.filter(l => /^(DELETE|PATCH|PUT)/.test(l))).toEqual([]);
+  expect(JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'konto.json'), 'utf8')).weg).toEqual(expect.arrayContaining([drau.id]));
+  await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('#hRival')).toBeHidden();
   await app.close();
-  expect(fs.readdirSync(path.join(sich, 'fahrten'))).toEqual([alt.id + '.json']);
-  expect(fahrten(dir).length).toBe(2);   // kommt beim Abgleich nicht zurück
+  expect(fs.readdirSync(path.join(sich, 'fahrten'))).toEqual([]);
+  expect(fahrten(dir).length).toBe(0);
   expect(fs.existsSync(path.join(sich, 'strecken', 'test-kurz.json'))).toBe(true);
   expect(fs.statSync(path.join(dir, 'daten', 'konto.json')).mode & 0o077).toBe(0);
   expect(probleme).toEqual([]);
@@ -467,8 +475,8 @@ test('Strava mit eigener App: Draußen-Fahrten werden übernommen, mit und ohne 
   /* aber jede lässt sich als Strecke anlegen */
   await buehne.click('nav button[data-s=fahrten]');
   await expect(buehne.locator('.fh')).toHaveCount(2);
-  await buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button').click();
-  await expect(buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button')).toHaveText('ist Strecke', { timeout: 10_000 });
+  await buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button:not(.lo)').click();
+  await expect(buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button:not(.lo)')).toHaveText('ist Strecke', { timeout: 10_000 });
   await expect.poll(() => fs.existsSync(path.join(dir, 'daten', 'strecken', 'sr402.json'))).toBe(true);
   await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('.card')).toHaveCount(2);
   expect(probleme).toEqual([]);

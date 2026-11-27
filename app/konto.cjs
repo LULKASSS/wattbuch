@@ -1,7 +1,6 @@
 /* Konto: Abgleich über Supabase (Projekt „Apps“), dieselben Tabellen wie die alte App: wattbuch_fahrten und
  * wattbuch_werte, Zeilenschutz (jeder sieht nur seine Zeilen). Ohne Bibliothek, direkt über REST.
- * Die Tabellen werden nie geändert, es wird nie eine Zeile gelöscht. Eine hier gelöschte Fahrt (nur mit dieser App
- * aufgenommene) wird im Konto als gelöscht markiert, so wie es die alte App macht; ihre Daten bleiben in der Zeile.
+ * Die Tabellen werden nie geändert, es wird nie eine Zeile gelöscht. Eine hier gelöschte Fahrt wird im Konto als gelöscht markiert, so wie es die alte App macht; ihre Daten bleiben in der Zeile.
  * Neue Fahrten gehen im Format der alten App
  * hinein (plus routeId, rev, ganz, app), damit die alte App sie weiter lesen kann.
  * Ablauf wie in der alten App: Jede hier gespeicherte Fahrt landet im Ausgang. Ein Abgleich holt erst alles, was seit
@@ -72,7 +71,7 @@ function createKonto({ daten, melde = () => {}, log = () => {} }) {
   /* Neue oder geänderte Fahrt vormerken */
   function merke(id) { if (!K.s) return; K.out.set(id, Date.now() + Math.random()); save(); bald(); sag(); }
   /* Hier gelöschte Fahrt: im Konto als gelöscht markieren (die Zeile und ihre Daten bleiben) */
-  function fahrtWeg(id, start) { if (!K.s) return; K.out.delete(id); K.lout.set(id, start); if (!K.weg.includes(id)) K.weg.push(id); save(); bald(); sag(); }
+  function fahrtWeg(id, start) { if (!K.weg.includes(id)) K.weg.push(id); if (K.s) { K.out.delete(id); K.lout.set(id, start); } save(); bald(); sag(); }   // weg merkt sich auch ohne Konto, was Strava nicht wieder bringen soll
   function merkeWerte() { if (!K.s) return; K.werte = true; save(); bald(); }
   /* Strecke oder Saison vormerken; weg = im Konto als entfernt markieren (die Zeile bleibt, nichts wird gelöscht) */
   function merkeDok(sammlung, id, weg = false) { if (!K.s) return; K.dout.set(sammlung + '/' + id, [Date.now() + Math.random(), !!weg]); save(); bald(); sag(); }

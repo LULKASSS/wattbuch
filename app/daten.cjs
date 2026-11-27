@@ -39,7 +39,7 @@ function createDaten(dir) {
     const { st, rev } = zuordnung(r), rz = rolle(r) ? rundenzeit(r, st) : 0;
     const n = r.noW ? r.dur || 0 : r.p.length, avgW = r.noW ? r.estW || null : n ? Math.round(r.p.reduce((a, v) => a + v, 0) / n) : null;
     return { id: r.id, start: r.start, name: r.name, routeId: st ? st.id : null, rev, ganz: rz > 0, rolle: rolle(r), dauer: rz || n, zeit: n, km: r.dist && r.dist.length ? r.dist[r.dist.length - 1] / 1000 : 0, hm: Math.round(r.gain || 0), avgW,
-      stravaId: r.strava && r.strava.id ? String(r.strava.id) : null, neu: r.app === 'neu', draussen: r.src === 'strava' && !r.trainer,
+      stravaId: r.strava && r.strava.id ? String(r.strava.id) : null, draussen: r.src === 'strava' && !r.trainer,
       /* für Saison und Fortschritt: Belastung in Punkten, bester 20-min-Schnitt, Ergebnis eines FTP-Tests */
       tss: Math.round(punkte(r) * 10) / 10, b20: r.noW ? null : (b => b ? Math.round(b) : null)(bestAvg(r.p, 1200)), ftpTest: r.ftpTest ? r.ftpTest.ftp : null };
   }

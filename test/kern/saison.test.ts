@@ -9,7 +9,7 @@ import { erzeuge } from '../../src/kern/erzeugen';
 import kz from '../../app/kennzahl.cjs';
 
 const HEUTE = tagAus('2026-11-26');   // ein Donnerstag
-const fahrt = (tag: number, tss: number, mehr: Partial<FahrtKurz> = {}): FahrtKurz => ({ id: 'f' + tag + tss, start: isoTag(tag) + 'T17:00:00', name: 'Test', routeId: null, rev: false, ganz: false, rolle: true, dauer: 3600, zeit: Math.round(tss * 36 / .49), km: 30, hm: 0, avgW: 150, stravaId: null, neu: true, draussen: false, tss, b20: null, ftpTest: null, ...mehr });
+const fahrt = (tag: number, tss: number, mehr: Partial<FahrtKurz> = {}): FahrtKurz => ({ id: 'f' + tag + tss, start: isoTag(tag) + 'T17:00:00', name: 'Test', routeId: null, rev: false, ganz: false, rolle: true, dauer: 3600, zeit: Math.round(tss * 36 / .49), km: 30, hm: 0, avgW: 150, stravaId: null, draussen: false, tss, b20: null, ftpTest: null, ...mehr });
 const S: Saison = { art: 'ftp', ziel: 250, bis: '2027-02-18', von: '2026-11-26', ftp0: 230, last0: 200 };
 
 describe('Kennzahlen', () => {
