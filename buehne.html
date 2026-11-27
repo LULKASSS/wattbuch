@@ -32,11 +32,16 @@
 
 <div class="layer" id="heim"><div class="hg">
   <div class="hm">
-    <div class="lbl" id="hmL"></div>
-    <h1 class="dsp" id="hmName"></h1>
-    <div class="stats" id="hmF"><span><b id="hmKm"></b>km</span><span><b id="hmZeit"></b>Fahrzeit</span><span><b id="hmW"></b>Watt</span><span><b id="hmP"></b>Punkte</span></div>
-    <div class="go"><small id="hmHeute"></small><button class="gobtn" id="startH"><span>Losfahren</span></button></div>
-    <div class="opt"><button type="button" id="hmProfil">Profil</button><button type="button" id="hmKonto">Konto</button><button type="button" id="hmStrava">Strava</button></div>
+    <div class="hmo">
+      <div class="lbl" id="hmL"></div>
+      <h1 class="dsp" id="hmName"></h1>
+      <div class="stats" id="hmF"><span><b id="hmKm"></b>km</span><span><b id="hmZeit"></b>Fahrzeit</span><span><b id="hmW"></b>Watt</span><span><b id="hmP"></b>Punkte</span></div>
+    </div>
+    <div class="hmu">
+      <div class="go"><small id="hmHeute"></small><button class="gobtn" id="startH"><span>Losfahren</span></button></div>
+      <div class="dock mini"><div id="cardsH" style="display:contents"></div></div>
+      <div class="opt"><button type="button" id="hmProfil">Profil</button><button type="button" id="hmKonto">Konto</button><button type="button" id="hmStrava">Strava</button></div>
+    </div>
   </div>
   <div class="dash rolle" id="dash">
     <section class="glass pn">
@@ -51,8 +56,8 @@
     </section>
     <section class="glass pn">
       <div class="lbl">FTP</div>
-      <div class="pz"><b class="dsp"><span id="hmFtp"></span><small>W</small></b><span><span id="hmWkg"></span> W/kg</span></div>
-      <div class="sz" id="saFtpZ" hidden><span>Ziel</span><b id="saFtp"></b><i class="weg"><i id="dFtpB"></i></i></div>
+      <div class="pz"><b class="dsp" id="dFtpB2"><span id="hmFtp"></span><small>W</small></b><em class="plus" id="dFtpPlus" hidden></em><span><span id="hmWkg"></span> W/kg</span></div>
+      <div class="sz" id="saFtpZ" hidden><span>Ziel</span><b id="saFtp"></b></div>
       <div class="sz"><span>20 min</span><b id="dB20"></b></div>
     </section>
     <section class="glass pn">
@@ -62,23 +67,23 @@
       <div class="sz"><span>Serie</span><b id="saSerie"></b></div>
     </section>
     <section class="glass pn breit">
-      <div class="lbl" id="saL">Saison</div>
+      <div class="pk"><div class="lbl" id="saL">Saison</div><button class="klein" id="saAend" type="button" hidden>Ändern</button></div>
       <form id="saNeu" hidden>
-        <h2 class="dsp">Dein Ziel</h2>
+        <h2 class="dsp" id="saNeuT">Dein Ziel</h2>
         <div class="wahl" id="saArt"><button type="button" class="on" data-art="ftp">FTP</button><button type="button" data-art="tour">Lange Tour</button></div>
         <div class="fz"><label><span id="saZielL">FTP</span><span><input id="saZiel" type="number" min="1" max="600" step="1" inputmode="numeric" aria-label="Ziel"><em id="saEinh">W</em></span></label><label>bis<span><input id="saBis" type="date" aria-label="bis"></span></label></div>
-        <button class="bbtn" type="submit">Saison starten</button>
+        <div class="fk"><button class="bbtn" type="submit" id="saOk">Saison starten</button><button class="klein" id="saAb" type="button" hidden>Abbrechen</button><button class="klein" id="saEnde" type="button" hidden>Saison beenden</button></div>
       </form>
       <div id="saLauf" hidden>
-        <h2 class="dsp" id="saZielT"></h2>
-        <canvas id="saWeg" width="1600" height="200"></canvas>
+        <div class="pk"><h2 class="dsp" id="saZielT"></h2><span id="saRest"></span></div>
+        <div class="sz"><span>Ziel</span><b id="saFort"></b><i class="weg"><i id="saFortB"></i></i></div>
         <div class="sz"><span>Heute</span><b id="saHeute"></b></div>
-        <div class="sz"><span>Woche</span><b id="saWoche"></b><i class="weg"><i id="saWocheB"></i></i></div>
+        <div class="sz vier"><span>Woche</span><b id="saWoche"></b><em id="saStd"></em><i class="weg"><i id="saWocheB"></i></i></div>
+        <div class="tage" id="saTage"></div>
+        <div class="lbl sub">Wochen</div>
+        <canvas id="saWeg" width="1600" height="230"></canvas>
       </div>
-      <button class="klein" id="saEnde" type="button" hidden>Saison beenden</button>
-    </section>
-    <section class="glass pn breit" id="dGeschP">
-      <div class="lbl">Meilensteine</div>
+      <div class="lbl sub" id="saGeschL">Meilensteine</div>
       <div id="saGesch"></div>
     </section>
   </div>
@@ -95,10 +100,15 @@
   <div class="rolle" id="fhListe"></div>
 </div>
 <div class="glass fd rolle" id="fhDetail" hidden>
-  <div class="lbl" id="fdL"></div>
-  <h2 class="dsp" id="fdName"></h2>
-  <canvas id="fdKurve" width="720" height="150"></canvas>
-  <div class="fdz" id="fdZ"></div>
+  <div class="pk"><div style="min-width:0"><div class="lbl" id="fdL"></div><h2 class="dsp" id="fdName"></h2></div><button class="klein" id="fdZu" type="button">Schließen</button></div>
+  <div class="fdh" id="fdH"></div>
+  <div class="fdg">
+    <section class="fdc breit" id="fdKurveC"><div class="lbl">Leistung</div><canvas id="fdKurve" width="1600" height="300"></canvas></section>
+    <section class="fdc breit" id="fdHoeheC"><div class="lbl">Höhe</div><canvas id="fdHoehe" width="1600" height="170"></canvas></section>
+    <section class="fdc" id="fdBestC"><div class="lbl">Bestwerte</div><div id="fdBest"></div></section>
+    <section class="fdc"><div class="lbl">Belastung</div><div class="fdz" id="fdZ"></div></section>
+    <section class="fdc" id="fdKoerperC"><div class="lbl">Körper</div><div class="fdz" id="fdK"></div></section>
+  </div>
 </div></div>
 
 <div class="layer" id="count"><div class="ringbox">

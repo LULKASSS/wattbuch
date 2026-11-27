@@ -25,7 +25,7 @@ const bild = n => page.screenshot({ path: path.join(ziel, n + '.png') });
 await page.waitForFunction(() => window.__wb && window.__wb.z && window.__wb.z.geraete.rolle === 'an', null, { timeout: 20000 });
 await warte(5000); await bild('0-start'); await page.click('nav button[data-s=lobby]'); await warte(1200); await bild('1-lobby');
 /* RIVALE=1: die Runde nehmen, auf der schon ein Versuch liegt (falls sie nicht ohnehin gewählt ist) */
-if (process.env.RIVALE) { const k = page.locator('.card', { hasText: 'Rivale wartet' }); if (await k.count()) { await k.first().click(); await warte(3500); } await bild('1c-lobby-rivale'); }
+if (process.env.RIVALE) { const k = page.locator('#cards .card', { hasText: 'Rivale wartet' }); if (await k.count()) { await k.first().click(); await warte(3500); } await bild('1c-lobby-rivale'); }
 if (process.env.SAISON) { await page.click('nav button[data-s=fahrten]'); await warte(1200); await bild('1f-fahrten'); await page.locator('.fh').first().click(); await warte(3500); await bild('1g-fahrt'); await page.keyboard.press('Escape'); await warte(900); await page.click('nav button[data-s=lobby]'); await warte(800); }
 if (process.env.PROFIL) { await page.click('#lvlB'); await warte(900); await bild('1e-profil'); await page.keyboard.press('Escape'); await warte(600); }
 if (process.env.RUNDE) { await page.keyboard.press('ArrowRight'); await warte(3000); await bild('1b-lobby'); }

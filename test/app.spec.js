@@ -37,14 +37,14 @@ const fahrten = dir => { const d = path.join(dir, 'daten', 'fahrten'); return fs
 
 test('Erster Start: drei erzeugte Runden, Geräte verbinden sich von selbst, Runde wählen', async () => {
   const dir = ordner(false), { app, buehne, maschine, probleme } = await starte(dir);
-  await expect(buehne.locator('.card')).toHaveCount(3);
+  await expect(buehne.locator('#cards .card')).toHaveCount(3);
   await expect(buehne.locator('#hTag')).toHaveText('Heute für dich');
   await expect(buehne.locator('#hRival')).toBeHidden();
   expect(await maschine.evaluate(() => window.__fakeBle.requests.length)).toBe(3);   // Rolle, Puls, Kadenz ohne Klick
   const name = await buehne.locator('#hName').innerText();
   await buehne.keyboard.press('ArrowRight');
   await expect(buehne.locator('#hName')).not.toHaveText(name);
-  await buehne.locator('.card').first().click();
+  await buehne.locator('#cards .card').first().click();
   await expect(buehne.locator('#hName')).toHaveText(name);
   /* kein Titelbalken, kein Logo, nichts bricht um */
   expect(await buehne.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
@@ -187,7 +187,7 @@ test('Kleines Fenster: nichts bricht um, nichts ragt hinaus', async () => {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('buehne')).setSize(960, 600));
   await warte(600);
   const passt = was => buehne.evaluate(was => [...document.querySelectorAll(was)].every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }), was);
-  expect(await passt('.top,.hero h1,.hero .stats,.hero .go,.dock,.card')).toBe(true);
+  expect(await passt('.top,.hero h1,.hero .stats,.hero .go,#lobby .dock,#cards .card')).toBe(true);
   expect(await buehne.evaluate(() => { const h = document.getElementById('hName'); return h.getBoundingClientRect().height < parseFloat(getComputedStyle(h).fontSize) * 1.4; })).toBe(true);
   await buehne.click('#start');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
@@ -300,7 +300,7 @@ test('Übernahme aus der alten App: Strecken und Werte einmalig lesen; leerer Da
   const inhalt = JSON.stringify({ app: 'wattbuch', version: 1, settings: { ftp: 215, weight: 71, bike: 8, diff: .75, routeId: 'g2' }, rides: [], routes: [a, b], gone: [] });
   fs.writeFileSync(altDatei, inhalt);
   let { app, buehne, maschine, probleme } = await starte(dir, 1, { WATTBUCH_ALT: altDatei });
-  await expect(buehne.locator('.card')).toHaveCount(2);   // keine erzeugten Runden dazu
+  await expect(buehne.locator('#cards .card')).toHaveCount(2);   // keine erzeugten Runden dazu
   await expect(buehne.locator('#stufe')).toHaveText('215 W');
   expect((await stand(maschine)).ftp).toBe(215);
   expect(JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'werte.json'), 'utf8')).diff).toBe(.75);
@@ -310,12 +310,12 @@ test('Übernahme aus der alten App: Strecken und Werte einmalig lesen; leerer Da
   /* zweiter Start: nicht noch einmal übernehmen (eine hier gelöschte Strecke bleibt weg) */
   fs.rmSync(path.join(dir, 'daten', 'strecken', 'g2.json')); fs.rmSync(path.join(dir, 'Sicherung', 'strecken', 'g2.json'));
   ({ app, buehne } = await starte(dir, 1, { WATTBUCH_ALT: altDatei }));
-  await expect(buehne.locator('.card')).toHaveCount(1);
+  await expect(buehne.locator('#cards .card')).toHaveCount(1);
   await app.close();
   /* neuer Mac: Datenordner leer, Sicherung da */
   fs.rmSync(path.join(dir, 'daten'), { recursive: true });
   ({ app, buehne } = await starte(dir));
-  await expect(buehne.locator('.card')).toHaveCount(1);
+  await expect(buehne.locator('#cards .card')).toHaveCount(1);
   await expect(buehne.locator('#hName')).toHaveText('Testrunde');
   await expect(buehne.locator('#stufe')).toHaveText('215 W');
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
@@ -411,7 +411,7 @@ test('Strava: verbinden, meistgefahrene Runde wird Strecke, Fahrt geht von selbs
   /* dreimal dieselbe Runde draußen (zweimal gleich benannt), dazu eine einzelne andere Fahrt ohne Linie */
   const sv = await strava([draussen(301, 6, 'Seerunde', poly), draussen(302, 7, 'Seerunde', poly), draussen(303, 8, 'Morning Ride', poly), draussen(304, 9, 'Irgendwo', '')]);
   const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 20, { WATTBUCH_STRAVA_URL: sv.url, WATTBUCH_STRAVA_WARTEN: '1500' });
-  await expect(buehne.locator('.card')).toHaveCount(1);
+  await expect(buehne.locator('#cards .card')).toHaveCount(1);
   await buehne.click('#lvlB');
   await expect(buehne.locator('#svB')).toHaveText('Verbinden');
   await buehne.click('#svB');
@@ -426,15 +426,15 @@ test('Strava: verbinden, meistgefahrene Runde wird Strecke, Fahrt geht von selbs
   expect(fs.readFileSync(cf, 'utf8')).not.toContain('clientSecret'); expect(fs.statSync(cf).mode & 0o077).toBe(0);
   /* die dreimal gefahrene Runde ist jetzt eine Strecke mit geglätteter Höhe; ganze Fahrten übernimmt die gemeinsame App nicht */
   await buehne.keyboard.press('Escape');
-  await expect(buehne.locator('.card')).toHaveCount(2, { timeout: 15_000 });
-  await expect(buehne.locator('.card', { hasText: 'Seerunde' })).toBeVisible();
+  await expect(buehne.locator('#cards .card')).toHaveCount(2, { timeout: 15_000 });
+  await expect(buehne.locator('#cards .card', { hasText: 'Seerunde' })).toBeVisible();
   const st = JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'strecken', 'sf303.json'), 'utf8'));
   expect(st.fav).toEqual({ n: 3 }); expect(st.dist).toBeGreaterThan(11000); expect(st.dist).toBeLessThan(13000);
   let sprung = 0; for (let i = 1; i < st.ele.length; i++) sprung = Math.max(sprung, Math.abs(st.ele[i] - st.ele[i - 1])); expect(sprung).toBeLessThan(1.5);
   expect(sv.seen.streams).toEqual(['303:latlng,altitude,distance']);
   expect(fahrten(dir)).toHaveLength(0);
   /* Runde fahren: geht nach der Wartezeit von selbst hoch und wird zum Virtual Ride */
-  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
   await buehne.click('#start');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
   await expect(buehne.locator('#resS')).toHaveText('geht gleich zu Strava');
@@ -446,7 +446,7 @@ test('Strava: verbinden, meistgefahrene Runde wird Strecke, Fahrt geht von selbs
   expect(sv.seen.uploads).toHaveLength(1);
   /* zweite Fahrt: Hochladen im Ergebnisbild abbrechen */
   await buehne.click('#home'); await maschine.evaluate(() => { window.__simFahrer.faktor = 1.3; });
-  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
   await buehne.click('#start');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
   await buehne.click('#resS');
@@ -480,7 +480,7 @@ test('Strava mit eigener App: Draußen-Fahrten werden übernommen, mit und ohne 
   await buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button:not(.lo)').click();
   await expect(buehne.locator('.fh', { hasText: 'Mit Wattmesser' }).locator('button:not(.lo)')).toHaveText('ist Strecke', { timeout: 10_000 });
   await expect.poll(() => fs.existsSync(path.join(dir, 'daten', 'strecken', 'sr402.json'))).toBe(true);
-  await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('.card')).toHaveCount(2);
+  await buehne.click('nav button[data-s=lobby]'); await expect(buehne.locator('#cards .card')).toHaveCount(2);
   expect(probleme).toEqual([]);
   await app.close(); sv.zu(); fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -493,7 +493,7 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
   for (const r of [alt('ra', 12, 6, 3300), alt('rb', 20, 5, 2500)]) fs.writeFileSync(path.join(dir, 'daten', 'fahrten', r.id + '.json'), JSON.stringify(r));
   fs.writeFileSync(path.join(dir, 'daten', 'strecken', 'zwei.json'), JSON.stringify({ ...kurzeStrecke(), id: 'zwei', name: 'Zweite Runde' }));
   const { app, buehne, maschine, probleme } = await starte(dir, 20);
-  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
   await buehne.click('nav button[data-s=rivalen]');
   await expect(buehne.locator('#rvName')).toHaveText('Testrunde');
   await expect(buehne.locator('.rv')).toHaveCount(2);
@@ -503,7 +503,7 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
   await expect(buehne.locator('.vs div')).toHaveCount(2);
   await expect(buehne.locator('.vs div').first()).toContainText('Bestzeit'); await expect(buehne.locator('.vs div').nth(1)).toContainText('+');
   /* andere Runde: keine Versuche */
-  await buehne.keyboard.press(await buehne.locator('.card').first().innerText().then(t => t.includes('Testrunde') ? 'ArrowRight' : 'ArrowLeft'));
+  await buehne.keyboard.press(await buehne.locator('#cards .card').first().innerText().then(t => t.includes('Testrunde') ? 'ArrowRight' : 'ArrowLeft'));
   await expect(buehne.locator('#rvName')).toHaveText('Zweite Runde'); await expect(buehne.locator('.rv .z').first()).toHaveText('–');
   /* Fahrten: beide alten Fahrten, neueste zuerst */
   await buehne.click('nav button[data-s=fahrten]');
@@ -512,7 +512,7 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
   await buehne.keyboard.press('Escape');
   await expect(buehne.locator('body')).toHaveAttribute('data-sicht', 'lobby');
   /* Fahrt mit viel Druck: am Fuß wird die Bestzeit angesagt, oben fällt sie, im Ergebnis steht es */
-  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
   await maschine.evaluate(() => { window.__simFahrer.faktor = 3; });
   const gesagt = []; await buehne.exposeFunction('__merk', t => gesagt.push(t));
   await buehne.evaluate(() => new MutationObserver(m => m.forEach(x => x.addedNodes.forEach(n => window.__merk(n.textContent)))).observe(document.getElementById('toasts'), { childList: true }));
@@ -524,12 +524,12 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
   await expect(buehne.locator('#resB')).toHaveText('1 Segment-Bestzeit');
   await buehne.click('#home');
   await expect(buehne.locator('#hName')).toHaveText('Zweite Runde');   // heute ist die andere Runde dran
-  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
   await buehne.click('nav button[data-s=rivalen]');
   await expect(buehne.locator('.rv .n').first()).toHaveText('2×'); await expect(buehne.locator('.rv .n').nth(1)).toHaveText('3×');
   /* Runde entfernen: erst nachfragen, dann weg (Fahrten bleiben) */
   await buehne.click('#rvWeg'); await expect(buehne.locator('#rvWeg')).toHaveText('Wirklich entfernen'); await buehne.click('#rvWeg');
-  await expect(buehne.locator('.card')).toHaveCount(1);
+  await expect(buehne.locator('#cards .card')).toHaveCount(1);
   expect(fs.existsSync(path.join(dir, 'daten', 'strecken', 'test-kurz.json'))).toBe(false); expect(fahrten(dir)).toHaveLength(3);
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
@@ -552,6 +552,9 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect(buehne.locator('#saL')).toHaveText('Saison · Woche 1 von 13');
   await expect(buehne.locator('#saHeute')).toHaveText(/^(Zügig|Grundlage|Lang) · \d+ min · \d+ W$/);
   await expect(buehne.locator('#saWoche')).toHaveText(/^0 von 3 Fahrten$/);
+  /* die Woche zum Abarbeiten: sieben Tage, heute umrandet und mit dem Plan des Tages, dazu die Stunden */
+  await expect(buehne.locator('#saTage .tg')).toHaveCount(7); await expect(buehne.locator('#saTage .tg.heute b')).toHaveText(/^\d+ min$/);
+  await expect(buehne.locator('#saStd')).toHaveText(/^0:00 von \d:\d\d h$/); await expect(buehne.locator('#saRest')).toHaveText('noch 84 Tage');
   await expect(buehne.locator('#saFtp')).toHaveText('200 von 220 W');
   await expect.poll(() => dok.find(d => d.sammlung === 'saison')?.data?.ziel, { timeout: 10_000 }).toBe(220);
   expect(await buehne.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
@@ -565,7 +568,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   const plan = fs.readdirSync(path.join(dir, 'daten', 'strecken')).map(f => JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'strecken', f), 'utf8'))).filter(s => s.plan);
   expect(plan).toHaveLength(1);
   /* kurze Runde fahren: Zielleistung des Tages gilt auch hier, das Ergebnis sagt, was es für die Woche gebracht hat */
-  await buehne.locator('.card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
   await buehne.click('#start');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
   expect((await stand(maschine)).basis).toBe(watt);
@@ -575,6 +578,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect(buehne.locator('#hTag')).toHaveText('Heute geschafft');
   await buehne.click('nav button[data-s=start]');
   await expect(buehne.locator('#saHeute')).toHaveText('Geschafft'); await expect(buehne.locator('#saWoche')).toHaveText('1 von 3 Fahrten');
+  await expect(buehne.locator('#saTage .tg.heute')).toHaveClass(/fertig/);
   /* die nie gefahrene Runde des Plans war nie im Konto und ist wieder weg */
   expect(dok.filter(d => d.sammlung === 'strecken').map(d => d.id)).toEqual(['test-kurz']);
   await expect.poll(() => fs.readdirSync(path.join(dir, 'daten', 'strecken'))).toEqual(['ftptest.json', 'test-kurz.json']);   // dazu nur die Bahn des FTP-Tests
@@ -584,11 +588,16 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   /* Zweiter Mac, leer: nach dem Anmelden sind Strecke, Fahrt und Saison da */
   const dir2 = ordner(false), B = await starte(dir2, 1, { WATTBUCH_SUPABASE_URL: K.url });
   await B.buehne.click('#lvlB'); await expect(B.buehne.locator('#kForm')).toBeVisible(); await B.buehne.fill('#kMail', 'test@example.com'); await B.buehne.fill('#kPw', 'geheim-im-test'); await B.buehne.click('#kForm button');
-  await expect(B.buehne.locator('.card', { hasText: 'Testrunde' })).toHaveCount(1, { timeout: 15_000 });
+  await expect(B.buehne.locator('#cards .card', { hasText: 'Testrunde' })).toHaveCount(1, { timeout: 15_000 });
   await B.buehne.keyboard.press('Escape');
   await B.buehne.click('nav button[data-s=start]');
   await expect(B.buehne.locator('#saZielT')).toContainText('220 W bis'); await expect(B.buehne.locator('#saHeute')).toHaveText('Geschafft');
   /* Saison beenden: zwei Klicks, im Konto als entfernt markiert, nichts gelöscht */
+  /* Ziel ändern: der Anfang der Saison bleibt, „Saison beenden“ steht nur hier */
+  await expect(B.buehne.locator('#saEnde')).toBeHidden(); await B.buehne.click('#saAend');
+  await expect(B.buehne.locator('#saZiel')).toHaveValue('220'); await B.buehne.fill('#saZiel', '225'); await B.buehne.click('#saOk');
+  await expect(B.buehne.locator('#saZielT')).toContainText('225 W bis'); await expect(B.buehne.locator('#saL')).toHaveText('Saison · Woche 1 von 13');
+  await B.buehne.click('#saAend');
   await B.buehne.click('#saEnde'); await expect(B.buehne.locator('#saEnde')).toHaveText('Wirklich beenden'); await B.buehne.click('#saEnde');
   await expect(B.buehne.locator('#saNeu')).toBeVisible();
   await expect.poll(() => dok.find(d => d.sammlung === 'saison').geloescht, { timeout: 10_000 }).toBe(true);
@@ -600,7 +609,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
 /* ---------- Schritt 6: FTP-Test, Watt halten, Gegenrichtung ---------- */
 test('FTP-Test: Rampe an der Rolle, Ergebnis wird die neue FTP', async () => {
   const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 30);
-  await expect(buehne.locator('.card')).toHaveCount(1);   // die Testbahn ist keine Runde der Lobby
+  await expect(buehne.locator('#cards .card')).toHaveCount(1);   // die Testbahn ist keine Runde der Lobby
   await maschine.evaluate(() => { window.__fakeBle.maxPower = 310; });   // mehr geht nicht: bei 400 W ist Schluss
   await buehne.click('#lvlB'); await buehne.click('#pTest');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
@@ -621,7 +630,7 @@ test('FTP-Test: Rampe an der Rolle, Ergebnis wird die neue FTP', async () => {
   await expect(buehne.locator('#stufe')).toHaveText(r.ftpTest.ftp + ' W');
   await expect(buehne.locator('#hName')).toHaveText('Testrunde'); await expect(buehne.locator('#hRival')).toBeHidden();
   await buehne.click('nav button[data-s=start]');
-  await expect(buehne.locator('#saGesch')).toContainText(`FTP-Test: ${r.ftpTest.ftp} W`);
+  await expect(buehne.locator('#saGesch .ms', { hasText: 'FTP-Test' }).locator('b')).toHaveText(`${r.ftpTest.ftp} W`);
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -668,10 +677,11 @@ test('Startseite: letzte Fahrt und eigene Zahlen, FTP zieht von selbst nach, Pro
   expect(werte().ftp).toBe(247); expect(werte().ftpAm).toBeTruthy();
   await expect(buehne.locator('#hmWkg')).toHaveText('3,3');
   await expect(buehne.locator('#hmHeute')).toHaveText(/^Testrunde · \d+ min$/);
+  await expect(buehne.locator('#cardsH .card')).toHaveCount(1); await expect(buehne.locator('#cardsH .card.on b')).toHaveText('Testrunde');   // die Runden stehen auch hier
   /* Profil, Konto und Strava sind von hier aus zu erreichen */
   await expect(buehne.locator('#hmKonto')).not.toHaveClass(/on/); await expect(buehne.locator('#hmStrava')).not.toHaveClass(/on/);
   /* der Stand als Tafeln: Fitness, die Woche, das Jahr */
-  await expect(buehne.locator('#dFit')).toHaveText(/^\d+$/); await expect(buehne.locator('#dWo')).toHaveText('0:21'); await expect(buehne.locator('#dWoT')).toHaveText('10 km · 1 Fahrt');
+  await expect(buehne.locator('#dFit')).toHaveText(/^\d+$/); await expect(buehne.locator('#dWo')).toHaveText('0:21'); await expect(buehne.locator('#dWoT')).toHaveText(/^10 km · 1 Fahrt( · heute gefahren)?$/);
   await expect(buehne.locator('#dJahr')).toHaveText('10'); await expect(buehne.locator('#dB20')).toHaveText('260 W'); await expect(buehne.locator('#saNeu')).toBeVisible();
   await buehne.click('#hmStrava');
   await expect(buehne.locator('body')).toHaveAttribute('data-blatt', 'profil'); await expect(buehne.locator('#svB')).toBeVisible(); await expect(buehne.locator('#kForm')).toBeVisible();
@@ -705,9 +715,11 @@ test('Fahrten: ein Klick zeigt die Zahlen der Fahrt und dahinter ihre Welt, auch
   await expect(buehne.locator('.fh')).toHaveCount(2); await expect(buehne.locator('#fhDetail')).toBeHidden(); expect(await welt()).toBe('r');
   await buehne.locator('.fh', { hasText: 'Freie Fahrt' }).locator('b').click();
   await expect(buehne.locator('#fhDetail')).toBeVisible(); await expect(buehne.locator('#fdName')).toHaveText('Freie Fahrt'); await expect(buehne.locator('#fdL')).toContainText('Rolle');
-  const zahl = l => buehne.locator('#fdZ span', { hasText: l }).locator('b');
-  await expect(zahl('Fahrzeit')).toHaveText('21:40'); await expect(zahl('Watt im Schnitt')).toHaveText('180'); await expect(zahl('% der FTP')).toHaveText('90'); await expect(zahl('Watt 20 min')).toHaveText('180');
-  await expect(zahl('Puls maximal')).toHaveText('140'); await expect(zahl('Kadenz')).toHaveText('88'); await expect(zahl('Kilojoule')).toHaveText('234');
+  const zahl = k => buehne.locator(`#fhDetail [data-k=${k}]`);
+  await expect(zahl('zeit')).toHaveText('21:40'); await expect(zahl('watt')).toHaveText('180'); await expect(zahl('anteil')).toHaveText('90'); await expect(zahl('b1200')).toHaveText('180 W');
+  await expect(zahl('hrMax')).toHaveText('140'); await expect(zahl('cad')).toHaveText('88'); await expect(zahl('kj')).toHaveText('234');
+  /* der Bildschirm wird beim Wechsel nicht schwarz */
+  expect(await buehne.evaluate(() => document.getElementById('flash').classList.contains('on'))).toBe(false);
   await expect.poll(welt).toBe('fr2');
   /* die andere Fahrt liegt auf einer Strecke: deren Welt */
   await buehne.locator('.fh', { hasText: 'Testrunde' }).locator('b').click();

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FahrtKurz, Strecke } from '../../src/kern/typen';
 import { form, formWort, ftpHinweis, isoTag, meilensteine, montag, serie, tagAus, wocheIst, wochentag } from '../../src/kern/form';
-import { erzeugteRunde, fortschritt, gewohnt, passende, tagesplan, teilrunde, wochen, type Saison } from '../../src/kern/saison';
+import { erzeugteRunde, fortschritt, gewohnt, passende, tagesplan, teilrunde, wochen, type Saison, wochenplan, stundenVon } from '../../src/kern/saison';
 import { bahn, fahrzeit } from '../../src/kern/strecke';
 import { erzeuge } from '../../src/kern/erzeugen';
 // @ts-expect-error Hauptprozess ohne Typen
@@ -200,5 +200,19 @@ describe('Fahrt ansehen', () => {
     const st = ausFahrt('Probe', hoehe, 7)!;
     expect(Math.abs(st.dist - 19950)).toBeLessThan(1500); expect(st.gain).toBeGreaterThan(100); expect(st.line.length).toBeGreaterThan(30);
     expect(Math.abs(st.ele[0] - 200)).toBeLessThan(8); expect(ausFahrt('Kurz', [[0, 1], [800, 2]], 7)).toBeNull();
+  });
+});
+
+describe('Wochenplan der Saison', () => {
+  it('sieben Tage: Gefahrenes bleibt stehen, heute und die Tage danach folgen dem Plan, so viele Fahrten wie die Woche vorsieht', () => {
+    const mo = montag(HEUTE), s = { art: 'ftp' as const, ziel: 220, bis: isoTag(mo + 83), von: isoTag(mo), ftp0: 200, last0: 200 };
+    const heute = mo + 2, gefahren = [fahrt(mo, 50)];
+    const P = wochenplan(s, gefahren, heute, 200), T = tagesplan(s, gefahren, heute, 200);
+    expect(P.length).toBe(7); expect(P.map(p => p.tag)).toEqual([0, 1, 2, 3, 4, 5, 6].map(i => mo + i));
+    expect(P[0].gefahren).toBe(true); expect(P[0].km).toBe(30); expect(P[1].gefahren).toBe(false); expect(P[1].minuten).toBe(0);
+    expect(P[2].heute).toBe(true); expect(P[2].art).toBe(T.art); expect(P[2].minuten).toBe(T.minuten); expect(P[2].watt).toBe(T.watt);
+    const geplant = P.filter(p => !p.gefahren && p.minuten > 0);
+    expect(geplant.length).toBe(T.fahrtenSoll - 1); expect(geplant.every(p => p.tag >= heute && p.watt >= 100 && p.minuten % 5 === 0)).toBe(true);
+    expect(stundenVon(104)).toBe(2);
   });
 });

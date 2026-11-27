@@ -293,9 +293,6 @@ body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *{pointer-events:n
 .sz canvas{width:150px;height:24px}
 .sz button{height:28px;padding:0 12px;border-radius:999px;border:1px solid rgba(246,240,230,.3);font-size:12.5px;white-space:nowrap}
 .sz button:hover{background:rgba(246,240,230,.12)}
-#saGesch{margin:14px 0 4px}
-#saGesch div{display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;height:30px;align-items:center;font-size:14px;color:var(--fg2);white-space:nowrap}
-#saGesch div b{color:var(--fg);font-weight:500;overflow:hidden;text-overflow:ellipsis}
 #saNeu{display:grid;gap:14px;justify-items:start;margin-bottom:18px}
 #saNeu[hidden],#saLauf[hidden]{display:none}
 #saNeu .fz{grid-template-columns:150px 190px;margin-top:0}
@@ -313,46 +310,101 @@ body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *{pointer-events:n
 .opt button.on{background:rgba(243,181,107,.18);border-color:rgba(243,181,107,.7);color:var(--fg)}
 .opt button[hidden]{display:none}
 
-/* Startseite: links die letzte Fahrt und Losfahren, rechts der eigene Stand als Tafeln vor der Welt */
+/* Wechsel der Welt (andere Runde, andere Fahrt): das Bild dahinter wird kurz weich, die Oberfläche bleibt stehen */
+#gl{transition:filter .28s ease}
+body.wechsel #gl{filter:blur(22px) brightness(.82)}
+.gut{color:var(--ok)!important}
+/* Startseite: links die letzte Fahrt, Losfahren und die Runden, rechts der eigene Stand als Tafeln vor der Welt */
 #heim{padding:88px 44px 30px;opacity:0;transform:translateY(14px);transition:opacity .4s,transform .7s var(--ease)}
 #heim>*{pointer-events:none}
 body[data-stage=lobby][data-sicht=start] #heim{opacity:1;transform:none}
 body[data-stage=lobby][data-sicht=start] #heim>*{pointer-events:auto}
 body:not([data-sicht=start]) #heim *,body:not([data-stage=lobby]) #heim *{pointer-events:none}
-.hg{display:grid;grid-template-columns:minmax(0,1fr) min(720px,54vw);gap:36px;align-items:center;height:100%}
-.hm{min-width:0}
+.hg{display:grid;grid-template-columns:minmax(0,1fr) min(760px,54vw);gap:36px;height:100%}
+.hm{min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding-top:10px}
 .hm h1{margin:12px 0 0;font-size:clamp(34px,4.2vw,68px);line-height:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:.1em}
 .hm .stats{white-space:nowrap;gap:26px;margin-top:16px}
 .hm .stats[hidden]{display:none}
-.hm .go{flex-direction:column;align-items:flex-start;gap:12px}
+.hm .go{flex-direction:column;align-items:flex-start;gap:12px;margin-top:0}
 .hm .go small{white-space:nowrap;font-size:14px}
+.dock.mini{min-height:0;gap:10px;margin-top:20px}
+body[data-sicht=start] #heim .dock{opacity:1}
+body[data-stage=lobby][data-sicht=start] #heim .dock,body[data-stage=lobby][data-sicht=start] #heim .dock *{pointer-events:auto}
+.dock.mini .card{max-width:190px;padding:10px 13px 8px;border-radius:14px;background:rgba(16,11,26,.62)}
+.dock.mini .card:hover{transform:translateY(-3px)}
+.dock.mini .card.on{transform:none;background:rgba(28,20,40,.78)}
+.dock.mini .card b{font-size:14px}
+.dock.mini .card small{font-size:11.5px}
+.dock.mini .card canvas{height:24px;margin-top:6px}
 .dash{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-content:start;max-height:100%;margin-top:0}
 .pn{padding:16px 18px 12px;border-radius:18px;min-width:0;background:rgba(16,11,26,.62)}
-.pn.breit{grid-column:1/-1}
+.pn.breit{grid-column:1/-1;padding-bottom:16px}
 .pn[hidden]{display:none}
+.pk{display:flex;justify-content:space-between;align-items:baseline;gap:14px;min-width:0}
+.pk .klein{margin:0;align-self:center;flex:none}
+.pk>span{font-size:13.5px;color:var(--fg2);white-space:nowrap}
 .pz{display:flex;align-items:baseline;gap:12px;margin-top:6px;white-space:nowrap;min-width:0}
 .pz b{font-size:40px;line-height:1.1;font-weight:600}
 .pz b small{margin-left:5px;font-size:15px;font-weight:600;letter-spacing:0;color:var(--fg2)}
 .pz>span{min-width:0;font-size:13.5px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis}
+.plus{font-style:normal;font-size:13px;font-weight:700;color:var(--ink);background:var(--ok);border-radius:999px;padding:3px 9px;align-self:center}
+.plus[hidden]{display:none}
 .pn>canvas{display:block;width:100%;height:76px;margin-top:8px}
 .pn .sz{min-height:38px}
-.pn:not(.breit) .sz .weg{display:none}
-.pn .sz:last-child{border-bottom:0}
-.pn .sz:first-of-type{margin-top:8px}
-.pn h2{margin:8px 0 4px;font-size:clamp(22px,2.3vw,32px);line-height:1.1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pn:not(.breit) .sz:last-child{border-bottom:0}
+.pn:not(.breit) .sz:first-of-type{margin-top:8px}
+.sz.vier{grid-template-columns:76px minmax(0,1fr) auto auto}
+.sz em{font-style:normal;font-size:13px;color:var(--fg2)}
+.pn h2{margin:8px 0 6px;font-size:clamp(22px,2.3vw,32px);line-height:1.1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .pn #saNeu{margin:0 0 6px}
-@media (max-width:1100px){.hm .stats{gap:16px}.hm .stats b{font-size:22px}.pz b{font-size:30px}.hg{gap:24px}}
-/* Fahrt ansehen: die Liste rückt zusammen, rechts die Zahlen, dahinter die Welt der Fahrt */
+.fk{display:flex;align-items:center;gap:10px}
+.fk .klein{margin:0}
+.fk .klein[hidden]{display:none}
+.fk #saEnde{margin-left:auto}
+.lbl.sub{margin-top:18px}
+.lbl.sub[hidden]{display:none}
+/* Die Woche zum Abarbeiten: sieben Tage, heute umrandet, Gefahrenes grün */
+.tage{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:12px}
+.tg{padding:9px 10px 8px;border-radius:12px;background:rgba(246,240,230,.06);border:1px solid transparent;min-width:0;white-space:nowrap}
+.tg span{display:block;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg2)}
+.tg b{display:block;margin-top:3px;font:600 17px "Sora",sans-serif;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis}
+.tg small{display:block;font-size:11.5px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;min-height:15px}
+.tg.heute{border-color:var(--a);background:rgba(243,181,107,.12)}
+.tg.heute span{color:var(--b)}
+.tg.fertig{background:rgba(143,217,176,.12)}
+.tg.fertig b,.tg.fertig span{color:var(--ok)}
+.tg.frei b{color:var(--fg2);font-weight:500}
+.pn #saWeg{display:block;width:100%;height:92px;margin-top:8px}
+#saGesch{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.ms{padding:10px 12px 9px;border-radius:12px;background:rgba(243,181,107,.09);border-left:3px solid var(--a);min-width:0;white-space:nowrap}
+.ms small{display:block;font-size:11.5px;color:var(--b);overflow:hidden;text-overflow:ellipsis}
+.ms b{display:block;font:600 19px "Sora",sans-serif;letter-spacing:-.02em;margin-top:1px}
+.ms span{display:block;font-size:11.5px;color:var(--fg2);margin-top:1px}
+.ms.neu{background:rgba(143,217,176,.12);border-color:var(--ok)}
+.ms.neu small{color:var(--ok)}
+@media (max-width:1100px){.hm .stats{gap:16px}.hm .stats b{font-size:22px}.pz b{font-size:30px}.hg{gap:24px}.dock.mini .card:nth-child(n+3){display:none}.tg{padding:8px 6px 7px}.tg b{font-size:14px}.tg small{display:none}}
+@media (max-height:680px){.hm h1{font-size:34px}.dock.mini{margin-top:12px}.hm .opt{margin-top:12px}}
+/* Fahrt ansehen: die Liste rückt zusammen, daneben eine große Tafel mit der Fahrt, dahinter ihre Welt */
 .fh{cursor:pointer}
 .fh:hover,.fh.on{background:rgba(246,240,230,.06)}
 .fh.on b{color:var(--a)}
-body[data-fahrt] #fahrten .sicht.breit{width:min(520px,50vw)}
+body[data-fahrt] #fahrten .sicht.breit{width:min(440px,38vw)}
 body[data-fahrt] .fh{grid-template-columns:76px minmax(0,1fr) 70px}
 body[data-fahrt] .fh>:nth-child(n+4){display:none}
-.fd{position:absolute;right:44px;top:88px;width:min(400px,38vw);max-height:calc(100vh - 150px);margin:0;padding:20px 22px 18px;background:rgba(16,11,26,.66)}
-.fd[hidden],.fd canvas[hidden]{display:none}
-.fd h2{margin:8px 0 4px;font-size:clamp(22px,2.4vw,32px);line-height:1.1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fd canvas{display:block;width:100%;height:70px;margin:10px 0 2px}
-.fdz{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px;margin-top:14px;font-size:12.5px;color:var(--fg2);white-space:nowrap}
+.fd{position:absolute;left:calc(44px + min(440px,38vw) + 16px);right:44px;top:88px;bottom:30px;margin:0;padding:22px 26px 20px;background:rgba(16,11,26,.4);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.fd[hidden],.fdc[hidden]{display:none}
+.fd h2{margin:8px 0 0;font-size:clamp(26px,3.2vw,50px);line-height:1.05;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fdh{display:flex;gap:clamp(18px,3vw,48px);margin-top:18px;font-size:13.5px;color:var(--fg2);white-space:nowrap}
+.fdh b{display:block;font:600 clamp(26px,2.8vw,44px) "Sora",sans-serif;letter-spacing:-.035em;color:var(--fg);line-height:1.1}
+.fdg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:20px}
+.fdc{padding:14px 16px 14px;border-radius:16px;background:rgba(16,11,26,.5);border:1px solid var(--line);min-width:0}
+.fdc.breit{grid-column:1/-1}
+.fdc canvas{display:block;width:100%;height:clamp(110px,17vh,190px);margin-top:8px}
+.fdc #fdHoehe{height:64px}
+.fdz{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px;margin-top:10px;font-size:12.5px;color:var(--fg2);white-space:nowrap}
 .fdz span{overflow:hidden;text-overflow:ellipsis}
 .fdz b{display:block;font:600 22px "Sora",sans-serif;letter-spacing:-.03em;color:var(--fg)}
+.bw{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:10px;height:32px;font-size:12.5px;color:var(--fg2);white-space:nowrap}
+.bw .weg{height:6px}
+.bw b{font:600 16px "Sora",sans-serif;letter-spacing:-.02em;color:var(--fg);min-width:54px;text-align:right}
+.bw.gut .weg i{background:var(--ok)}

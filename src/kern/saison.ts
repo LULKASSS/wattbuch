@@ -83,6 +83,24 @@ export function tagesplan(s: Saison, fahrten: FahrtKurz[], heute: number, ftp: n
   return { woche: w, wochen: W.length, soll: w.soll, ist: Math.round(ist.punkte), fahrtenSoll, fahrtenIst: ist.tage, art, erledigt, anteil: A.anteil, watt: w5(ftp * A.anteil), minuten, vorbei };
 }
 /* Wie weit das Ziel ist (0 bis 1): FTP zwischen Start und Ziel, bei der Tour die längste Fahrt seit Beginn */
+/* Die laufende Woche Tag für Tag, zum Abarbeiten. Vergangene Tage zeigen, was gefahren wurde; heute und die
+   kommenden Tage, was der Plan vorsieht. Die kommenden Tage sind eine Vorschau: Der Plan rechnet jeden Tag neu,
+   hier wird angenommen, dass jede geplante Fahrt so gefahren wird. */
+export interface Plantag { tag: number; heute: boolean; gefahren: boolean; art: Tagesart; minuten: number; watt: number; km: number }
+export function wochenplan(s: Saison, fahrten: FahrtKurz[], heute: number, ftp: number, mitTest = false): Plantag[] {
+  const mo = montag(heute), out: Plantag[] = [], F = fahrten.slice();
+  for (let d = mo; d <= mo + 6; d++) {
+    const am = fahrten.filter(f => tagNr(f.start) === d);
+    if (am.length) { out.push({ tag: d, heute: d === heute, gefahren: true, art: 'frei', minuten: Math.round(am.reduce((a, f) => a + f.zeit, 0) / 60), watt: 0, km: am.reduce((a, f) => a + (f.km || 0), 0) }); continue; }
+    if (d < heute) { out.push({ tag: d, heute: false, gefahren: false, art: 'frei', minuten: 0, watt: 0, km: 0 }); continue; }
+    const p = tagesplan(s, F, d, ftp, mitTest), frei = p.art === 'frei';
+    out.push({ tag: d, heute: d === heute, gefahren: false, art: p.art, minuten: frei ? 0 : p.art === 'test' ? 25 : p.minuten, watt: frei ? 0 : p.watt, km: 0 });
+    if (!frei) F.push({ id: 'plan' + d, start: new Date(d * 864e5 + 12 * 36e5 + new Date(d * 864e5).getTimezoneOffset() * 6e4).toISOString(), name: '', routeId: null, rev: false, ganz: false, rolle: true, dauer: p.minuten * 60, zeit: p.minuten * 60, km: 0, hm: 0, avgW: p.watt, stravaId: null, draussen: false, tss: p.minuten / 60 * p.anteil * p.anteil * 100, b20: null, ftpTest: p.art === 'test' ? 1 : null });   // ein geplanter Test zählt als gemacht, sonst stünde er morgen wieder da
+  }
+  return out;
+}
+/* Pensum in Stunden: Punkte bei Grundlagentempo (72 % der FTP, gut 50 Punkte je Stunde) */
+export const stundenVon = (punkte: number) => punkte / 52;
 export function fortschritt(s: Saison, fahrten: FahrtKurz[], ftp: number): { anteil: number; jetzt: number } {
   if (s.art === 'ftp') return { anteil: s.ziel > s.ftp0 ? clamp((ftp - s.ftp0) / (s.ziel - s.ftp0), 0, 1) : 1, jetzt: ftp };
   let km = 0; for (const f of fahrten) if (tagNr(f.start) >= tagAus(s.von) && f.km > km) km = f.km;
