@@ -23,7 +23,7 @@ let page; for (let i = 0; i < 50 && !page; i++) { page = app.windows().find(w =>
 page.on('console', m => { if (m.type() === 'error') console.log('Konsole:', m.text()); }); page.on('pageerror', e => console.log('Fehler:', e.message));
 const bild = n => page.screenshot({ path: path.join(ziel, n + '.png') });
 await page.waitForFunction(() => window.__wb && window.__wb.z && window.__wb.z.geraete.rolle === 'an', null, { timeout: 20000 });
-await warte(5000); await bild('1-lobby');
+await warte(5000); await bild('0-start'); await page.click('nav button[data-s=lobby]'); await warte(1200); await bild('1-lobby');
 /* RIVALE=1: die Runde nehmen, auf der schon ein Versuch liegt (falls sie nicht ohnehin gewählt ist) */
 if (process.env.RIVALE) { const k = page.locator('.card', { hasText: 'Rivale wartet' }); if (await k.count()) { await k.first().click(); await warte(3500); } await bild('1c-lobby-rivale'); }
 if (process.env.SAISON) { await page.click('nav button[data-s=saison]'); await warte(1500); await bild('1d-saison'); await page.keyboard.press('Escape'); await warte(800); }

@@ -237,10 +237,10 @@ body[data-stage=done] .tags button{opacity:1}
 #rivalen>*,#fahrten>*,#saison>*{pointer-events:none}
 body[data-stage=lobby][data-sicht=rivalen] #rivalen,body[data-stage=lobby][data-sicht=fahrten] #fahrten,body[data-stage=lobby][data-sicht=saison] #saison{opacity:1;transform:none}
 body[data-stage=lobby][data-sicht=rivalen] #rivalen>*,body[data-stage=lobby][data-sicht=fahrten] #fahrten>*,body[data-stage=lobby][data-sicht=saison] #saison>*{pointer-events:auto}
-body[data-sicht=rivalen] .hero,body[data-sicht=fahrten] .hero,body[data-sicht=saison] .hero{opacity:0;pointer-events:none;transform:translateX(-4%)}
-body[data-sicht=rivalen] .hero *,body[data-sicht=fahrten] .hero *,body[data-sicht=saison] .hero *{pointer-events:none}
-body[data-sicht=fahrten] .dock,body[data-sicht=saison] .dock{opacity:0;pointer-events:none}
-body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:none}
+body[data-sicht=start] .hero,body[data-sicht=rivalen] .hero,body[data-sicht=fahrten] .hero,body[data-sicht=saison] .hero{opacity:0;pointer-events:none;transform:translateX(-4%)}
+body[data-sicht=start] .hero *,body[data-sicht=rivalen] .hero *,body[data-sicht=fahrten] .hero *,body[data-sicht=saison] .hero *{pointer-events:none}
+body[data-sicht=start] .dock,body[data-sicht=fahrten] .dock,body[data-sicht=saison] .dock{opacity:0;pointer-events:none}
+body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:none}
 .hero,.dock{transition:opacity .4s,transform .7s var(--ease)}
 .sicht{width:min(620px,56vw);display:flex;flex-direction:column;max-height:calc(100vh - 290px)}
 .sicht.breit{width:min(860px,78vw);max-height:calc(100vh - 150px)}
@@ -315,3 +315,17 @@ body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:
 .opt button:hover{color:var(--fg);border-color:rgba(246,240,230,.45)}
 .opt button.on{background:rgba(243,181,107,.18);border-color:rgba(243,181,107,.7);color:var(--fg)}
 .opt button[hidden]{display:none}
+
+/* Startseite: letzte Fahrt und die eigenen Zahlen vor der Welt */
+#heim{padding:88px 44px 30px;display:flex;flex-direction:column;justify-content:center;opacity:0;transform:translateY(14px);transition:opacity .4s,transform .7s var(--ease)}
+#heim>*{pointer-events:none}
+body[data-stage=lobby][data-sicht=start] #heim{opacity:1;transform:none}
+body[data-stage=lobby][data-sicht=start] #heim>*{pointer-events:auto}
+body:not([data-sicht=start]) #heim *,body:not([data-stage=lobby]) #heim *{pointer-events:none}
+.hm{max-width:min(860px,92vw)}
+.hm h1{margin:12px 0 0;font-size:clamp(44px,5.6vw,84px);line-height:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:.08em}
+.hm .stats{white-space:nowrap}
+.hm .stats.du{margin-top:12px}
+.hm .stats[hidden]{display:none}
+.hm .go small{white-space:nowrap}
+@media (max-height:680px){.hm h1{font-size:44px}.hm .go{margin-top:20px}.hm>.lbl[style]{margin-top:20px!important}}

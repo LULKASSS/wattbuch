@@ -7,7 +7,7 @@ const app = await electron.launch({ args: ['.'], env: { ...process.env, WATTBUCH
 const warte = ms => new Promise(r => setTimeout(r, ms));
 let page; for (let i = 0; i < 50 && !page; i++) { page = app.windows().find(w => w.url().includes('buehne')); if (!page) await warte(200); }
 await page.waitForFunction(() => window.__wb && window.__wb.z && window.__wb.z.geraete.rolle === 'an', null, { timeout: 20000 });
-await warte(1500); await page.click('#start');
+await warte(1500); await page.click('nav button[data-s=lobby]'); await warte(600); await page.click('#start');
 for (let i = 1; i <= minuten * 2; i++) {
   await warte(30000);
   const w = await page.evaluate(() => ({ ...window.__wb.welt, km: Math.round(window.__wb.z.s / 100) / 10, mb: Math.round((performance.memory ? performance.memory.usedJSHeapSize : 0) / 1e6) }));

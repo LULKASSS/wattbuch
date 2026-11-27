@@ -48,6 +48,8 @@ describe('Form und Fortschritt', () => {
     const f = [fahrt(HEUTE - 30, 50, { km: 40, b20: 200 }), fahrt(HEUTE - 20, 60, { km: 62, b20: 201 }), fahrt(HEUTE - 10, 60, { km: 30, b20: 215 }), fahrt(HEUTE - 2, 40, { ftpTest: 236, km: 12 })];
     expect(meilensteine(f).map(m => m.text)).toEqual(['FTP-Test: 236 W', 'Beste 20 Minuten: 215 W', 'Längste Fahrt: 62 km']);
     expect(ftpHinweis(f, HEUTE, 200)).toBe(204); expect(ftpHinweis(f, HEUTE, 204)).toBeNull(); expect(ftpHinweis(f, HEUTE + 60, 200)).toBeNull();
+    /* nur Fahrten, seit die FTP zuletzt gesetzt wurde */
+    expect(ftpHinweis(f, HEUTE, 200, '2000-01-01T00:00:00')).toBe(204); expect(ftpHinweis(f, HEUTE, 200, '2999-01-01T00:00:00')).toBeNull();
   });
 });
 

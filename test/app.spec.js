@@ -27,6 +27,8 @@ async function starte(dir, tempo = 1, env = {}) {
   const buehne = await fenster('buehne'), maschine = await fenster('maschine'), probleme = [];
   for (const p of [buehne, maschine]) { p.on('pageerror', e => probleme.push(e.message)); p.on('console', m => { if (m.type() === 'error') probleme.push(m.text()); }); }
   if (env.WATTBUCH_SIM !== 'wahl') await expect(buehne.locator('#devT')).toHaveText('Rolle, Puls, Kadenz bereit', { timeout: 20_000 });
+  /* die App öffnet auf der Startseite; die meisten Tests wollen in die Lobby */
+  if (!env.START) await buehne.click('nav button[data-s=lobby]');
   return { app, buehne, maschine, probleme };
 }
 const phase = m => m.evaluate(() => window.__wb.z.phase);
@@ -185,7 +187,7 @@ test('Kleines Fenster: nichts bricht um, nichts ragt hinaus', async () => {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('buehne')).setSize(960, 600));
   await warte(600);
   const passt = was => buehne.evaluate(was => [...document.querySelectorAll(was)].every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }), was);
-  expect(await passt('.top,.hero h1,.stats,.go,.dock,.card')).toBe(true);
+  expect(await passt('.top,.hero h1,.hero .stats,.hero .go,.dock,.card')).toBe(true);
   expect(await buehne.evaluate(() => { const h = document.getElementById('hName'); return h.getBoundingClientRect().height < parseFloat(getComputedStyle(h).fontSize) * 1.4; })).toBe(true);
   await buehne.click('#start');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
@@ -643,6 +645,44 @@ test('Watt halten und Gegenrichtung: zwei Schalter in der Lobby, Taste h in der 
   const [r] = fahrten(dir); expect(r.rev).toBe(true); expect(r.route).toBe('Testrunde (umgekehrt)');
   await buehne.click('#home');
   await expect(buehne.locator('#oRev')).not.toHaveClass(/on/); await expect(buehne.locator('#oHalt')).toHaveClass(/on/);
+  expect(probleme).toEqual([]);
+  await app.close(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/* ---------- Startseite ---------- */
+test('Startseite: letzte Fahrt und eigene Zahlen, FTP zieht von selbst nach, Profil erreichbar, Losfahren', async () => {
+  /* eine erfundene Fahrt von eben: 1300 s mit 260 W, eingetragen ist keine FTP (also 200 W) */
+  const dir = ordner(), n = 1300;
+  fs.mkdirSync(path.join(dir, 'daten', 'fahrten'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'daten', 'fahrten', 'r1neu.json'), JSON.stringify({ id: 'r1neu', start: new Date(Date.now() - 60e3).toISOString(), name: 'Testrunde', p: Array(n).fill(260), hr: null, cad: null, spd: null,
+    dist: Array.from({ length: n }, (_, i) => (i + 1) * 8), alt: null, route: 'Testrunde', routeId: 'test-kurz', gain: 45, trainer: true, ftp: 200, weight: 75, app: 'neu' }));
+  const { app, buehne, probleme } = await starte(dir, 20, { START: '1' });
+  await expect(buehne.locator('body')).toHaveAttribute('data-sicht', 'start');
+  await expect(buehne.locator('nav button.on')).toHaveText('Start');
+  await expect(buehne.locator('#hmL')).toHaveText(/^Letzte Fahrt · (heute|gestern)$/);
+  await expect(buehne.locator('#hmName')).toHaveText('Testrunde');
+  await expect(buehne.locator('#hmKm')).toHaveText('10,4'); await expect(buehne.locator('#hmW')).toHaveText('260'); await expect(buehne.locator('#hmZeit')).toHaveText('21:40');
+  /* FTP: 95 % der besten 20 Minuten, von selbst übernommen */
+  await expect(buehne.locator('#hmFtp')).toHaveText('247', { timeout: 10_000 }); await expect(buehne.locator('#stufe')).toHaveText('247 W');
+  const werte = () => JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'werte.json'), 'utf8'));
+  expect(werte().ftp).toBe(247); expect(werte().ftpAm).toBeTruthy();
+  await expect(buehne.locator('#hmWkg')).toHaveText('3,3');
+  await expect(buehne.locator('#hmHeute')).toHaveText(/^Testrunde · \d+ min$/);
+  /* Profil, Konto und Strava sind von hier aus zu erreichen */
+  await expect(buehne.locator('#hmKonto')).toHaveText('Konto anmelden'); await expect(buehne.locator('#hmStrava')).toHaveText('Strava verbinden');
+  await buehne.click('#hmStrava');
+  await expect(buehne.locator('body')).toHaveAttribute('data-blatt', 'profil'); await expect(buehne.locator('#svB')).toBeVisible(); await expect(buehne.locator('#kForm')).toBeVisible();
+  /* von Hand gesenkt bleibt gesenkt: die alte Fahrt hebt sie nicht wieder an */
+  await buehne.fill('#pFtp', '220'); await buehne.press('#pFtp', 'Tab'); await buehne.keyboard.press('Escape');
+  await expect(buehne.locator('#hmFtp')).toHaveText('220'); await warte(1500); await expect(buehne.locator('#hmFtp')).toHaveText('220'); expect(werte().ftp).toBe(220);
+  /* kleines Fenster: nichts ragt hinaus, nichts bricht um */
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('buehne')).setSize(960, 600));
+  await warte(900);
+  expect(await buehne.evaluate(() => [...document.querySelectorAll('#heim .lbl,#hmName,.hm .stats,.hm .go,.hm .opt')].filter(e => !e.hidden).every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= 60 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }))).toBe(true);
+  expect(await buehne.evaluate(() => [...document.querySelectorAll('.hm .stats b')].every(b => b.getBoundingClientRect().height < parseFloat(getComputedStyle(b).fontSize) * 1.4))).toBe(true);
+  /* Losfahren geht auch von hier */
+  await buehne.click('#startH');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
 });

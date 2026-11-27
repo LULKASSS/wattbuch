@@ -6,7 +6,7 @@ import { bahn, anstiege, fahrzeit, type Bahn } from '../kern/strecke';
 import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
 import { segmente, versuche } from '../kern/segmente';
-import { form, formWort, ftpHinweis, isoTag, meilensteine, serie, tagAus, tagNr, wocheIst } from '../kern/form';
+import { form, formWort, ftpHinweis, isoTag, meilensteine, montag, serie, tagAus, tagNr, wocheIst } from '../kern/form';
 import { ART, erzeugteRunde, fortschritt, gewohnt, passende, tagesplan, teilrunde, wochen, type Saison, type Tagesplan } from '../kern/saison';
 import { Welt, type Akt } from './welt/welt';
 import type { KontoStand, Gemerkt, StravaStand } from '../bruecke';
@@ -17,7 +17,7 @@ const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 interface Runde { st: Strecke; rt: Bahn; rtR?: Bahn; best: FahrtKurz | null; zuletzt: string | null; tag: string; min: number; seed: number }
-let runden: Runde[] = [], alleFahrten: FahrtKurz[] = [], pick = 0, ftp = 200, gewicht = 84;
+let runden: Runde[] = [], alleFahrten: FahrtKurz[] = [], pick = 0, ftp = 200, gewicht = 84, koerper = 75;
 let saison: Saison | null = null, plan: Tagesplan | null = null, heuteId: string | null = null;
 let testR: Runde | null = null, rev = false, halten = false, planP = 140;
 /* Bahn der Runde in der gewählten Richtung */
@@ -34,7 +34,11 @@ async function ladeRunden() {
   let [strecken, fahrten, werte, sa] = await Promise.all([W.strecken(), W.fahrten(), W.werte(), W.saison()]);
   /* beim allerersten Start legt der Maschinenraum die ersten Runden gerade erst an */
   for (let i = 0; !strecken.length && i < 40; i++) { await new Promise(r => setTimeout(r, 250)); strecken = await W.strecken(); }
-  if (werte) { ftp = werte.ftp || ftp; gewicht = (werte.weight || 75) + (werte.bike || 9); halten = !!werte.erg; }
+  if (werte) { ftp = werte.ftp || ftp; koerper = werte.weight || 75; gewicht = koerper + (werte.bike || 9); halten = !!werte.erg; }
+  /* Die FTP zieht von selbst nach: 95 % der besten 20 Minuten der letzten sechs Wochen, wenn das mehr ist. Gezählt
+     werden nur Fahrten, seit die FTP zuletzt gesetzt wurde. Nach unten geht sie nur von Hand oder per Test. */
+  const hoeher = ftpHinweis(fahrten, heuteTag(), ftp, werte && werte.ftpAm);
+  if (hoeher && akt === 'lobby') { await W.werteSetzen({ ftp: hoeher }); ftp = hoeher; toast('FTP', fmt(hoeher) + ' W', 6000); }
   alleFahrten = fahrten; saison = sa;
   /* Mit Saison gibt der Tag die Zielleistung vor, ohne sind es 70 % der FTP */
   plan = saison ? tagesplan(saison, fahrten, heuteTag(), ftp, true) : null;
@@ -103,6 +107,21 @@ function fuelleLobby() {
   $('stufe').textContent = fmt(ftp) + ' W';
   /* Stufe: mit einer Saison der Weg zum Ziel */
   $('stufeW').hidden = !saison; if (saison) $('stufeB').style.width = (fortschritt(saison, alleFahrten, ftp).anteil * 100).toFixed(1) + '%';
+  fuelleStart();
+}
+/* Startseite: die letzte Fahrt, die eigenen Zahlen und die Runde für heute */
+function fuelleStart() {
+  const heute = heuteTag(), f = alleFahrten[alleFahrten.length - 1], vor = f ? heute - tagNr(f.start) : 0;
+  $('hmL').textContent = f ? 'Letzte Fahrt · ' + (vor <= 0 ? 'heute' : vor === 1 ? 'gestern' : `vor ${vor} Tagen`) : 'Wattbuch';
+  $('hmName').textContent = f ? f.name : 'Noch keine Fahrt'; $('hmF').hidden = !f;
+  if (f) { $('hmKm').textContent = f.km ? fmt(f.km, 1) : '–'; $('hmZeit').textContent = zeit(f.zeit); $('hmW').textContent = f.avgW ? fmt(f.avgW) : '–'; $('hmP').textContent = fmt(f.tss || 0); }
+  let sek = 0, km4 = 0; const mo = montag(heute);
+  for (const x of alleFahrten) { const t = tagNr(x.start); if (t >= mo && t <= heute) sek += x.zeit; if (t > heute - 28 && t <= heute) km4 += x.km || 0; }
+  $('hmFtp').textContent = fmt(ftp); $('hmWkg').textContent = fmt(ftp / koerper, 1);
+  $('hmWo').textContent = `${Math.floor(sek / 3600)}:${String(Math.floor(sek % 3600 / 60)).padStart(2, '0')}`; $('hmKm4').textContent = fmt(km4);
+  const w = alleFahrten.length ? formWort(form(alleFahrten, heute).form) : '–'; $('hmForm').textContent = w[0].toUpperCase() + w.slice(1);
+  $('hmSerie').textContent = String(serie(alleFahrten, heute));
+  const r = runden[pick]; $('hmHeute').textContent = r ? `${r.st.name} · ${r.min} min` : '';
 }
 /* Unten stehen höchstens vier Runden: ein Fenster um die gewählte, die Pfeiltasten gehen durch alle */
 let kAb = 0;
@@ -271,6 +290,7 @@ W.aufGeraete(async g => {
 });
 function zeigeKonto(k: KontoStand) {
   $('kForm').hidden = k.an; $('kAn').hidden = !k.an;
+  $('hmKonto').textContent = k.an ? 'Konto' : 'Konto anmelden'; $('hmKonto').classList.toggle('on', k.an);
   if (k.an) { $('kWer').textContent = k.email || ''; $('kSt').textContent = k.busy ? 'gleicht ab' : k.err ? 'Abgleich wartet' : k.wartet ? `${k.wartet} wartet` : k.last ? 'abgeglichen ' + new Date(k.last).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''; }
 }
 W.aufKonto(zeigeKonto);
@@ -278,6 +298,7 @@ function zeigeStrava(s: StravaStand) {
   const an = !!s.connected; $('svWer').textContent = an ? (s.athlete && s.athlete.name) || 'verbunden' : '';
   const b = $<HTMLButtonElement>('svB'); b.textContent = an ? 'Trennen' : 'Verbinden'; b.classList.toggle('leer', an); b.disabled = false; b.dataset.an = an ? '1' : '';
   $('svMsg').textContent = s.ok === false ? s.error || '' : '';
+  $('hmStrava').textContent = an ? 'Strava' : 'Strava verbinden'; $('hmStrava').classList.toggle('on', an);
 }
 $('svB').onclick = async () => {
   const b = $<HTMLButtonElement>('svB');
@@ -308,6 +329,7 @@ async function blatt(was: 'geraete' | 'profil' | null) {
 $('devB').onclick = () => blatt(document.body.dataset.blatt === 'geraete' ? null : 'geraete');
 $('pTest').onclick = () => { blatt(null); W.befehl({ was: 'test' }); };
 $('lvlB').onclick = () => blatt(document.body.dataset.blatt === 'profil' ? null : 'profil');
+$('hmProfil').onclick = $('hmKonto').onclick = $('hmStrava').onclick = () => blatt('profil');
 $('blatt').addEventListener('pointerdown', e => { if (e.target === $('blatt')) blatt(null); });
 for (const [id, feld, mal] of [['pFtp', 'ftp', 1], ['pKg', 'weight', 1], ['pDiff', 'diff', .01]] as [string, string, number][])
   $<HTMLInputElement>(id).addEventListener('change', async e => { const v = +(e.target as HTMLInputElement).value; if (isFinite(v)) { await W.werteSetzen({ [feld]: v * mal } as any); neuLaden(); } });
@@ -333,8 +355,8 @@ function neuLaden() {
 W.aufDaten(neuLaden);
 
 /* ---------- Bereiche: Rivalen und Fahrten ---------- */
-type Sicht = 'lobby' | 'saison' | 'rivalen' | 'fahrten';
-let sicht: Sicht = 'lobby';
+type Sicht = 'start' | 'lobby' | 'saison' | 'rivalen' | 'fahrten';
+let sicht: Sicht = 'start';
 function setzeSicht(x: Sicht) {
   sicht = x; document.body.dataset.sicht = x; blatt(null);
   document.querySelectorAll<HTMLElement>('nav button').forEach(b => b.classList.toggle('on', b.dataset.s === x));
@@ -419,10 +441,8 @@ function zeigeSaison() {
   $('saForm').textContent = alleFahrten.length ? `${formWort(F.form)[0].toUpperCase()}${formWort(F.form).slice(1)} · Fitness ${trend > 1 ? 'steigt' : trend < -1 ? 'sinkt' : 'hält'}` : '–';
   kurve($<HTMLCanvasElement>('saKurve'), v);
   const n = serie(alleFahrten, heute); $('saSerie').textContent = n ? `${n} ${n === 1 ? 'Woche' : 'Wochen'} in Folge` : '–';
-  const hin = ftpHinweis(alleFahrten, heute, ftp), fb = $<HTMLButtonElement>('saFtpB');
-  $('saFtpZ').hidden = !hin && !(s && s.art === 'ftp');
+  $('saFtpZ').hidden = !(s && s.art === 'ftp');
   $('saFtp').textContent = s && s.art === 'ftp' ? `${fmt(ftp)} von ${fmt(s.ziel)} W` : `${fmt(ftp)} W`;
-  fb.hidden = !hin; fb.textContent = hin ? `${fmt(hin)} W übernehmen` : ''; fb.onclick = async () => { if (hin) { await W.werteSetzen({ ftp: hin }); neuLaden(); } };
   const box = $('saGesch'); box.innerHTML = '';
   for (const m of meilensteine(alleFahrten)) { const d = document.createElement('div'); d.innerHTML = '<span></span><b></b>'; d.children[0].textContent = datum(m.start); d.children[1].textContent = m.text; box.appendChild(d); }
 }
@@ -475,7 +495,7 @@ $('saEnde').onclick = async () => {
 };
 
 /* ---------- Bedienung ---------- */
-$('start').onclick = start; $('end').onclick = () => W.befehl({ was: 'ende' }); $('home').onclick = () => W.befehl({ was: 'lobby' });
+$('start').onclick = $('startH').onclick = start; $('end').onclick = () => W.befehl({ was: 'ende' }); $('home').onclick = () => W.befehl({ was: 'lobby' });
 $('coach').onclick = $('wbtn').onclick = () => W.befehl({ was: 'coach' });
 $('less').onclick = () => W.befehl({ was: 'stufe', d: -10 }); $('more').onclick = () => W.befehl({ was: 'stufe', d: 10 });
 addEventListener('keydown', e => {
@@ -484,11 +504,11 @@ addEventListener('keydown', e => {
   if (sicht === 'saison' && e.key !== 'Escape') return;
   if (e.key === 'ArrowUp' && akt === 'ride') { W.befehl({ was: 'stufe', d: 10 }); e.preventDefault(); }
   else if (e.key === 'ArrowDown' && akt === 'ride') { W.befehl({ was: 'stufe', d: -10 }); e.preventDefault(); }
-  else if (e.key === 'Enter' && akt === 'lobby' && sicht === 'lobby') start();
+  else if (e.key === 'Enter' && akt === 'lobby' && (sicht === 'lobby' || sicht === 'start')) start();
   else if (e.key === 'Enter' && akt === 'done') W.befehl({ was: 'lobby' });
   else if (e.key === 'ArrowRight' && akt === 'lobby' && (sicht === 'lobby' || sicht === 'rivalen')) waehle(pick + 1);
   else if (e.key === 'ArrowLeft' && akt === 'lobby' && (sicht === 'lobby' || sicht === 'rivalen')) waehle(pick - 1);
-  else if (e.key === 'Escape' && akt === 'lobby' && sicht !== 'lobby') setzeSicht('lobby');
+  else if (e.key === 'Escape' && akt === 'lobby' && sicht !== 'lobby' && sicht !== 'start') setzeSicht('lobby');
   else if (e.key === ' ' && akt === 'ride') { W.befehl({ was: 'pause' }); e.preventDefault(); }
   else if (e.key === 'c' && akt === 'ride') W.befehl({ was: 'coach' });
   else if (e.key === 'h' && akt === 'ride') W.befehl({ was: 'halten' });
@@ -523,7 +543,7 @@ function bild() {
 ladeRunden().then(i => {
   pick = i; baueKarten(); fuelleLobby(); groesse();
   if (runden.length) { zeige(pick); welt.einflug(); }
-  W.bereit();
+  W.bereit(); W.konto().then(zeigeKonto); W.strava().then(zeigeStrava);
   setTimeout(() => { $('flash').classList.remove('on'); setTimeout(() => $('flash').style.transitionDuration = '', 1500); }, 200);
   (window as any).__wb = { get akt() { return akt; }, get z() { return z; }, get welt() { return welt.stand; }, get runden() { return runden.map(r => r.st.id); }, get ruck() { return ruck; } };
   bild();

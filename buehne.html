@@ -6,14 +6,14 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:">
 <title>Wattbuch Neu</title>
 </head>
-<body data-stage="lobby" data-sicht="lobby">
+<body data-stage="lobby" data-sicht="start">
 <canvas id="gl"></canvas>
 <div class="layer" id="shade"></div>
 <div id="zieh"></div>
 
 <div class="layer" id="lobby">
   <div class="top">
-    <nav><button class="on" data-s="lobby">Lobby</button><button data-s="saison">Saison</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
+    <nav><button class="on" data-s="start">Start</button><button data-s="lobby">Lobby</button><button data-s="saison">Saison</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
     <div style="display:flex;gap:26px;align-items:center">
       <button class="dev" id="devB" aria-label="Geräte"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></button>
       <button class="lvl" id="lvlB" aria-label="Profil"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div><div class="weg" id="stufeW" hidden><i id="stufeB"></i></div></button>
@@ -29,6 +29,16 @@
   </div>
   <div class="dock"><div id="cards" style="display:contents"></div></div>
 </div>
+
+<div class="layer" id="heim"><div class="hm">
+  <div class="lbl" id="hmL"></div>
+  <h1 class="dsp" id="hmName"></h1>
+  <div class="stats" id="hmF"><span><b id="hmKm"></b>km</span><span><b id="hmZeit"></b>Fahrzeit</span><span><b id="hmW"></b>Watt</span><span><b id="hmP"></b>Punkte</span></div>
+  <div class="lbl" style="margin-top:34px">Du</div>
+  <div class="stats du"><span><b id="hmFtp"></b>Watt FTP</span><span><b id="hmWkg"></b>W/kg</span><span><b id="hmWo"></b>Stunden diese Woche</span><span><b id="hmKm4"></b>km in 4 Wochen</span><span><b id="hmForm"></b>Form</span><span><b id="hmSerie"></b>Wochen in Folge</span></div>
+  <div class="go"><button class="gobtn" id="startH"><span>Losfahren</span></button><small id="hmHeute"></small></div>
+  <div class="opt"><button type="button" id="hmProfil">Profil</button><button type="button" id="hmKonto">Konto anmelden</button><button type="button" id="hmStrava">Strava verbinden</button></div>
+</div></div>
 
 <div class="layer" id="saison"><div class="sicht breit">
   <div class="lbl" id="saL">Saison</div>
@@ -47,7 +57,7 @@
     </div>
     <div class="sz"><span>Form</span><b id="saForm"></b><canvas id="saKurve" width="360" height="56"></canvas></div>
     <div class="sz"><span>Serie</span><b id="saSerie"></b></div>
-    <div class="sz" id="saFtpZ" hidden><span>FTP</span><b id="saFtp"></b><button type="button" id="saFtpB"></button></div>
+    <div class="sz" id="saFtpZ" hidden><span>FTP</span><b id="saFtp"></b></div>
     <div id="saGesch"></div>
     <button class="klein" id="saEnde" type="button" hidden>Saison beenden</button>
   </div>

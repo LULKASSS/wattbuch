@@ -56,9 +56,11 @@ export function meilensteine(fahrten: FahrtKurz[], hoechstens = 6): Meilenstein[
   }
   return out.reverse().slice(0, hoechstens);
 }
-/* Wofür die besten 20 Minuten der letzten sechs Wochen sprechen (95 %), wenn das über der eingetragenen FTP liegt */
-export function ftpHinweis(fahrten: FahrtKurz[], heute: number, ftp: number): number | null {
-  let b = 0; for (const f of fahrten) if (f.b20 && tagNr(f.start) > heute - 42 && f.b20 > b) b = f.b20;
+/* Wofür die besten 20 Minuten der letzten sechs Wochen sprechen (95 %), wenn das über der eingetragenen FTP liegt.
+   `seit`: nur Fahrten nach diesem Zeitpunkt (seit die FTP zuletzt gesetzt wurde), damit eine von Hand gesenkte FTP
+   nicht gleich wieder von einer alten Fahrt angehoben wird. Die App übernimmt den Wert von selbst. */
+export function ftpHinweis(fahrten: FahrtKurz[], heute: number, ftp: number, seit?: string | null): number | null {
+  let b = 0; for (const f of fahrten) if (f.b20 && tagNr(f.start) > heute - 42 && f.b20 > b && (!seit || f.start > seit)) b = f.b20;
   const w = Math.round(b * .95);
   return w >= ftp + 3 ? w : null;
 }

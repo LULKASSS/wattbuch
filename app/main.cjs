@@ -156,7 +156,7 @@ app.whenReady().then(() => {
   ipcMain.handle('konto:abmelden', () => konto.abmelden());
   ipcMain.handle('werte:setzen', (_e, w) => {
     const fin = (x, a, b) => typeof x === 'number' && isFinite(x) && x >= a && x <= b, neu = { ...(daten.werte() || {}) };
-    if (fin(w.ftp, 50, 600)) neu.ftp = Math.round(w.ftp); if (fin(w.weight, 30, 200)) neu.weight = Math.round(w.weight * 10) / 10; if (fin(w.diff, .1, 1)) neu.diff = w.diff; if (typeof w.erg === 'boolean') neu.erg = w.erg;
+    if (fin(w.ftp, 50, 600) && Math.round(w.ftp) !== neu.ftp) { neu.ftp = Math.round(w.ftp); neu.ftpAm = new Date().toISOString(); } /* ftpAm: seit wann die FTP gilt */ if (fin(w.weight, 30, 200)) neu.weight = Math.round(w.weight * 10) / 10; if (fin(w.diff, .1, 1)) neu.diff = w.diff; if (typeof w.erg === 'boolean') neu.erg = w.erg;
     daten.werteSpeichern(neu); konto.merkeWerte(); return neu;
   });
   /* Strava: in Tests per WATTBUCH_STRAVA_URL auf einen nachgebauten Server (auch für den Token-Tausch), der Aufruf
@@ -209,7 +209,7 @@ app.whenReady().then(() => {
     const st = r.routeId ? daten.strecke(r.routeId) : null;
     if (st && st.plan) { delete st.plan; daten.streckeSpeichern(st); konto.merkeDok('strecken', st.id); }
     /* FTP-Test: das Ergebnis gilt gleich als neue FTP (im Profil lässt sie sich ändern) */
-    if (r.ftpTest && r.ftpTest.ftp >= 50 && r.ftpTest.ftp <= 600) { daten.werteSpeichern({ ...(daten.werte() || {}), ftp: r.ftpTest.ftp }); konto.merkeWerte(); }
+    if (r.ftpTest && r.ftpTest.ftp >= 50 && r.ftpTest.ftp <= 600) { daten.werteSpeichern({ ...(daten.werte() || {}), ftp: r.ftpTest.ftp, ftpAm: new Date().toISOString() }); konto.merkeWerte(); }
     sv.vormerken(r); const id = daten.fahrtSpeichern(r); daten.journalEnde(); faehrt = false; schlafAus(); konto.merke(id); return { id, strava: r.strava ? r.strava.state : null };
   });
   ipcMain.on('m:weg', () => { daten.journalEnde(); faehrt = false; schlafAus(); });
