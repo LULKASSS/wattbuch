@@ -17,6 +17,23 @@ export function testbahn(): Strecke {
 }
 export const GEN_START: [string, number][] = [['huegel', 7], ['berg', 23], ['flach', 41]];
 
+/* Strecke zu einer Fahrt, von der nur Höhe über Strecke bekannt ist (keine Orte): die Höhen sind die der Fahrt,
+   der Weg ist eine erzeugte Schleife in der gefahrenen Länge. null, wenn die Fahrt unter einem Kilometer blieb. */
+export function ausFahrt(name: string, hoehe: [number, number][], seed: number): Strecke | null {
+  const L = hoehe.length ? hoehe[hoehe.length - 1][0] : 0; if (L < 1200) return null;
+  let x = seed >>> 0 || 1;
+  const rnd = () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) / 4294967296; };
+  const r: R = (a, b) => a + (b - a) * rnd();
+  const n = Math.max(40, Math.min(1800, Math.round(L / 100))), Rk = L / (2 * Math.PI * 1.03), k = [r(.08, .18), r(.05, .12)], ph = [r(0, 6), r(0, 6)], c = [50 + r(-1, 1), 10 + r(-1, 1)];
+  const pts: number[][] = []; let j = 0;
+  for (let i = 0; i <= n; i++) {
+    const d = L * i / n; while (j < hoehe.length - 2 && hoehe[j + 1][0] < d) j++;
+    const a = hoehe[j], b = hoehe[Math.min(j + 1, hoehe.length - 1)], f = b[0] > a[0] ? Math.min(1, Math.max(0, (d - a[0]) / (b[0] - a[0]))) : 0;
+    const t = i / n * 2 * Math.PI, rr = Rk * (1 + k[0] * Math.sin(3 * t + ph[0]) + k[1] * Math.sin(5 * t + ph[1]));
+    pts.push([c[0] + rr * Math.cos(t) / 111320, c[1] + rr * Math.sin(t) / (111320 * Math.cos(c[0] * Math.PI / 180)), a[1] + (b[1] - a[1]) * f]);
+  }
+  try { return ausPunkten(name, pts); } catch { return null; }
+}
 /* km: gewünschte Länge (für die Runde zum Tag); ohne Angabe die übliche Länge der Art */
 export function erzeuge(type: string, seed: number, km?: number): Strecke {
   let x = seed >>> 0 || 1;

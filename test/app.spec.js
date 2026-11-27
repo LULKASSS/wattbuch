@@ -544,7 +544,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect.poll(() => dok.map(d => d.sammlung + '/' + d.id), { timeout: 10_000 }).toEqual(['strecken/test-kurz']);   // die eigene Strecke liegt jetzt im Konto
   await buehne.keyboard.press('Escape');
   /* ohne Saison: Fortschritt ohne Ziel, kein Weg an der Stufe */
-  await buehne.click('nav button[data-s=saison]');
+  await buehne.click('nav button[data-s=start]');
   await expect(buehne.locator('#saNeu')).toBeVisible(); await expect(buehne.locator('#saLauf')).toBeHidden(); await expect(buehne.locator('#stufeW')).toBeHidden();
   await expect(buehne.locator('#saZiel')).toHaveValue('215');   // gut 8 % über der FTP von 200
   await buehne.fill('#saZiel', '220'); await buehne.click('#saNeu button[type=submit]');
@@ -556,7 +556,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect.poll(() => dok.find(d => d.sammlung === 'saison')?.data?.ziel, { timeout: 10_000 }).toBe(220);
   expect(await buehne.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
   /* Lobby: Die Testrunde (6 Minuten) passt nicht zum Tag, also liegt eine erzeugte Runde in passender Länge da */
-  await buehne.keyboard.press('Escape');
+  await buehne.click('nav button[data-s=lobby]');
   await expect(buehne.locator('#hTag')).toHaveText(/^Heute · (Zügig|Grundlage|Lang) · \d+ W$/);
   await expect(buehne.locator('#hName')).toHaveText(/Hügelrunde|Flachstück/);
   await expect(buehne.locator('#stufeW')).toBeVisible();
@@ -573,7 +573,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await expect(buehne.locator('#resSa')).toHaveText(/^Woche 1 · Wochenziel zu \d+ %$/, { timeout: 10_000 });
   await buehne.click('#home');
   await expect(buehne.locator('#hTag')).toHaveText('Heute geschafft');
-  await buehne.click('nav button[data-s=saison]');
+  await buehne.click('nav button[data-s=start]');
   await expect(buehne.locator('#saHeute')).toHaveText('Geschafft'); await expect(buehne.locator('#saWoche')).toHaveText('1 von 3 Fahrten');
   /* die nie gefahrene Runde des Plans war nie im Konto und ist wieder weg */
   expect(dok.filter(d => d.sammlung === 'strecken').map(d => d.id)).toEqual(['test-kurz']);
@@ -586,7 +586,7 @@ test('Saison: Ziel nennen, der Tag gibt Runde und Zielleistung vor, Ergebnis zei
   await B.buehne.click('#lvlB'); await expect(B.buehne.locator('#kForm')).toBeVisible(); await B.buehne.fill('#kMail', 'test@example.com'); await B.buehne.fill('#kPw', 'geheim-im-test'); await B.buehne.click('#kForm button');
   await expect(B.buehne.locator('.card', { hasText: 'Testrunde' })).toHaveCount(1, { timeout: 15_000 });
   await B.buehne.keyboard.press('Escape');
-  await B.buehne.click('nav button[data-s=saison]');
+  await B.buehne.click('nav button[data-s=start]');
   await expect(B.buehne.locator('#saZielT')).toContainText('220 W bis'); await expect(B.buehne.locator('#saHeute')).toHaveText('Geschafft');
   /* Saison beenden: zwei Klicks, im Konto als entfernt markiert, nichts gelöscht */
   await B.buehne.click('#saEnde'); await expect(B.buehne.locator('#saEnde')).toHaveText('Wirklich beenden'); await B.buehne.click('#saEnde');
@@ -620,7 +620,7 @@ test('FTP-Test: Rampe an der Rolle, Ergebnis wird die neue FTP', async () => {
   await buehne.click('#home');
   await expect(buehne.locator('#stufe')).toHaveText(r.ftpTest.ftp + ' W');
   await expect(buehne.locator('#hName')).toHaveText('Testrunde'); await expect(buehne.locator('#hRival')).toBeHidden();
-  await buehne.click('nav button[data-s=saison]');
+  await buehne.click('nav button[data-s=start]');
   await expect(buehne.locator('#saGesch')).toContainText(`FTP-Test: ${r.ftpTest.ftp} W`);
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });
@@ -669,7 +669,10 @@ test('Startseite: letzte Fahrt und eigene Zahlen, FTP zieht von selbst nach, Pro
   await expect(buehne.locator('#hmWkg')).toHaveText('3,3');
   await expect(buehne.locator('#hmHeute')).toHaveText(/^Testrunde · \d+ min$/);
   /* Profil, Konto und Strava sind von hier aus zu erreichen */
-  await expect(buehne.locator('#hmKonto')).toHaveText('Konto anmelden'); await expect(buehne.locator('#hmStrava')).toHaveText('Strava verbinden');
+  await expect(buehne.locator('#hmKonto')).not.toHaveClass(/on/); await expect(buehne.locator('#hmStrava')).not.toHaveClass(/on/);
+  /* der Stand als Tafeln: Fitness, die Woche, das Jahr */
+  await expect(buehne.locator('#dFit')).toHaveText(/^\d+$/); await expect(buehne.locator('#dWo')).toHaveText('0:21'); await expect(buehne.locator('#dWoT')).toHaveText('10 km · 1 Fahrt');
+  await expect(buehne.locator('#dJahr')).toHaveText('10'); await expect(buehne.locator('#dB20')).toHaveText('260 W'); await expect(buehne.locator('#saNeu')).toBeVisible();
   await buehne.click('#hmStrava');
   await expect(buehne.locator('body')).toHaveAttribute('data-blatt', 'profil'); await expect(buehne.locator('#svB')).toBeVisible(); await expect(buehne.locator('#kForm')).toBeVisible();
   /* von Hand gesenkt bleibt gesenkt: die alte Fahrt hebt sie nicht wieder an */
@@ -678,10 +681,47 @@ test('Startseite: letzte Fahrt und eigene Zahlen, FTP zieht von selbst nach, Pro
   /* kleines Fenster: nichts ragt hinaus, nichts bricht um */
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('buehne')).setSize(960, 600));
   await warte(900);
-  expect(await buehne.evaluate(() => [...document.querySelectorAll('#heim .lbl,#hmName,.hm .stats,.hm .go,.hm .opt')].filter(e => !e.hidden).every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= 60 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }))).toBe(true);
-  expect(await buehne.evaluate(() => [...document.querySelectorAll('.hm .stats b')].every(b => b.getBoundingClientRect().height < parseFloat(getComputedStyle(b).fontSize) * 1.4))).toBe(true);
+  expect(await buehne.evaluate(() => [...document.querySelectorAll('.hm .lbl,#hmName,.hm .stats,.hm .go,.hm .opt,#dash')].filter(e => !e.hidden).every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= 60 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }))).toBe(true);
+  expect(await buehne.evaluate(() => [...document.querySelectorAll('.hm .stats b,.pz b')].every(b => b.getBoundingClientRect().height < parseFloat(getComputedStyle(b).fontSize) * 1.4))).toBe(true);
   /* Losfahren geht auch von hier */
   await buehne.click('#startH');
+  await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
+  expect(probleme).toEqual([]);
+  await app.close(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/* ---------- Fahrt ansehen ---------- */
+test('Fahrten: ein Klick zeigt die Zahlen der Fahrt und dahinter ihre Welt, auch ohne eigene Strecke', async () => {
+  const dir = ordner(), n = 1300, fd = path.join(dir, 'daten', 'fahrten');
+  fs.mkdirSync(fd, { recursive: true });
+  const fahrt = (id, tage, mehr) => fs.writeFileSync(path.join(fd, id + '.json'), JSON.stringify({ id, start: new Date(Date.now() - tage * 864e5).toISOString(), name: 'Testrunde', p: Array(n).fill(180), hr: Array(n).fill(140), cad: Array(n).fill(88), spd: null,
+    dist: Array.from({ length: n }, (_, i) => (i + 1) * 8), alt: Array.from({ length: n }, (_, i) => 200 + 30 * Math.sin(i / 200)), route: 'Testrunde', routeId: 'test-kurz', gain: 45, trainer: true, ftp: 200, weight: 75, app: 'neu', ...mehr }));
+  fahrt('r1', 3, {});
+  /* eine freie Fahrt ohne Strecke: ihre Welt wird aus Höhe über Strecke erzeugt */
+  fahrt('r2', 1, { name: 'Freie Fahrt', route: null, routeId: null });
+  const { app, buehne, probleme } = await starte(dir);
+  const welt = () => buehne.evaluate(() => window.__wb.weltVon);
+  await buehne.click('nav button[data-s=fahrten]');
+  await expect(buehne.locator('.fh')).toHaveCount(2); await expect(buehne.locator('#fhDetail')).toBeHidden(); expect(await welt()).toBe('r');
+  await buehne.locator('.fh', { hasText: 'Freie Fahrt' }).locator('b').click();
+  await expect(buehne.locator('#fhDetail')).toBeVisible(); await expect(buehne.locator('#fdName')).toHaveText('Freie Fahrt'); await expect(buehne.locator('#fdL')).toContainText('Rolle');
+  const zahl = l => buehne.locator('#fdZ span', { hasText: l }).locator('b');
+  await expect(zahl('Fahrzeit')).toHaveText('21:40'); await expect(zahl('Watt im Schnitt')).toHaveText('180'); await expect(zahl('% der FTP')).toHaveText('90'); await expect(zahl('Watt 20 min')).toHaveText('180');
+  await expect(zahl('Puls maximal')).toHaveText('140'); await expect(zahl('Kadenz')).toHaveText('88'); await expect(zahl('Kilojoule')).toHaveText('234');
+  await expect.poll(welt).toBe('fr2');
+  /* die andere Fahrt liegt auf einer Strecke: deren Welt */
+  await buehne.locator('.fh', { hasText: 'Testrunde' }).locator('b').click();
+  await expect(buehne.locator('#fdName')).toHaveText('Testrunde'); await expect.poll(welt).toBe('fr1');
+  /* kleines Fenster: Liste und Zahlen nebeneinander, nichts ragt hinaus */
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('buehne')).setSize(960, 600));
+  await warte(900);
+  expect(await buehne.evaluate(() => { const a = document.querySelector('#fahrten .sicht').getBoundingClientRect(), b = document.getElementById('fhDetail').getBoundingClientRect(); return a.right <= b.left && b.right <= innerWidth && b.bottom <= innerHeight && a.left >= 0; })).toBe(true);
+  /* Esc schließt die Ansicht, die Welt der Lobby kommt zurück; Losfahren geht danach wie immer */
+  await buehne.keyboard.press('Escape');
+  await expect(buehne.locator('#fhDetail')).toBeHidden(); await expect.poll(welt).toBe('r'); await expect(buehne.locator('.fh button.lo')).toHaveCount(2);
+  await buehne.locator('.fh').first().locator('b').click(); await expect.poll(welt).toMatch(/^fr/);
+  await buehne.click('nav button[data-s=lobby]'); await expect.poll(welt).toBe('r');
+  await buehne.click('#start');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
   expect(probleme).toEqual([]);
   await app.close(); fs.rmSync(dir, { recursive: true, force: true });

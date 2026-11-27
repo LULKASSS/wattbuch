@@ -13,7 +13,7 @@
 
 <div class="layer" id="lobby">
   <div class="top">
-    <nav><button class="on" data-s="start">Start</button><button data-s="lobby">Lobby</button><button data-s="saison">Saison</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
+    <nav><button class="on" data-s="start">Start</button><button data-s="lobby">Lobby</button><button data-s="rivalen">Rivalen</button><button data-s="fahrten">Fahrten</button></nav>
     <div style="display:flex;gap:26px;align-items:center">
       <button class="dev" id="devB" aria-label="Geräte"><i id="dRolle"></i><i id="dPuls"></i><i id="dKadenz"></i><span id="devT"></span></button>
       <button class="lvl" id="lvlB" aria-label="Profil"><div><span>Stufe</span><b class="dsp" id="stufe" style="font-size:20px;color:var(--fg)"></b></div><div class="weg" id="stufeW" hidden><i id="stufeB"></i></div></button>
@@ -30,38 +30,60 @@
   <div class="dock"><div id="cards" style="display:contents"></div></div>
 </div>
 
-<div class="layer" id="heim"><div class="hm">
-  <div class="lbl" id="hmL"></div>
-  <h1 class="dsp" id="hmName"></h1>
-  <div class="stats" id="hmF"><span><b id="hmKm"></b>km</span><span><b id="hmZeit"></b>Fahrzeit</span><span><b id="hmW"></b>Watt</span><span><b id="hmP"></b>Punkte</span></div>
-  <div class="lbl" style="margin-top:34px">Du</div>
-  <div class="stats du"><span><b id="hmFtp"></b>Watt FTP</span><span><b id="hmWkg"></b>W/kg</span><span><b id="hmWo"></b>Stunden diese Woche</span><span><b id="hmKm4"></b>km in 4 Wochen</span><span><b id="hmForm"></b>Form</span><span><b id="hmSerie"></b>Wochen in Folge</span></div>
-  <div class="go"><button class="gobtn" id="startH"><span>Losfahren</span></button><small id="hmHeute"></small></div>
-  <div class="opt"><button type="button" id="hmProfil">Profil</button><button type="button" id="hmKonto">Konto anmelden</button><button type="button" id="hmStrava">Strava verbinden</button></div>
-</div></div>
-
-<div class="layer" id="saison"><div class="sicht breit">
-  <div class="lbl" id="saL">Saison</div>
-  <div class="rolle" id="saRolle">
-    <form id="saNeu" hidden>
-      <h2 class="dsp">Dein Ziel</h2>
-      <div class="wahl" id="saArt"><button type="button" class="on" data-art="ftp">FTP</button><button type="button" data-art="tour">Lange Tour</button></div>
-      <div class="fz"><label><span id="saZielL">FTP</span><span><input id="saZiel" type="number" min="1" max="600" step="1" inputmode="numeric" aria-label="Ziel"><em id="saEinh">W</em></span></label><label>bis<span><input id="saBis" type="date" aria-label="bis"></span></label></div>
-      <button class="bbtn" type="submit">Saison starten</button>
-    </form>
-    <div id="saLauf" hidden>
-      <h2 class="dsp" id="saZielT"></h2>
-      <canvas id="saWeg" width="1600" height="200"></canvas>
-      <div class="sz"><span>Heute</span><b id="saHeute"></b></div>
-      <div class="sz"><span>Woche</span><b id="saWoche"></b><i class="weg"><i id="saWocheB"></i></i></div>
-    </div>
-    <div class="sz"><span>Form</span><b id="saForm"></b><canvas id="saKurve" width="360" height="56"></canvas></div>
-    <div class="sz"><span>Serie</span><b id="saSerie"></b></div>
-    <div class="sz" id="saFtpZ" hidden><span>FTP</span><b id="saFtp"></b></div>
-    <div id="saGesch"></div>
-    <button class="klein" id="saEnde" type="button" hidden>Saison beenden</button>
+<div class="layer" id="heim"><div class="hg">
+  <div class="hm">
+    <div class="lbl" id="hmL"></div>
+    <h1 class="dsp" id="hmName"></h1>
+    <div class="stats" id="hmF"><span><b id="hmKm"></b>km</span><span><b id="hmZeit"></b>Fahrzeit</span><span><b id="hmW"></b>Watt</span><span><b id="hmP"></b>Punkte</span></div>
+    <div class="go"><small id="hmHeute"></small><button class="gobtn" id="startH"><span>Losfahren</span></button></div>
+    <div class="opt"><button type="button" id="hmProfil">Profil</button><button type="button" id="hmKonto">Konto</button><button type="button" id="hmStrava">Strava</button></div>
+  </div>
+  <div class="dash rolle" id="dash">
+    <section class="glass pn">
+      <div class="lbl">Fitness</div>
+      <div class="pz"><b class="dsp" id="dFit"></b><span id="saForm"></span></div>
+      <canvas id="saKurve" width="720" height="150"></canvas>
+    </section>
+    <section class="glass pn">
+      <div class="lbl">Diese Woche</div>
+      <div class="pz"><b class="dsp"><span id="dWo"></span><small>h</small></b><span id="dWoT"></span></div>
+      <canvas id="dBalken" width="720" height="150"></canvas>
+    </section>
+    <section class="glass pn">
+      <div class="lbl">FTP</div>
+      <div class="pz"><b class="dsp"><span id="hmFtp"></span><small>W</small></b><span><span id="hmWkg"></span> W/kg</span></div>
+      <div class="sz" id="saFtpZ" hidden><span>Ziel</span><b id="saFtp"></b><i class="weg"><i id="dFtpB"></i></i></div>
+      <div class="sz"><span>20 min</span><b id="dB20"></b></div>
+    </section>
+    <section class="glass pn">
+      <div class="lbl" id="dJahrL"></div>
+      <div class="pz"><b class="dsp"><span id="dJahr"></span><small>km</small></b><span id="dJahrT"></span></div>
+      <div class="sz"><span>4 Wochen</span><b id="hmKm4"></b></div>
+      <div class="sz"><span>Serie</span><b id="saSerie"></b></div>
+    </section>
+    <section class="glass pn breit">
+      <div class="lbl" id="saL">Saison</div>
+      <form id="saNeu" hidden>
+        <h2 class="dsp">Dein Ziel</h2>
+        <div class="wahl" id="saArt"><button type="button" class="on" data-art="ftp">FTP</button><button type="button" data-art="tour">Lange Tour</button></div>
+        <div class="fz"><label><span id="saZielL">FTP</span><span><input id="saZiel" type="number" min="1" max="600" step="1" inputmode="numeric" aria-label="Ziel"><em id="saEinh">W</em></span></label><label>bis<span><input id="saBis" type="date" aria-label="bis"></span></label></div>
+        <button class="bbtn" type="submit">Saison starten</button>
+      </form>
+      <div id="saLauf" hidden>
+        <h2 class="dsp" id="saZielT"></h2>
+        <canvas id="saWeg" width="1600" height="200"></canvas>
+        <div class="sz"><span>Heute</span><b id="saHeute"></b></div>
+        <div class="sz"><span>Woche</span><b id="saWoche"></b><i class="weg"><i id="saWocheB"></i></i></div>
+      </div>
+      <button class="klein" id="saEnde" type="button" hidden>Saison beenden</button>
+    </section>
+    <section class="glass pn breit" id="dGeschP">
+      <div class="lbl">Meilensteine</div>
+      <div id="saGesch"></div>
+    </section>
   </div>
 </div></div>
+
 <div class="layer" id="rivalen"><div class="sicht">
   <div class="lbl">Rivalen</div>
   <h2 class="dsp" id="rvName"></h2>
@@ -71,6 +93,12 @@
 <div class="layer" id="fahrten"><div class="sicht breit">
   <div class="lbl">Fahrten</div>
   <div class="rolle" id="fhListe"></div>
+</div>
+<div class="glass fd rolle" id="fhDetail" hidden>
+  <div class="lbl" id="fdL"></div>
+  <h2 class="dsp" id="fdName"></h2>
+  <canvas id="fdKurve" width="720" height="150"></canvas>
+  <div class="fdz" id="fdZ"></div>
 </div></div>
 
 <div class="layer" id="count"><div class="ringbox">

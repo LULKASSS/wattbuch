@@ -141,6 +141,7 @@ app.whenReady().then(() => {
   ipcMain.handle('daten:strecke', (_e, s) => { daten.streckeSpeichern(s); if (konto.synct(s)) konto.merkeDok('strecken', s.id); });
   ipcMain.handle('daten:fahrten', () => daten.fahrten());
   ipcMain.handle('daten:werte', () => daten.werte());
+  ipcMain.handle('daten:fahrtDetail', (_e, id) => daten.fahrtDetail(String(id)));
   ipcMain.handle('daten:rivale', (_e, id, rev) => daten.rivale(id, rev));
   ipcMain.handle('daten:laeufe', (_e, id, rev) => daten.laeufe(id, rev));
   ipcMain.handle('daten:laufend', () => faehrt ? daten.journalLesen() : null);

@@ -178,3 +178,27 @@ describe('FTP-Test', () => {
     const b = testbahn(); expect(b.test).toBe(true); expect(new Set(b.ele).size).toBe(1); expect(bahn(b).dist).toBe(40000); expect(bahn(b).loop).toBe(true);
   });
 });
+
+/* Ansicht einer Fahrt: Kennzahlen aus dem Hauptprozess und die Welt zu einer Fahrt ohne eigene Strecke */
+import { createRequire } from 'node:module';
+import { ausFahrt } from '../../src/kern/erzeugen';
+describe('Fahrt ansehen', () => {
+  const { detail } = createRequire(import.meta.url)('../../app/kennzahl.cjs');
+  it('Kennzahlen: Schnitt, gewichtete Leistung, Bestwerte, Puls, Kurve und Höhe', () => {
+    const n = 1800, p = Array.from({ length: n }, (_, i) => i < 600 ? 150 : i < 1200 ? 250 : 200);
+    const d = detail({ id: 'x', start: '2026-11-01T10:00:00Z', name: 'Probe', p, hr: p.map(v => v / 2), cad: p.map(() => 90), dist: p.map((_, i) => (i + 1) * 8), alt: p.map((_, i) => 100 + i / 10), gain: 180, ftp: 200 });
+    expect(d.dauer).toBe(1800); expect(d.km).toBeCloseTo(14.4); expect(d.avgW).toBe(200); expect(d.maxW).toBe(250); expect(d.b300).toBe(250); expect(d.b1200).toBe(225);
+    expect(d.np).toBeGreaterThan(200); expect(d.anteil).toBeGreaterThan(100); expect(d.kj).toBe(360); expect(d.hr).toBe(100); expect(d.hrMax).toBe(125); expect(d.cad).toBe(90); expect(d.kmh).toBe(28.8);
+    expect(d.kurve.length).toBeLessThanOrEqual(240); expect(d.hoehe.length).toBeLessThanOrEqual(1500); expect(d.hoehe[0]).toEqual([8, 100]);
+  });
+  it('Fahrt ohne Wattmessung: Schätzung, keine Bestwerte', () => {
+    const d = detail({ id: 'sv1', start: '2026-11-01T10:00:00Z', name: 'Draußen', p: [], noW: true, dur: 3600, estW: 150, dist: null, alt: null, gain: 300 }, 200);
+    expect(d.dauer).toBe(3600); expect(d.avgW).toBe(150); expect(d.np).toBeNull(); expect(d.b60).toBeNull(); expect(d.geschaetzt).toBe(true); expect(d.hoehe).toBeNull(); expect(d.kurve).toEqual([]);
+  });
+  it('Welt zur Fahrt: Länge und Höhen der Fahrt, zu kurze Fahrten geben keine', () => {
+    const hoehe: [number, number][] = Array.from({ length: 400 }, (_, i) => [i * 50, 200 + 80 * Math.sin(i / 60)]);
+    const st = ausFahrt('Probe', hoehe, 7)!;
+    expect(Math.abs(st.dist - 19950)).toBeLessThan(1500); expect(st.gain).toBeGreaterThan(100); expect(st.line.length).toBeGreaterThan(30);
+    expect(Math.abs(st.ele[0] - 200)).toBeLessThan(8); expect(ausFahrt('Kurz', [[0, 1], [800, 2]], 7)).toBeNull();
+  });
+});

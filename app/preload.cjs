@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('wattbuch', {
   alsStrecke: id => ipcRenderer.invoke('strava:alsStrecke', id),
   streckeWeg: id => ipcRenderer.invoke('daten:streckeWeg', id),
   fahrtLoeschen: id => ipcRenderer.invoke('daten:fahrtLoeschen', id),
+  fahrtDetail: id => ipcRenderer.invoke('daten:fahrtDetail', id),
   /* Bühne */
   befehl: b => ipcRenderer.send('b:befehl', b),
   aufZustand: auf('zustand'),

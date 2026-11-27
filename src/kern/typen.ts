@@ -20,6 +20,9 @@ export interface Fahrt {
   src?: string; noW?: boolean; dur?: number; ftpTest?: { ftp: number; best: number; before: number };
 }
 export interface FahrtKurz { id: string; start: string; name: string; routeId: string | null; rev: boolean; ganz: boolean; rolle: boolean; dauer: number; zeit: number; km: number; hm: number; avgW: number | null; stravaId: string | null; draussen: boolean; tss: number; b20: number | null; ftpTest: number | null }
+/* Eine Fahrt zum Ansehen: Kennzahlen, Leistung als Kurve, Höhe über Strecke [m, m] */
+export interface FahrtDetail { id: string; start: string; name: string; dauer: number; km: number; hm: number; ftp: number; avgW: number | null; np: number | null; anteil: number | null; tss: number; kj: number | null; maxW: number | null;
+  b5: number | null; b60: number | null; b300: number | null; b1200: number | null; hr: number | null; hrMax: number | null; cad: number | null; kmh: number | null; geschaetzt: boolean; kurve: number[]; hoehe: [number, number][] | null }
 export interface Werte { ftp: number; weight: number; bike: number; diff: number; erg?: boolean; ftpAm?: string }   // erg: Watt halten
 export const WERTE_START: Werte = { ftp: 200, weight: 75, bike: 9, diff: 0.5 };
 

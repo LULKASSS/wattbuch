@@ -1,7 +1,8 @@
 /* Bühne: das sichtbare Fenster. Zeigt die Welt und die Anzeige und schickt Befehle an den Maschinenraum.
    Hier wird nichts aufgenommen und nichts gerechnet, was die Fahrt ausmacht: Hängt die Grafik, läuft die Fahrt weiter. */
 import '../stil.css';
-import type { Strecke, FahrtKurz, Zustand, Ereignis } from '../kern/typen';
+import type { Strecke, FahrtKurz, FahrtDetail, Zustand, Ereignis } from '../kern/typen';
+import { ausFahrt } from '../kern/erzeugen';
 import { bahn, anstiege, fahrzeit, type Bahn } from '../kern/strecke';
 import { grundleistung, lage, zone } from '../kern/coach';
 import { fmt, zeit, tag } from '../kern/format';
@@ -115,13 +116,36 @@ function fuelleStart() {
   $('hmL').textContent = f ? 'Letzte Fahrt · ' + (vor <= 0 ? 'heute' : vor === 1 ? 'gestern' : `vor ${vor} Tagen`) : 'Wattbuch';
   $('hmName').textContent = f ? f.name : 'Noch keine Fahrt'; $('hmF').hidden = !f;
   if (f) { $('hmKm').textContent = f.km ? fmt(f.km, 1) : '–'; $('hmZeit').textContent = zeit(f.zeit); $('hmW').textContent = f.avgW ? fmt(f.avgW) : '–'; $('hmP').textContent = fmt(f.tss || 0); }
-  let sek = 0, km4 = 0; const mo = montag(heute);
-  for (const x of alleFahrten) { const t = tagNr(x.start); if (t >= mo && t <= heute) sek += x.zeit; if (t > heute - 28 && t <= heute) km4 += x.km || 0; }
-  $('hmFtp').textContent = fmt(ftp); $('hmWkg').textContent = fmt(ftp / koerper, 1);
-  $('hmWo').textContent = `${Math.floor(sek / 3600)}:${String(Math.floor(sek % 3600 / 60)).padStart(2, '0')}`; $('hmKm4').textContent = fmt(km4);
-  const w = alleFahrten.length ? formWort(form(alleFahrten, heute).form) : '–'; $('hmForm').textContent = w[0].toUpperCase() + w.slice(1);
-  $('hmSerie').textContent = String(serie(alleFahrten, heute));
   const r = runden[pick]; $('hmHeute').textContent = r ? `${r.st.name} · ${r.min} min` : '';
+  /* Stand: Fitness, die Woche (und die acht Wochen davor als Balken), FTP, das Jahr */
+  const F = form(alleFahrten, heute); $('dFit').textContent = fmt(F.fitness);
+  const mo = montag(heute), jahr = new Date().getFullYear(), W8: number[] = Array(8).fill(0);
+  let sek = 0, kmW = 0, km4 = 0, kmJ = 0, hmJ = 0, nJ = 0, b20 = 0; const tageW = new Set<number>();
+  for (const x of alleFahrten) {
+    const t = tagNr(x.start), w = Math.floor((t - mo) / 7) + 7;
+    if (w >= 0 && w < 8) W8[w] += x.km || 0;
+    if (t >= mo && t <= heute) { sek += x.zeit; kmW += x.km || 0; tageW.add(t); }
+    if (t > heute - 28 && t <= heute) km4 += x.km || 0;
+    if (new Date(x.start).getFullYear() === jahr) { kmJ += x.km || 0; hmJ += x.hm || 0; nJ++; }
+    if (x.b20 && t > heute - 42 && x.b20 > b20) b20 = x.b20;
+  }
+  $('dWo').textContent = `${Math.floor(sek / 3600)}:${String(Math.floor(sek % 3600 / 60)).padStart(2, '0')}`;
+  $('dWoT').textContent = `${fmt(kmW)} km · ${tageW.size} ${tageW.size === 1 ? 'Fahrt' : 'Fahrten'}`;
+  balken($<HTMLCanvasElement>('dBalken'), W8);
+  $('hmFtp').textContent = fmt(ftp); $('hmWkg').textContent = fmt(ftp / koerper, 1); $('dB20').textContent = b20 ? `${fmt(b20)} W` : '–';
+  $('dJahrL').textContent = String(jahr); $('dJahr').textContent = fmt(kmJ); $('dJahrT').textContent = `${nJ} ${nJ === 1 ? 'Fahrt' : 'Fahrten'}${hmJ ? ` · ${fmt(hmJ)} Hm` : ''}`;
+  $('hmKm4').textContent = `${fmt(km4)} km`;
+  zeigeSaison();
+}
+/* Balken je Woche (km), die laufende Woche hell, die Zahl darüber */
+function balken(cv: HTMLCanvasElement, v: number[]) {
+  const g = cv.getContext('2d')!, Wd = cv.width, H = cv.height, hi = Math.max(1, ...v), n = v.length, bw = (Wd - 16) / n;
+  g.clearRect(0, 0, Wd, H); g.font = '600 22px Manrope, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  v.forEach((x, i) => {
+    const h = Math.max(4, (H - 36) * x / hi), px = 8 + i * bw + 6, w = bw - 12, y = H - h, jetzt = i === n - 1;
+    g.fillStyle = jetzt ? '#F3B56B' : 'rgba(246,240,230,.28)'; g.beginPath(); g.roundRect(px, y, w, h, 7); g.fill();
+    if (x >= 1) { g.fillStyle = jetzt ? '#F6F0E6' : '#CFC6D2'; g.fillText(fmt(x), px + w / 2, y - 5); }
+  });
 }
 /* Unten stehen höchstens vier Runden: ein Fenster um die gewählte, die Pfeiltasten gehen durch alle */
 let kAb = 0;
@@ -136,7 +160,8 @@ function baueKarten() {
 }
 const basis = () => plan ? plan.watt : undefined, oben = () => plan ? Math.round(ftp * ART[plan.art].oben) : undefined;
 const wahl = (r: Runde) => W.befehl({ was: 'wahl', streckeId: r.st.id, rev: rev && !r.st.test, basis: basis(), oben: oben() });
-function zeige(i: number) { const r = runden[i]; welt.strecke(rtVon(r), r.seed); wahl(r); }
+let weltVon = '';   // 'r': Runde der Lobby, 'f<id>': Welt zu einer angesehenen Fahrt
+function zeige(i: number) { const r = runden[i]; welt.strecke(rtVon(r), r.seed); weltVon = 'r'; wahl(r); }
 function waehle(i: number) {
   const n = runden.length; i = (i + n) % n;
   if (i === pick || akt !== 'lobby') return;
@@ -176,7 +201,7 @@ W.aufZustand((n: Zustand) => {
     if (r) {
       const neu = i !== pick || !aktRt || rev !== n.rev; rev = n.rev;
       if (i >= 0 && neu) { pick = i; baueKarten(); fuelleLobby(); }
-      if (neu || i < 0) welt.strecke(rtVon(r), r.seed);
+      if (neu || i < 0 || weltVon !== 'r') { welt.strecke(rtVon(r), r.seed); weltVon = 'r'; }
       aktRt = rtVon(r); const a = anstiege(aktRt).sort((x, y) => y.gain - x.gain)[0]; haupt = a ? { s: a.s, top: a.top } : null; $('rName').textContent = aktRt.name;
     }
   }
@@ -290,7 +315,7 @@ W.aufGeraete(async g => {
 });
 function zeigeKonto(k: KontoStand) {
   $('kForm').hidden = k.an; $('kAn').hidden = !k.an;
-  $('hmKonto').textContent = k.an ? 'Konto' : 'Konto anmelden'; $('hmKonto').classList.toggle('on', k.an);
+  $('hmKonto').classList.toggle('on', k.an);
   if (k.an) { $('kWer').textContent = k.email || ''; $('kSt').textContent = k.busy ? 'gleicht ab' : k.err ? 'Abgleich wartet' : k.wartet ? `${k.wartet} wartet` : k.last ? 'abgeglichen ' + new Date(k.last).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''; }
 }
 W.aufKonto(zeigeKonto);
@@ -298,7 +323,7 @@ function zeigeStrava(s: StravaStand) {
   const an = !!s.connected; $('svWer').textContent = an ? (s.athlete && s.athlete.name) || 'verbunden' : '';
   const b = $<HTMLButtonElement>('svB'); b.textContent = an ? 'Trennen' : 'Verbinden'; b.classList.toggle('leer', an); b.disabled = false; b.dataset.an = an ? '1' : '';
   $('svMsg').textContent = s.ok === false ? s.error || '' : '';
-  $('hmStrava').textContent = an ? 'Strava' : 'Strava verbinden'; $('hmStrava').classList.toggle('on', an);
+  $('hmStrava').classList.toggle('on', an);
 }
 $('svB').onclick = async () => {
   const b = $<HTMLButtonElement>('svB');
@@ -349,18 +374,20 @@ function neuLaden() {
     const vor = runden[pick] ? runden[pick].st.id : null, hVor = heuteId, n = runden.length, heute = await ladeRunden(), i = runden.findIndex(r => r.st.id === vor);
     pick = i >= 0 && heuteId === hVor ? i : heute; baueKarten(); fuelleLobby();
     if (!n || !runden[pick] || runden[pick].st.id !== vor) { rev = false; fuelleLobby(); zeige(pick); } else wahl(runden[pick]);
-    if (sicht === 'rivalen') zeigeRivalen(); if (sicht === 'fahrten') zeigeFahrten(); if (sicht === 'saison') zeigeSaison();
+    if (sicht === 'rivalen') zeigeRivalen(); if (sicht === 'fahrten') zeigeFahrten();
+    if (fhAuf) { if (!alleFahrten.some(f => f.id === fhAuf)) oeffneFahrt(''); else if (weltVon !== 'f' + fhAuf) weltZurFahrt(); }
   }, 300);
 }
 W.aufDaten(neuLaden);
 
 /* ---------- Bereiche: Rivalen und Fahrten ---------- */
-type Sicht = 'start' | 'lobby' | 'saison' | 'rivalen' | 'fahrten';
+type Sicht = 'start' | 'lobby' | 'rivalen' | 'fahrten';
 let sicht: Sicht = 'start';
 function setzeSicht(x: Sicht) {
+  if (x !== 'fahrten' && fhAuf) oeffneFahrt('');
   sicht = x; document.body.dataset.sicht = x; blatt(null);
   document.querySelectorAll<HTMLElement>('nav button').forEach(b => b.classList.toggle('on', b.dataset.s === x));
-  if (x === 'rivalen') zeigeRivalen(); if (x === 'fahrten') zeigeFahrten(); if (x === 'saison') zeigeSaison();
+  if (x === 'rivalen') zeigeRivalen(); if (x === 'fahrten') zeigeFahrten();
 }
 document.querySelectorAll<HTMLElement>('nav button').forEach(b => { b.onclick = () => { if (akt === 'lobby') setzeSicht(b.dataset.s as Sicht); }; });
 const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: '2-digit' });
@@ -396,6 +423,37 @@ $('rvWeg').onclick = async () => {
 /* Fahrten: alle Fahrten, neueste zuerst, nach Monat. Draußen-Fahrten aus Strava lassen sich als Strecke anlegen,
    jede Fahrt lässt sich löschen (erster Klick fragt, zweiter löscht). */
 let loFrage = '', loT = 0;
+/* Fahrt ansehen: ein Klick auf die Zeile zeigt rechts ihre Zahlen und dahinter ihre Welt. Gibt es die Strecke, ist es
+   deren Welt; sonst wird aus Höhe über Strecke eine Schleife erzeugt (die Höhen sind echt, der Weg nicht). */
+let fhAuf = '', fhDet: FahrtDetail | null = null;
+const blende = (fn: () => void) => { $('flash').classList.add('on'); setTimeout(() => { fn(); $('flash').classList.remove('on'); }, 360); };
+async function oeffneFahrt(id: string) {
+  fhAuf = id;
+  if (!id) { fhDet = null; delete document.body.dataset.fahrt; $('fhDetail').hidden = true; if (sicht === 'fahrten') zeigeFahrten(); if (weltVon !== 'r' && runden[pick]) blende(() => zeige(pick)); return; }
+  const d = await W.fahrtDetail(id); if (fhAuf !== id) return; if (!d) { oeffneFahrt(''); return; }
+  fhDet = d; document.body.dataset.fahrt = '1'; zeigeFahrten(); zeigeDetail(); weltZurFahrt();
+}
+function weltZurFahrt() {
+  const f = alleFahrten.find(x => x.id === fhAuf), d = fhDet; if (!f || !d) return;
+  const r = (f.routeId ? runden.find(x => x.st.id === f.routeId) || (testR && testR.st.id === f.routeId ? testR : null) : null) || (f.stravaId ? runden.find(x => x.st.id === 'sr' + f.stravaId) : null) || null;
+  let rt: Bahn | null = null, seed = seedOf(f.id);
+  if (r) { rt = f.rev && !r.st.test ? bahn(r.st, true) : r.rt; seed = r.seed; }
+  else if (d.hoehe) { const st = ausFahrt(f.name, d.hoehe, seed); if (st) rt = bahn(st); }
+  if (!rt) { if (weltVon !== 'r' && runden[pick]) blende(() => zeige(pick)); return; }
+  const id = f.id, bahnF = rt; blende(() => { if (fhAuf !== id) return; welt.strecke(bahnF, seed); weltVon = 'f' + id; });
+}
+function zeigeDetail() {
+  const d = fhDet, f = alleFahrten.find(x => x.id === fhAuf); $('fhDetail').hidden = !d || !f; if (!d || !f) return;
+  $('fdL').textContent = new Date(d.start).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (f.draussen ? ' · draußen' : f.rolle ? ' · Rolle' : '');
+  $('fdName').textContent = d.name;
+  const cv = $<HTMLCanvasElement>('fdKurve'); cv.hidden = d.kurve.length < 2; if (!cv.hidden) kurve(cv, d.kurve);
+  const n = (x: number | null, st = 0) => x ? fmt(x, st) : null;
+  const Z: [string, string | null][] = [['Fahrzeit', zeit(d.dauer)], ['km', n(d.km, 1)], ['Höhenmeter', n(d.hm)], ['km/h', n(d.kmh, 1)],
+    [d.geschaetzt ? 'Watt geschätzt' : 'Watt im Schnitt', n(d.avgW)], ['Watt gewichtet', n(d.np)], ['% der FTP', n(d.anteil)], ['Punkte', n(d.tss)], ['Kilojoule', n(d.kj)],
+    ['Watt maximal', n(d.maxW)], ['Watt 5 s', n(d.b5)], ['Watt 1 min', n(d.b60)], ['Watt 5 min', n(d.b300)], ['Watt 20 min', n(d.b1200)], ['Puls', n(d.hr)], ['Puls maximal', n(d.hrMax)], ['Kadenz', n(d.cad)]];
+  const box = $('fdZ'); box.innerHTML = '';
+  for (const [l, v] of Z) if (v) { const e = document.createElement('span'), bb = document.createElement('b'); bb.textContent = v; e.append(bb, l); box.appendChild(e); }
+}
 function zeigeFahrten() {
   const box = $('fhListe'); box.innerHTML = ''; let mon = '';
   const liste = alleFahrten.slice().sort((a, b) => b.start.localeCompare(a.start));
@@ -403,7 +461,7 @@ function zeigeFahrten() {
   for (const f of liste) {
     const m = new Date(f.start).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
     if (m !== mon) { mon = m; const h = document.createElement('div'); h.className = 'mon'; h.textContent = m; box.appendChild(h); }
-    const row = document.createElement('div'); row.className = 'fh'; row.innerHTML = '<span></span><b></b><span></span><span></span><span></span>';
+    const row = document.createElement('div'); row.className = 'fh' + (fhAuf === f.id ? ' on' : ''); row.onclick = e => { if (!(e.target as HTMLElement).closest('button')) oeffneFahrt(fhAuf === f.id ? '' : f.id); }; row.innerHTML = '<span></span><b></b><span></span><span></span><span></span>';
     row.children[0].textContent = new Date(f.start).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }); row.children[1].textContent = f.name;
     row.children[2].textContent = f.km ? fmt(f.km, 1) + ' km' : ''; row.children[3].textContent = zeit(f.zeit); row.children[4].textContent = f.avgW ? fmt(f.avgW) + ' W' : '';
     if (f.draussen && f.stravaId) {
@@ -443,8 +501,10 @@ function zeigeSaison() {
   const n = serie(alleFahrten, heute); $('saSerie').textContent = n ? `${n} ${n === 1 ? 'Woche' : 'Wochen'} in Folge` : '–';
   $('saFtpZ').hidden = !(s && s.art === 'ftp');
   $('saFtp').textContent = s && s.art === 'ftp' ? `${fmt(ftp)} von ${fmt(s.ziel)} W` : `${fmt(ftp)} W`;
+  if (s && s.art === 'ftp') $('dFtpB').style.width = (clamp((ftp - s.ftp0) / Math.max(s.ziel - s.ftp0, 1), 0, 1) * 100).toFixed(1) + '%';
   const box = $('saGesch'); box.innerHTML = '';
   for (const m of meilensteine(alleFahrten)) { const d = document.createElement('div'); d.innerHTML = '<span></span><b></b>'; d.children[0].textContent = datum(m.start); d.children[1].textContent = m.text; box.appendChild(d); }
+  $('dGeschP').hidden = !box.children.length;
 }
 /* Der Weg zum Ziel: eine Linie, die mit dem Pensum der Wochen steigt (ruhige Wochen flacher). Jede Woche ein Punkt:
    gefüllt, wenn das Pensum zu vier Fünfteln geschafft wurde, hell die laufende, am Ende das Ziel. */
@@ -501,13 +561,14 @@ $('less').onclick = () => W.befehl({ was: 'stufe', d: -10 }); $('more').onclick 
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey) return;
   if (document.body.dataset.blatt) { if (e.key === 'Escape') blatt(null); return; }   // im Blatt gehören die Tasten den Feldern
-  if (sicht === 'saison' && e.key !== 'Escape') return;
+  if ((e.target as HTMLElement).closest?.('input') && e.key !== 'Escape') return;   // in einem Feld gehören die Tasten dem Feld
   if (e.key === 'ArrowUp' && akt === 'ride') { W.befehl({ was: 'stufe', d: 10 }); e.preventDefault(); }
   else if (e.key === 'ArrowDown' && akt === 'ride') { W.befehl({ was: 'stufe', d: -10 }); e.preventDefault(); }
   else if (e.key === 'Enter' && akt === 'lobby' && (sicht === 'lobby' || sicht === 'start')) start();
   else if (e.key === 'Enter' && akt === 'done') W.befehl({ was: 'lobby' });
   else if (e.key === 'ArrowRight' && akt === 'lobby' && (sicht === 'lobby' || sicht === 'rivalen')) waehle(pick + 1);
   else if (e.key === 'ArrowLeft' && akt === 'lobby' && (sicht === 'lobby' || sicht === 'rivalen')) waehle(pick - 1);
+  else if (e.key === 'Escape' && sicht === 'fahrten' && fhAuf) oeffneFahrt('');
   else if (e.key === 'Escape' && akt === 'lobby' && sicht !== 'lobby' && sicht !== 'start') setzeSicht('lobby');
   else if (e.key === ' ' && akt === 'ride') { W.befehl({ was: 'pause' }); e.preventDefault(); }
   else if (e.key === 'c' && akt === 'ride') W.befehl({ was: 'coach' });
@@ -545,6 +606,6 @@ ladeRunden().then(i => {
   if (runden.length) { zeige(pick); welt.einflug(); }
   W.bereit(); W.konto().then(zeigeKonto); W.strava().then(zeigeStrava);
   setTimeout(() => { $('flash').classList.remove('on'); setTimeout(() => $('flash').style.transitionDuration = '', 1500); }, 200);
-  (window as any).__wb = { get akt() { return akt; }, get z() { return z; }, get welt() { return welt.stand; }, get runden() { return runden.map(r => r.st.id); }, get ruck() { return ruck; } };
+  (window as any).__wb = { get akt() { return akt; }, get z() { return z; }, get welt() { return welt.stand; }, get runden() { return runden.map(r => r.st.id); }, get ruck() { return ruck; }, get weltVon() { return weltVon; } };
   bild();
 });

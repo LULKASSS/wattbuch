@@ -233,14 +233,14 @@ body[data-stage=done] .tags button{opacity:1}
 .tags button:disabled{cursor:default}
 
 /* ---------- Bereiche Rivalen und Fahrten (über der Welt der gewählten Runde) ---------- */
-#rivalen,#fahrten,#saison{padding:104px 44px 30px;opacity:0;transition:opacity .4s,transform .7s var(--ease);transform:translateY(14px);pointer-events:none}
-#rivalen>*,#fahrten>*,#saison>*{pointer-events:none}
-body[data-stage=lobby][data-sicht=rivalen] #rivalen,body[data-stage=lobby][data-sicht=fahrten] #fahrten,body[data-stage=lobby][data-sicht=saison] #saison{opacity:1;transform:none}
-body[data-stage=lobby][data-sicht=rivalen] #rivalen>*,body[data-stage=lobby][data-sicht=fahrten] #fahrten>*,body[data-stage=lobby][data-sicht=saison] #saison>*{pointer-events:auto}
-body[data-sicht=start] .hero,body[data-sicht=rivalen] .hero,body[data-sicht=fahrten] .hero,body[data-sicht=saison] .hero{opacity:0;pointer-events:none;transform:translateX(-4%)}
-body[data-sicht=start] .hero *,body[data-sicht=rivalen] .hero *,body[data-sicht=fahrten] .hero *,body[data-sicht=saison] .hero *{pointer-events:none}
-body[data-sicht=start] .dock,body[data-sicht=fahrten] .dock,body[data-sicht=saison] .dock{opacity:0;pointer-events:none}
-body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *,body[data-sicht=saison] .dock *{pointer-events:none}
+#rivalen,#fahrten{padding:104px 44px 30px;opacity:0;transition:opacity .4s,transform .7s var(--ease);transform:translateY(14px);pointer-events:none}
+#rivalen>*,#fahrten>*{pointer-events:none}
+body[data-stage=lobby][data-sicht=rivalen] #rivalen,body[data-stage=lobby][data-sicht=fahrten] #fahrten{opacity:1;transform:none}
+body[data-stage=lobby][data-sicht=rivalen] #rivalen>*,body[data-stage=lobby][data-sicht=fahrten] #fahrten>*{pointer-events:auto}
+body[data-sicht=start] .hero,body[data-sicht=rivalen] .hero,body[data-sicht=fahrten] .hero{opacity:0;pointer-events:none;transform:translateX(-4%)}
+body[data-sicht=start] .hero *,body[data-sicht=rivalen] .hero *,body[data-sicht=fahrten] .hero *{pointer-events:none}
+body[data-sicht=start] .dock,body[data-sicht=fahrten] .dock{opacity:0;pointer-events:none}
+body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *{pointer-events:none}
 .hero,.dock{transition:opacity .4s,transform .7s var(--ease)}
 .sicht{width:min(620px,56vw);display:flex;flex-direction:column;max-height:calc(100vh - 290px)}
 .sicht.breit{width:min(860px,78vw);max-height:calc(100vh - 150px)}
@@ -277,12 +277,9 @@ body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *,body[data-sicht=
 @media (max-width:1100px){.fh{grid-template-columns:76px minmax(0,1fr) 70px 70px 0 110px 86px}.fh span:nth-child(5){visibility:hidden}}
 .sicht.breit{padding:20px 22px 14px 8px;border-radius:20px;background:rgba(16,11,26,.66);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .sicht.breit>.lbl{margin-left:18px}
-#fahrten,#saison{padding-top:88px}
+#fahrten{padding-top:88px}
 
 /* ---------- Saison und Fortschritt ---------- */
-#saison .sicht{width:min(760px,74vw);padding-left:26px;padding-right:22px}
-#saison .sicht>.lbl{margin-left:0}
-#saison h2{margin:10px 0 6px}
 .weg{display:block;height:4px;border-radius:2px;background:rgba(246,240,230,.16);overflow:hidden}
 .weg i{display:block;height:100%;width:0;border-radius:2px;background:var(--a);transition:width .9s var(--ease)}
 .lvl .weg{margin-top:6px;height:3px}
@@ -316,16 +313,46 @@ body[data-sicht=start] .dock *,body[data-sicht=fahrten] .dock *,body[data-sicht=
 .opt button.on{background:rgba(243,181,107,.18);border-color:rgba(243,181,107,.7);color:var(--fg)}
 .opt button[hidden]{display:none}
 
-/* Startseite: letzte Fahrt und die eigenen Zahlen vor der Welt */
-#heim{padding:88px 44px 30px;display:flex;flex-direction:column;justify-content:center;opacity:0;transform:translateY(14px);transition:opacity .4s,transform .7s var(--ease)}
+/* Startseite: links die letzte Fahrt und Losfahren, rechts der eigene Stand als Tafeln vor der Welt */
+#heim{padding:88px 44px 30px;opacity:0;transform:translateY(14px);transition:opacity .4s,transform .7s var(--ease)}
 #heim>*{pointer-events:none}
 body[data-stage=lobby][data-sicht=start] #heim{opacity:1;transform:none}
 body[data-stage=lobby][data-sicht=start] #heim>*{pointer-events:auto}
 body:not([data-sicht=start]) #heim *,body:not([data-stage=lobby]) #heim *{pointer-events:none}
-.hm{max-width:min(860px,92vw)}
-.hm h1{margin:12px 0 0;font-size:clamp(44px,5.6vw,84px);line-height:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:.08em}
-.hm .stats{white-space:nowrap}
-.hm .stats.du{margin-top:12px}
+.hg{display:grid;grid-template-columns:minmax(0,1fr) min(720px,54vw);gap:36px;align-items:center;height:100%}
+.hm{min-width:0}
+.hm h1{margin:12px 0 0;font-size:clamp(34px,4.2vw,68px);line-height:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:.1em}
+.hm .stats{white-space:nowrap;gap:26px;margin-top:16px}
 .hm .stats[hidden]{display:none}
-.hm .go small{white-space:nowrap}
-@media (max-height:680px){.hm h1{font-size:44px}.hm .go{margin-top:20px}.hm>.lbl[style]{margin-top:20px!important}}
+.hm .go{flex-direction:column;align-items:flex-start;gap:12px}
+.hm .go small{white-space:nowrap;font-size:14px}
+.dash{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-content:start;max-height:100%;margin-top:0}
+.pn{padding:16px 18px 12px;border-radius:18px;min-width:0;background:rgba(16,11,26,.62)}
+.pn.breit{grid-column:1/-1}
+.pn[hidden]{display:none}
+.pz{display:flex;align-items:baseline;gap:12px;margin-top:6px;white-space:nowrap;min-width:0}
+.pz b{font-size:40px;line-height:1.1;font-weight:600}
+.pz b small{margin-left:5px;font-size:15px;font-weight:600;letter-spacing:0;color:var(--fg2)}
+.pz>span{min-width:0;font-size:13.5px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis}
+.pn>canvas{display:block;width:100%;height:76px;margin-top:8px}
+.pn .sz{min-height:38px}
+.pn:not(.breit) .sz .weg{display:none}
+.pn .sz:last-child{border-bottom:0}
+.pn .sz:first-of-type{margin-top:8px}
+.pn h2{margin:8px 0 4px;font-size:clamp(22px,2.3vw,32px);line-height:1.1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pn #saNeu{margin:0 0 6px}
+@media (max-width:1100px){.hm .stats{gap:16px}.hm .stats b{font-size:22px}.pz b{font-size:30px}.hg{gap:24px}}
+/* Fahrt ansehen: die Liste rückt zusammen, rechts die Zahlen, dahinter die Welt der Fahrt */
+.fh{cursor:pointer}
+.fh:hover,.fh.on{background:rgba(246,240,230,.06)}
+.fh.on b{color:var(--a)}
+body[data-fahrt] #fahrten .sicht.breit{width:min(520px,50vw)}
+body[data-fahrt] .fh{grid-template-columns:76px minmax(0,1fr) 70px}
+body[data-fahrt] .fh>:nth-child(n+4){display:none}
+.fd{position:absolute;right:44px;top:88px;width:min(400px,38vw);max-height:calc(100vh - 150px);margin:0;padding:20px 22px 18px;background:rgba(16,11,26,.66)}
+.fd[hidden],.fd canvas[hidden]{display:none}
+.fd h2{margin:8px 0 4px;font-size:clamp(22px,2.4vw,32px);line-height:1.1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fd canvas{display:block;width:100%;height:70px;margin:10px 0 2px}
+.fdz{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px;margin-top:14px;font-size:12.5px;color:var(--fg2);white-space:nowrap}
+.fdz span{overflow:hidden;text-overflow:ellipsis}
+.fdz b{display:block;font:600 22px "Sora",sans-serif;letter-spacing:-.03em;color:var(--fg)}

@@ -3,7 +3,7 @@
  * nächsten Start eine Fahrt. Geschrieben wird nur hier im Hauptprozess, nie aus der Grafik heraus. */
 const fs = require('node:fs');
 const path = require('node:path');
-const { punkte, bestAvg } = require('./kennzahl.cjs');
+const { punkte, bestAvg, detail } = require('./kennzahl.cjs');
 
 function createDaten(dir) {
   const D = { strecken: path.join(dir, 'strecken'), fahrten: path.join(dir, 'fahrten') };
@@ -99,6 +99,7 @@ function createDaten(dir) {
     dir,
     strecken: () => alle(D.strecken),
     streckeSpeichern: s => { schreib(path.join(D.strecken, safe(s.id) + '.json'), s); sk = null; liste = null; melde(); },
+    fahrtDetail: id => { const r = fahrt(id); return r ? detail(r, (lies(path.join(dir, 'werte.json'), null) || {}).ftp || 200) : null; },
     fahrten, fahrt, fahrtSpeichern, fahrtLoeschen, rivale, laeufe, streckeLoeschen,
     fahrtIds: () => fs.readdirSync(D.fahrten).filter(f => f.endsWith('.json')).map(f => lies(path.join(D.fahrten, f), null)).filter(Boolean).map(r => ({ id: r.id, neu: r.app === 'neu' })),
     aufAenderung: f => hoerer.push(f), lies, schreib,
