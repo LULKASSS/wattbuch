@@ -21,7 +21,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 interface Runde { st: Strecke; rt: Bahn; rtR?: Bahn; best: FahrtKurz | null; zuletzt: string | null; tag: string; min: number; seed: number }
 let runden: Runde[] = [], alleFahrten: FahrtKurz[] = [], pick = 0, ftp = 200, gewicht = 84, koerper = 75;
 let saison: Saison | null = null, plan: Tagesplan | null = null, heuteId: string | null = null;
-let testR: Runde | null = null, rev = false, halten = false, planP = 140, werteJetzt: Werte | null = null;
+let testR: Runde | null = null, rev = false, halten = true, planP = 140, werteJetzt: Werte | null = null;
 /* Bahn der Runde in der gewählten Richtung */
 const rtVon = (r: Runde) => rev && !r.st.test ? (r.rtR || (r.rtR = bahn(r.st, true))) : r.rt;
 const heuteTag = () => tagNr(new Date());
@@ -37,7 +37,7 @@ async function ladeRunden() {
   /* beim allerersten Start legt der Maschinenraum die ersten Runden gerade erst an */
   for (let i = 0; !strecken.length && i < 40; i++) { await new Promise(r => setTimeout(r, 250)); strecken = await W.strecken(); }
   werteJetzt = werte;
-  if (werte) { ftp = werte.ftp || ftp; koerper = werte.weight || 75; gewicht = koerper + (werte.bike || 9); halten = !!werte.erg; }
+  if (werte) { ftp = werte.ftp || ftp; koerper = werte.weight || 75; gewicht = koerper + (werte.bike || 9); halten = werte.erg !== false; }
   /* Die FTP zieht von selbst nach: 95 % der besten 20 Minuten der letzten sechs Wochen, wenn das mehr ist. Gezählt
      werden nur Fahrten, seit die FTP zuletzt gesetzt wurde. Nach unten geht sie nur von Hand oder per Test. */
   const hoeher = ftpHinweis(fahrten, heuteTag(), ftp, werte && werte.ftpAm);
@@ -273,7 +273,8 @@ function anzeige() {
   $('watt').style.color = wc; $('arc').style.stroke = wc; $('zone').style.color = wc;
   $('tick').style.transformOrigin = '165px 165px'; $('tick').style.transform = `rotate(${135 + clamp(z.ziel / skala, 0, 1) * 270}deg)`;
   $('zone').textContent = w == null ? 'Rolle wecken' : (lg === 'ok' ? 'Im Ziel' : lg === 'drunter' ? 'Mehr Druck' : 'Zu viel') + ' · ' + zone(w, z.ftp);
-  $('coachT').textContent = z.test ? `FTP-Test · Stufe ${z.test.stufe} · ${z.ziel} W` : (z.coach ? 'Coach · Ziel ' : 'Ziel ') + z.ziel + ' W' + (z.halten ? ' · hält' : '');
+  $('coachT').textContent = z.test ? `FTP-Test · Stufe ${z.test.stufe}` : (z.coach ? 'Coach' : 'Ziel') + (z.halten ? ' · hält' : '');
+  $('coachW').textContent = String(z.ziel);
   $('coach').classList.toggle('on', z.coach); $('pm').classList.toggle('auto', z.coach);
   /* Tempo: hervorgehoben, wenn schnell */
   const kmh = z.v * 3.6; $('kmh').textContent = fmt(kmh, 1); $('kmh').style.color = kmh >= 38 ? a : kmh < 16 ? 'var(--fg2)' : 'var(--fg)';
@@ -298,10 +299,15 @@ function anzeige() {
 
 /* ---------- Blätter: Geräte und Profil ---------- */
 let gemerkt: Gemerkt = {}, sucheArt: string | null = null;
+let gBild = '';
 const ARTEN: ['rolle' | 'puls' | 'kadenz', string][] = [['rolle', 'Rolle'], ['puls', 'Puls'], ['kadenz', 'Kadenz']];
 function zeigeGeraete() {
   const box = $('gRows'), g = z ? z.geraete : { rolle: 'aus', puls: 'aus', kadenz: 'aus' };
-  box.innerHTML = '';
+  /* Neu gebaut wird nur, wenn sich etwas geändert hat: Der Zustand kommt zehnmal pro Sekunde, und ein Knopf, der
+     zwischen Drücken und Loslassen ersetzt wird, nimmt den Klick nicht an. */
+  const bild = JSON.stringify([g, gemerkt, sucheArt]);
+  if (bild === gBild && box.children.length) return;
+  gBild = bild; box.innerHTML = '';
   for (const [art, name] of ARTEN) {
     const m = gemerkt[art], st = g[art], row = document.createElement('div'); row.className = 'gz';
     row.innerHTML = '<i></i><div><b></b><small></small></div><button type="button"></button>';

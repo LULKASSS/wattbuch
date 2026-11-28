@@ -93,7 +93,7 @@ body:not([data-stage=ride]) #hud *{pointer-events:none}
 #fade{position:fixed;left:0;right:0;bottom:0;height:340px;background:linear-gradient(transparent,rgba(7,6,13,.9));opacity:0;transition:opacity 1s ease .4s;pointer-events:none}
 body[data-stage=ride] #fade{opacity:1}
 .deck{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:end;gap:clamp(14px,3vw,52px);margin-bottom:64px}
-.grp{display:flex;gap:clamp(14px,2.4vw,38px);padding-bottom:50px}
+.grp{display:flex;gap:clamp(14px,2.4vw,38px);padding-bottom:70px}
 .gl{justify-content:flex-end}.gr{justify-content:flex-start}
 .stat{min-width:clamp(62px,7vw,104px);text-align:center;white-space:nowrap}
 .stat b{display:block;font-family:"Sora",sans-serif;font-weight:600;font-size:clamp(24px,2.9vw,40px);line-height:1;letter-spacing:-.035em}
@@ -113,6 +113,10 @@ body[data-stage=ride] #fade{opacity:1}
 #tick{transition:transform .5s var(--ease)}
 .pm{display:flex;justify-content:center;gap:10px;margin-top:8px;align-items:center;font-size:13px;color:var(--fg2)}
 .coach{color:var(--fg);display:inline-flex;align-items:center;gap:9px;height:36px;padding:0 16px 0 13px;border-radius:999px;border:1px solid rgba(246,240,230,.3);background:rgba(16,11,26,.6);font-size:13px;font-weight:600;white-space:nowrap;transition:border-color .3s,background .3s}
+.coach{height:56px;padding:0 22px 0 18px;font-size:15px;gap:11px}
+.coach b{color:#fff;font-size:38px;font-weight:600;line-height:1;letter-spacing:-.03em;margin-left:4px;font-variant-numeric:tabular-nums}
+.coach small{font-size:15px;color:var(--fg2);margin-left:-5px}
+#less,#more{flex:none}
 .coach i{width:8px;height:8px;border-radius:8px;background:var(--fg2);transition:background .3s,box-shadow .3s}
 .coach.on{border-color:rgba(243,181,107,.7)}
 .coach.on i{background:var(--a);box-shadow:0 0 10px var(--a)}
@@ -153,7 +157,7 @@ body[data-stage=done] .tags span{opacity:1;transform:none}
 body[data-stage=done] .tags span:nth-child(1){transition-delay:.9s}body[data-stage=done] .tags span:nth-child(2){transition-delay:1.05s}body[data-stage=done] .tags span:nth-child(3){transition-delay:1.2s}
 .tags span{height:34px;padding:0 14px;display:inline-flex;align-items:center;border-radius:999px;background:rgba(246,240,230,.1);font-size:13px}
 .res button{margin-top:26px;height:50px;padding:0 32px;border-radius:999px;background:var(--fg);color:var(--ink);font-family:"Sora",sans-serif;font-weight:700;font-size:16px}
-@media (max-width:1180px){.gauge{transform:scale(.74)}.grp{padding-bottom:42px}}
+@media (max-width:1180px){.gauge{transform:scale(.74)}.grp{padding-bottom:62px}}
 @media (max-width:900px){.dock .card:nth-child(n+3),.quest{display:none}.hero h1{font-size:56px}.gauge{transform:scale(.6)}.gr .stat:nth-child(3),.gl .stat:nth-child(3){display:none}}
 
 /* ---------- Neubau: Ergänzungen zum Entwurf ---------- */

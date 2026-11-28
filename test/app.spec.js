@@ -61,8 +61,11 @@ test('Ganze Runde: Countdown, Fahrt, Ergebnis, gespeichert; zweite Runde gegen d
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
   await expect(buehne.locator('#rName')).toHaveText('Testrunde');
   await expect(buehne.locator('#watt')).not.toHaveText('0');
-  await expect(buehne.locator('#coachT')).toContainText('Coach · Ziel');
-  /* Steigung der Strecke geht an die Rolle (halbe Stärke) */
+  await expect(buehne.locator('#coachT')).toHaveText('Coach · hält');
+  await expect(buehne.locator('#coachW')).toHaveText(/^\d+$/);
+  /* Vorgabe: die Rolle hält die Zielleistung; mit h spürt man die Steigung der Strecke (halbe Stärke) */
+  await expect.poll(() => maschine.evaluate(() => window.__fakeBle.ergTarget), { timeout: 10_000 }).toBeGreaterThan(50);
+  await buehne.keyboard.press('h');
   await expect.poll(() => maschine.evaluate(() => window.__fakeBle.grade), { timeout: 15_000 }).toBeGreaterThan(1);
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'done', { timeout: 60_000 });
   await expect(buehne.locator('#resL')).toHaveText('Erste Zeit');
@@ -105,7 +108,7 @@ test('Coach aus und an, Plus und Minus, Pfeiltasten, Pause, Auto-Pause, Runde be
   await buehne.click('#more'); await zielIst(ziel + 10);
   await buehne.click('#more'); await zielIst(ziel + 20);
   await buehne.click('#less'); await zielIst(ziel + 10);
-  await expect(buehne.locator('#coachT')).toHaveText(`Ziel ${ziel + 10} W`);
+  await expect(buehne.locator('#coachT')).toHaveText('Ziel · hält'); await expect(buehne.locator('#coachW')).toHaveText(String(ziel + 10));
   await buehne.click('#coach');
   await expect(buehne.locator('#pm')).toHaveClass(/auto/);
 
@@ -353,6 +356,10 @@ test('Geräte: ohne gemerktes Gerät sucht nichts von selbst; Erstwahl im Blatt,
   await maschine.evaluate(() => { window.__fakeBle.fail = null; });
   await buehne.click('#devB'); await buehne.click('.gz button[data-art=rolle]');
   await expect(buehne.locator('#devT')).toHaveText('Rolle bereit', { timeout: 10_000 });
+  /* die Knöpfe bleiben stehen, solange sich nichts ändert (sonst geht der Klick verloren) */
+  await buehne.evaluate(() => { document.querySelector('.gz button[data-art=puls]').dataset.steht = '1'; });
+  await warte(600);
+  await expect(buehne.locator('.gz button[data-art=puls]')).toHaveAttribute('data-steht', '1');
   await buehne.click('.gz button[data-art=puls]');   // „Vergessen“
   await expect.poll(gemerkt).toEqual({});
   expect(probleme).toEqual([]);
@@ -513,6 +520,8 @@ test('Rivalen und Fahrten: Segmente mit Bestzeit und Versuchen, Segment-Bestzeit
   await expect(buehne.locator('body')).toHaveAttribute('data-sicht', 'lobby');
   /* Fahrt mit viel Druck: am Fuß wird die Bestzeit angesagt, oben fällt sie, im Ergebnis steht es */
   await buehne.locator('#cards .card', { hasText: 'Testrunde' }).click(); await warte(600);
+  await buehne.click('#oHalt'); await expect(buehne.locator('#oHalt')).not.toHaveClass(/on/);   // ohne „Watt halten“: mehr Druck = schneller
+  await warte(900);
   await maschine.evaluate(() => { window.__simFahrer.faktor = 3; });
   const gesagt = []; await buehne.exposeFunction('__merk', t => gesagt.push(t));
   await buehne.evaluate(() => new MutationObserver(m => m.forEach(x => x.addedNodes.forEach(n => window.__merk(n.textContent)))).observe(document.getElementById('toasts'), { childList: true }));
@@ -628,7 +637,7 @@ test('FTP-Test: Rampe an der Rolle, Ergebnis wird die neue FTP', async () => {
   await buehne.click('#lvlB'); await buehne.click('#pTest');
   await expect(buehne.locator('body')).toHaveAttribute('data-stage', 'ride', { timeout: 10_000 });
   await expect(buehne.locator('#rName')).toHaveText('FTP-Test');
-  await expect(buehne.locator('#coachT')).toHaveText(/^FTP-Test · Stufe \d+ · \d+ W$/);
+  await expect(buehne.locator('#coachT')).toHaveText(/^FTP-Test · Stufe \d+$/);
   expect((await stand(maschine)).ziel).toBeGreaterThanOrEqual(100);
   await expect.poll(() => maschine.evaluate(() => window.__fakeBle.ergTarget), { timeout: 10_000 }).toBeGreaterThanOrEqual(100);   // die Rolle hält die Stufe
   await buehne.keyboard.press('ArrowUp'); await buehne.keyboard.press('c');   // im Test ohne Wirkung
@@ -652,6 +661,9 @@ test('FTP-Test: Rampe an der Rolle, Ergebnis wird die neue FTP', async () => {
 
 test('Watt halten und Gegenrichtung: zwei Schalter in der Lobby, Taste h in der Fahrt', async () => {
   const dir = ordner(), { app, buehne, maschine, probleme } = await starte(dir, 6);
+  /* „Watt halten“ ist die Vorgabe; aus und wieder an wird gemerkt */
+  await expect(buehne.locator('#oHalt')).toHaveClass(/on/);
+  await buehne.click('#oHalt'); await expect(buehne.locator('#oHalt')).not.toHaveClass(/on/);
   await buehne.click('#oHalt'); await expect(buehne.locator('#oHalt')).toHaveClass(/on/);
   await buehne.click('#oRev'); await expect(buehne.locator('#oRev')).toHaveClass(/on/);
   await expect.poll(() => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'daten', 'werte.json'), 'utf8')).erg; } catch { return null; } }).toBe(true);

@@ -97,7 +97,7 @@
     return svcs;
   });
   trainer._send = function () {
-    const v = F.vals, pow = Math.min(F.ergTarget != null ? F.ergTarget : v.power, F.maxPower ?? Infinity);
+    const v = F.vals, pow = Math.min(F.ergTarget != null && v.power > 0 ? F.ergTarget : v.power,   /* wer nicht tritt, leistet auch mit Zielleistung nichts */ F.maxPower ?? Infinity);
     const spd = Math.round(v.speed * 100), cad = Math.round(v.cad * 2), p = Math.round(pow) & 0xffff;
     if (F.trainerCad) { /* ohne Trittfrequenz in Indoor Bike Data */
       const flags = 0x40 | 0x200;

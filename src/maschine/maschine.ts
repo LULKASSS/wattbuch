@@ -68,7 +68,7 @@ function start(streckeId: string, rev: boolean, durchTritt: boolean, basis?: num
   if (st.test && !test) { starteTest(durchTritt); return; }
   F.rt = bahn(st, rev); F.climbs = anstiege(F.rt);
   F.haupt = F.climbs.slice().sort((a, b) => b.gain - a.gain)[0] || null;
-  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: basis && basis >= 60 ? basis : grundleistung(werte.ftp), halten: !!werte.erg, test: null, stufe: 0, rivale: null, vorn: false, gesagt: {}, ergebnis: null, segs: [], bestzeiten: 0 });
+  Object.assign(F, { phase: 'count', count: 3, durchTritt, rec: new Aufnahme(), t: 0, s: 0, up: 0, lastAlt: eleAt(F.rt, 0), coach: true, basis: basis && basis >= 60 ? basis : grundleistung(werte.ftp), halten: werte.erg !== false, test: null, stufe: 0, rivale: null, vorn: false, gesagt: {}, ergebnis: null, segs: [], bestzeiten: 0 });
   /* Segmente der Runde mit der bisherigen Bestzeit aus allen früheren Versuchen */
   const rt = F.rt;
   W.laeufe(streckeId, rev).then(l => { if (F.rt === rt) F.segs = segmente(rt).filter(s => s.art === 'anstieg').map(seg => { const v = versuche(seg, l); return { seg, best: v.length ? v[0].zeit : null, n: v.length }; }); });
